@@ -10,3 +10,6 @@ wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/acme
 ```
 wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/wordpress.sh && bash wordpress.sh
 ```
+
+
+###  快速批量搭建二级代理脚本
