@@ -1,5 +1,7 @@
 ###  acme.sh 证书一键申请脚本
 
+多功能管理
+
 ```
 wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/acme.sh && bash acme.sh
 ```
@@ -7,12 +9,16 @@ wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/acme
 
 ###  一键搭建LNMP环境的WordPress脚本
 
+自动配置https
+
 ```
 wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/wordpress.sh && bash wordpress.sh
 ```
 
 
 ###  快速批量搭建二级代理脚本
+
+xray内核 vmess入站，多sk5出站
 
 ```
 wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/vmess.sh && bash vmess.sh
