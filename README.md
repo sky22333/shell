@@ -13,3 +13,7 @@ wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/word
 
 
 ###  快速批量搭建二级代理脚本
+
+```
+wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/vmess.sh && bash vmess.sh
+```
