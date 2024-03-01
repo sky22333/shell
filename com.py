@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 def check_domain_availability(domain):
     try:
-        info = whois.whois(domain, timeout=10)
+        info = whois.whois(domain)
         return not bool(info.domain_name)
     except (whois.parser.PywhoisError, TimeoutError) as e:
         print(f"查询域名 {domain} 时发生错误：{e}")
