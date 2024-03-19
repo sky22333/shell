@@ -6,6 +6,36 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
+# 安装必要的软件
+install_requirements() {
+    local install_cmd=""
+    local pkg_manager=""
+    local os_type=$(grep '^ID=' /etc/os-release | cut -d'=' -f2)
+
+    if [ "$os_type" == "ubuntu" ] || [ "$os_type" == "debian" ]; then
+        pkg_manager="apt-get"
+        install_cmd="apt-get install -y"
+    elif [ "$os_type" == "centos" ]; then
+        pkg_manager="yum"
+        install_cmd="yum install -y"
+    else
+        echo -e "\033[0;31m不支持的操作系统: $os_type\033[0m"
+        exit 1
+    fi
+
+    # 检查并安装 lsof
+    if ! command -v lsof &> /dev/null; then
+        echo "正在安装 lsof..."
+        $install_cmd lsof
+    fi
+
+    # 检查并安装 curl
+    if ! command -v curl &> /dev/null; then
+        echo "正在安装 curl..."
+        $install_cmd curl
+    fi
+}
+
 # 生成12位纯英文的随机邮箱
 generate_random_email() {
     local random_email=$(tr -dc 'a-z' < /dev/urandom | fold -w 12 | head -n 1)
@@ -20,6 +50,28 @@ check_acme_installation() {
         source ~/.bashrc
     else
         echo -e "\033[0;32macme.sh 已安装\033[0m"
+    fi
+}
+
+# 检查端口 80 是否被占用，并提供释放端口的选项
+check_port_80() {
+    local pid
+    pid=$(lsof -ti:80)
+
+    if [ -n "$pid" ]; then
+        echo -e "\033[0;31m端口 80 已被占用，PID为: $pid\033[0m"
+        read -p "是否强制释放端口 80? (Y/n): " response
+
+        case "$response" in 
+            [yY][eE][sS]|[yY])
+                echo "正在释放端口 80..."
+                kill -9 $pid
+                ;;
+            *)
+                echo "未释放端口，脚本将退出。"
+                exit 1
+                ;;
+        esac
     fi
 }
 
@@ -58,8 +110,12 @@ generate_ssl_certificate() {
 }
 
 # 主流程
+install_requirements
 echo -e "\033[0;32m请输入您的域名（确保已经解析到本机IP）:\033[0m"
 read -p "" domain_name
+
+# 检查端口 80
+check_port_80
 
 # 检查证书和密钥是否已经存在
 cert_path="/etc/ssl/$domain_name.cer"
