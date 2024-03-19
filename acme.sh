@@ -2,26 +2,24 @@
 
 # 检查是否以 root 用户运行
 if [ "$(id -u)" != "0" ]; then
-    echo "请以 root 用户运行此脚本"
+    echo -e "\033[0;31m请以 root 用户运行此脚本\033[0m"
     exit 1
 fi
 
-# 生成更真实的随机邮箱
+# 生成12位纯英文的随机邮箱
 generate_random_email() {
-    local part_one=$(tr -dc 'a-z0-9' < /dev/urandom | fold -w 8 | head -n 1)
-    local part_two=$(tr -dc 'a-z0-9' < /dev/urandom | fold -w 4 | head -n 1)
-    local part_three=$(tr -dc 'a-z0-9' < /dev/urandom | fold -w 4 | head -n 1)
-    echo "${part_one}.${part_two}${part_three}@gmail.com"
+    local random_email=$(tr -dc 'a-z' < /dev/urandom | fold -w 12 | head -n 1)
+    echo "${random_email}@gmail.com"
 }
 
 # 检测 acme.sh 是否安装
 check_acme_installation() {
     if ! command -v acme.sh &> /dev/null; then
-        echo "acme.sh 未安装，正在安装..."
+        echo -e "\033[0;32macme.sh 未安装，正在安装...\033[0m"
         curl https://get.acme.sh | sh
         source ~/.bashrc
     else
-        echo "acme.sh 已安装"
+        echo -e "\033[0;32macme.sh 已安装\033[0m"
     fi
 }
 
@@ -29,7 +27,7 @@ check_acme_installation() {
 register_ca() {
     local ca="$1"
     local email="$2"
-    echo "正在注册 CA 机构 $ca 使用电子邮件 $email..."
+    echo -e "\033[0;32m正在注册 CA 机构 $ca 使用电子邮件 $email...\033[0m"
     ~/.acme.sh/acme.sh --register-account -m "$email" --server "$ca"
 }
 
@@ -37,14 +35,13 @@ register_ca() {
 generate_ssl_certificate() {
     local domain_name="$1"
     local ca="$2"
-    echo "正在为 $domain_name 生成 SSL 证书..."
-    systemctl stop nginx
+    echo -e "\033[0;32m正在为 $domain_name 生成 SSL 证书...\033[0m"
 
     # 使用 acme.sh 生成证书
     ~/.acme.sh/acme.sh --issue --standalone -d "$domain_name" --server "$ca"
 
     if [ $? -ne 0 ]; then
-        echo "SSL 证书生成失败"
+        echo -e "\033[0;31mSSL 证书生成失败\033[0m"
         exit 1
     fi
 
@@ -53,8 +50,7 @@ generate_ssl_certificate() {
 
     ~/.acme.sh/acme.sh --install-cert -d "$domain_name" \
         --key-file "$key_path"  \
-        --fullchain-file "$cert_path" \
-        --reloadcmd "systemctl restart nginx"
+        --fullchain-file "$cert_path"
 
     # 显示证书和密钥的路径
     echo -e "\033[0;32m证书路径: $cert_path"
@@ -62,32 +58,34 @@ generate_ssl_certificate() {
 }
 
 # 主流程
-read -p "请输入您的域名: " domain_name
+echo -e "\033[0;32m请输入您的域名:\033[0m"
+read -p "" domain_name
 
 # 检查证书和密钥是否已经存在
 cert_path="/etc/ssl/$domain_name.cer"
 key_path="/etc/ssl/$domain_name.key"
 
 if [ -f "$cert_path" ] && [ -f "$key_path" ]; then
-    echo -e "\033[0;32m证书已存在:"
-    echo -e "证书路径: $cert_path"
-    echo -e "密钥路径: $key_path\033[0m"
+    echo -e "\033[0;32m证书已存在:\033[0m"
+    echo -e "\033[0;32m证书路径: $cert_path\033[0m"
+    echo -e "\033[0;32m密钥路径: $key_path\033[0m"
     exit 0
 fi
 
 # 生成随机邮箱
 user_email=$(generate_random_email)
-echo "生成的邮箱: $user_email"
+echo -e "\033[0;32m生成的邮箱: $user_email\033[0m"
 
 # 检查 acme.sh 安装
 check_acme_installation
 
 # CA 机构选择
-echo "请选择 CA 机构:"
-echo "1) Let's Encrypt"
-echo "2) Buypass"
-echo "3) ZeroSSL"
-read -p "选择 CA 机构 (默认: 1): " ca_choice
+echo -e "\033[0;32m请选择 CA 机构:\033[0m"
+echo -e "\033[0;32m1) Let's Encrypt\033[0m"
+echo -e "\033[0;32m2) Buypass\033[0m"
+echo -e "\033[0;32m3) ZeroSSL\033[0m"
+echo -e "\033[0;32m选择 CA 机构 (默认: 1):\033[0m"
+read -p "" ca_choice
 
 case $ca_choice in
     2)
