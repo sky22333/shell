@@ -58,7 +58,7 @@ generate_ssl_certificate() {
 }
 
 # 主流程
-echo -e "\033[0;32m请输入您的域名:\033[0m"
+echo -e "\033[0;32m请输入您的域名（确保已经解析到本机IP）:\033[0m"
 read -p "" domain_name
 
 # 检查证书和密钥是否已经存在
@@ -84,7 +84,7 @@ echo -e "\033[0;32m请选择 CA 机构:\033[0m"
 echo -e "\033[0;32m1) Let's Encrypt\033[0m"
 echo -e "\033[0;32m2) Buypass\033[0m"
 echo -e "\033[0;32m3) ZeroSSL\033[0m"
-echo -e "\033[0;32m选择 CA 机构 (默认: 1):\033[0m"
+echo -e "\033[0;32m选择 CA 机构 (回车默认选1):\033[0m"
 read -p "" ca_choice
 
 case $ca_choice in
