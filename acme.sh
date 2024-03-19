@@ -98,7 +98,7 @@ generate_ssl_certificate() {
 
     # 打印 fullchain.cer 和 .key 文件的绝对路径
     echo -e "\033[0;32m证书路径: $cert_path\033[0m"
-    echo -e "\033[0;32m私钥路径: $key_path\033[0m"
+    echo -e "\033[0;32m密钥路径: $key_path\033[0m"
 }
 # 主流程
 install_requirements
@@ -115,7 +115,7 @@ key_path="/root/.acme.sh/${domain_name}_ecc/${domain_name}.key"
 if [ -f "$cert_path" ] && [ -f "$key_path" ]; then
     echo -e "\033[0;32m证书已存在:\033[0m"
     echo -e "\033[0;32m证书全链路径: $cert_path\033[0m"
-    echo -e "\033[0;32m私钥文件路径: $key_path\033[0m"
+    echo -e "\033[0;32m密钥文件路径: $key_path\033[0m"
     exit 0
 fi
 
