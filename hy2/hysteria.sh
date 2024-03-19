@@ -133,7 +133,9 @@ inst_cert(){
                     yellow "私钥key文件路径如下: /root/private.key"
                     hy_domain=$domain
 
-                    chmod 755 /root/private.key
+                    chmod 700 /root/private.key
+                    chmod 755 /root/cert.crt
+
                 fi
             else
                 red "当前域名解析的IP与当前VPS使用的真实IP不匹配"
