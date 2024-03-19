@@ -140,7 +140,7 @@ inst_cert(){
                 green "建议如下："
                 yellow "1. 请确保CloudFlare小云朵为关闭状态(仅限DNS)"
                 yellow "2. 请检查DNS解析设置的IP是否为VPS的真实IP"
-                yellow "3. 如果你是刚更换的DNS解析则需等待一段时间"
+                yellow "3. 建议使用根域名"
                 exit 1
             fi
         fi
