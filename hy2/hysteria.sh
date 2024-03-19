@@ -132,9 +132,7 @@ inst_cert(){
                     yellow "证书crt文件路径如下: /root/cert.crt"
                     yellow "私钥key文件路径如下: /root/private.key"
                     hy_domain=$domain
-
-                    chmod 700 /root/private.key
-                    chmod 755 /root/cert.crt
+                    chmod 755 /root/private.key
 
                 fi
             else
