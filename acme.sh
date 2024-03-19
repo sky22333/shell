@@ -89,8 +89,8 @@ generate_ssl_certificate() {
     local ca="$2"
     echo -e "\033[0;32m正在为 $domain_name 生成 SSL 证书...\033[0m"
 
-    # 使用 acme.sh 生成证书
-    ~/.acme.sh/acme.sh --issue --standalone -d "$domain_name" --server "$ca"
+    # 使用 acme.sh 强制生成证书
+    ~/.acme.sh/acme.sh --issue --force --standalone -d "$domain_name" --server "$ca"
 
     if [ $? -ne 0 ]; then
         echo -e "\033[0;31mSSL 证书生成失败\033[0m"
