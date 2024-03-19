@@ -109,15 +109,16 @@ read -p "" domain_name
 check_port_80
 
 # 检查证书和密钥是否已经存在
-cert_path="/etc/ssl/$domain_name.cer"
-key_path="/etc/ssl/$domain_name.key"
+cert_path="/root/.acme.sh/${domain_name}_ecc/fullchain.cer"
+key_path="/root/.acme.sh/${domain_name}_ecc/${domain_name}.key"
 
 if [ -f "$cert_path" ] && [ -f "$key_path" ]; then
     echo -e "\033[0;32m证书已存在:\033[0m"
-    echo -e "\033[0;32m证书路径: $cert_path\033[0m"
-    echo -e "\033[0;32m密钥路径: $key_path\033[0m"
+    echo -e "\033[0;32m证书全链路径: $cert_path\033[0m"
+    echo -e "\033[0;32m私钥文件路径: $key_path\033[0m"
     exit 0
 fi
+
 
 # 生成随机邮箱
 user_email=$(generate_random_email)
