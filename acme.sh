@@ -25,13 +25,13 @@ install_requirements() {
 
     # 检查并安装 lsof
     if ! command -v lsof &> /dev/null; then
-        echo "正在安装 lsof..."
+
         $install_cmd lsof
     fi
 
     # 检查并安装 curl
     if ! command -v curl &> /dev/null; then
-        echo "正在安装 curl..."
+
         $install_cmd curl
     fi
 }
