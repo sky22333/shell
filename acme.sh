@@ -89,17 +89,17 @@ generate_ssl_certificate() {
         exit 1
     fi
 
-    local cert_path="/etc/ssl/$domain_name.cer"
-    local key_path="/etc/ssl/$domain_name.key"
+    local cert_path="/root/.acme.sh/${domain_name}_ecc/fullchain.cer"
+    local key_path="/root/.acme.sh/${domain_name}_ecc/${domain_name}.key"
 
     ~/.acme.sh/acme.sh --install-cert -d "$domain_name" \
         --key-file "$key_path"  \
         --fullchain-file "$cert_path"
 
-    echo -e "\033[0;32m证书路径: $cert_path"
-    echo -e "密钥路径: $key_path\033[0m"
+    # 打印 fullchain.cer 和 .key 文件的绝对路径
+    echo -e "\033[0;32m证书路径: $cert_path\033[0m"
+    echo -e "\033[0;32m私钥路径: $key_path\033[0m"
 }
-
 # 主流程
 install_requirements
 echo -e "\033[0;32m请输入您的域名（确保已经解析到本机IP）:\033[0m"
