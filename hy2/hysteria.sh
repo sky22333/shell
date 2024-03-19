@@ -540,6 +540,7 @@ showconf(){
     red "$(cat /root/hy/url.txt)"
     yellow "Hysteria 2 节点单端口的分享链接如下，并保存到 /root/hy/url.txt"
     red "$(cat /root/hy/url-nohop.txt)"
+    green "使用自己域名搭建需在脚本运行完成后执行：sudo chmod 755 /root/private.key"
 }
 
 update_core(){
@@ -551,6 +552,7 @@ update_core(){
 
 menu() {
     clear
+    echo -e " 提示：小白第一次使用直接一路回车即可 "
     echo -e " ${GREEN}1.${PLAIN} 安装 Hysteria 2"
     echo -e " ${GREEN}2.${PLAIN} ${RED}卸载 Hysteria 2${PLAIN}"
     echo " -------------"
