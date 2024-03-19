@@ -542,6 +542,7 @@ showconf(){
     red "$(cat /root/hy/url.txt)"
     yellow "Hysteria 2 节点单端口的分享链接如下，并保存到 /root/hy/url.txt"
     red "$(cat /root/hy/url-nohop.txt)"
+    yellow "Hysteria 2 客户端配置本地监听端口为5080，可自行更改"
 }
 
 update_core(){
