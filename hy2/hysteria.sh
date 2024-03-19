@@ -132,6 +132,8 @@ inst_cert(){
                     yellow "证书crt文件路径如下: /root/cert.crt"
                     yellow "私钥key文件路径如下: /root/private.key"
                     hy_domain=$domain
+
+                    chmod 755 /root/private.key
                 fi
             else
                 red "当前域名解析的IP与当前VPS使用的真实IP不匹配"
@@ -540,7 +542,6 @@ showconf(){
     red "$(cat /root/hy/url.txt)"
     yellow "Hysteria 2 节点单端口的分享链接如下，并保存到 /root/hy/url.txt"
     red "$(cat /root/hy/url-nohop.txt)"
-    green "使用自己域名搭建需在脚本运行完成后执行：sudo chmod 755 /root/private.key"
 }
 
 update_core(){
