@@ -138,9 +138,9 @@ inst_cert(){
             else
                 red "当前域名解析的IP与当前VPS使用的真实IP不匹配"
                 green "建议如下："
-                yellow "1. 请确保CloudFlare小云朵为关闭状态(仅限DNS), 其他域名解析或CDN网站设置同理"
+                yellow "1. 请确保CloudFlare小云朵为关闭状态(仅限DNS)"
                 yellow "2. 请检查DNS解析设置的IP是否为VPS的真实IP"
-                yellow "3. 脚本可能跟不上时代, 建议截图发布到GitHub Issues、GitLab Issues、论坛或TG群询问"
+                yellow "3. 如果你是刚更换的DNS解析则需等待一段时间"
                 exit 1
             fi
         fi
