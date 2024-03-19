@@ -25,7 +25,7 @@ wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/word
 wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/vmess.sh && bash vmess.sh
 ```
 
-### Hysteria 2 一键安装脚本
+### Hysteria 2 一键搭建脚本
 
 ```
 wget -N --no-check-certificate https://raw.githubusercontent.com/taotao1058/shell/main/hy2/hysteria.sh && bash hysteria.sh
