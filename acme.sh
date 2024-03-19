@@ -1,12 +1,10 @@
 #!/bin/bash
 
-# 检查是否以 root 用户运行
 if [ "$(id -u)" != "0" ]; then
     echo -e "\033[0;31m请以 root 用户运行此脚本\033[0m"
     exit 1
 fi
 
-# 安装必要的软件
 install_requirements() {
     local install_cmd=""
     local pkg_manager=""
@@ -23,13 +21,11 @@ install_requirements() {
         exit 1
     fi
 
-    # 检查并安装 lsof
     if ! command -v lsof &> /dev/null; then
 
         $install_cmd lsof
     fi
 
-    # 检查并安装 curl
     if ! command -v curl &> /dev/null; then
 
         $install_cmd curl
@@ -42,7 +38,6 @@ generate_random_email() {
     echo "${random_email}@gmail.com"
 }
 
-# 检测 acme.sh 是否安装
 check_acme_installation() {
     if ! command -v acme.sh &> /dev/null; then
         echo -e "\033[0;32macme.sh 未安装，正在安装...\033[0m"
@@ -75,7 +70,6 @@ check_port_80() {
     fi
 }
 
-# 注册 CA 机构
 register_ca() {
     local ca="$1"
     local email="$2"
@@ -83,13 +77,11 @@ register_ca() {
     ~/.acme.sh/acme.sh --register-account -m "$email" --server "$ca"
 }
 
-# 生成 SSL 证书
 generate_ssl_certificate() {
     local domain_name="$1"
     local ca="$2"
     echo -e "\033[0;32m正在为 $domain_name 生成 SSL 证书...\033[0m"
 
-    # 使用 acme.sh 强制生成证书
     ~/.acme.sh/acme.sh --issue --force --standalone -d "$domain_name" --server "$ca"
 
     if [ $? -ne 0 ]; then
@@ -104,7 +96,6 @@ generate_ssl_certificate() {
         --key-file "$key_path"  \
         --fullchain-file "$cert_path"
 
-    # 显示证书和密钥的路径
     echo -e "\033[0;32m证书路径: $cert_path"
     echo -e "密钥路径: $key_path\033[0m"
 }
