@@ -34,3 +34,16 @@ wget -N --no-check-certificate https://raw.githubusercontent.com/taotao1058/shel
 ```
 wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/xray.sh && bash xray.sh
 ```
+
+### 批量搭建vmess节点并把节点信息传输到另一台机器
+
+一：先把`x.sh`文件中的第88行填入你目的主机的密码和IP
+二：目的主机需在`home`目录下创建`xray.txt`文件
+```
+touch /home/xray.txt
+```
+三：然后再执行此脚本
+
+```
+wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/x.sh && bash x.sh
+```
