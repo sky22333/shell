@@ -48,3 +48,8 @@ touch /home/xray.txt
 ```
 wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/x.sh && bash x.sh
 ```
+
+### 批量管理多台服务器脚本
+```
+wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/ssh.sh && bash ssh.sh
+```
