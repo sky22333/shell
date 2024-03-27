@@ -19,6 +19,9 @@ if [ ! -f "$server_info_file" ]; then
     exit 1
 fi
 
+# 读取服务器信息并存储到数组中
+mapfile -t servers < "$server_info_file"
+
 # 循环，直到用户决定停止
 while true; do
     echo "请输入要在所有服务器上执行的脚本/命令:"
@@ -30,13 +33,12 @@ while true; do
         read -r answer
         if [ "$answer" = "y" ]; then
             break
-        else
-            continue
         fi
     fi
 
-    # 读取服务器信息并执行命令
-    while IFS=' ' read -r ip port user password; do
+    # 遍历服务器信息数组并执行命令
+    for server_info in "${servers[@]}"; do
+        read -r ip port user password <<< "$server_info"
         echo -e "正在连接到 ${green}$ip${none}..."
         sshpass -p "$password" ssh -o StrictHostKeyChecking=no -p "$port" "$user@$ip" -Tn "$command" > /tmp/output_ssh.txt 2>&1
         exit_status=$?
@@ -48,7 +50,7 @@ while true; do
             cat /tmp/output_ssh.txt
         fi
         rm /tmp/output_ssh.txt
-    done < "$server_info_file"
+    done
 
     # 询问用户是否继续输入另一个命令
     echo "你想要执行另一个脚本/命令吗？(y/n)"
