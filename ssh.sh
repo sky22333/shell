@@ -11,7 +11,7 @@ if ! command -v sshpass &> /dev/null; then
 fi
 
 # 服务器信息文件路径
-server_info_file="servers.txt"
+server_info_file="ssh.txt"
 
 # 检查服务器信息文件是否存在
 if [ ! -f "$server_info_file" ]; then
