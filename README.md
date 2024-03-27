@@ -29,3 +29,8 @@ wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/vmes
 ```
 wget -N --no-check-certificate https://raw.githubusercontent.com/taotao1058/shell/main/hy2/hysteria.sh && bash hysteria.sh
 ```
+
+### vmess+ws一键脚本
+```
+wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/xray.sh && bash xray.sh
+```
