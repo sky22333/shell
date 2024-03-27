@@ -11,7 +11,7 @@ if ! command -v sshpass &> /dev/null; then
 fi
 
 # 服务器信息文件路径
-server_info_file="servers.txt"
+server_info_file="ssh.txt"
 
 # 检查服务器信息文件是否存在
 if [ ! -f "$server_info_file" ]; then
@@ -38,15 +38,16 @@ while true; do
     # 读取服务器信息并执行命令
     while IFS=' ' read -r ip port user password; do
         echo -e "正在连接到 ${green}$ip${none}..."
-        output=$(sshpass -p "$password" ssh -o StrictHostKeyChecking=no -p "$port" "$user@$ip" -n "$command" 2>&1)
+        sshpass -p "$password" ssh -o StrictHostKeyChecking=no -p "$port" "$user@$ip" -Tn "$command" > /tmp/output_ssh.txt 2>&1
         exit_status=$?
         if [ $exit_status -eq 0 ]; then
             echo -e "${green}$ip 上的命令执行成功:${none}"
-            echo -e "${green}$output${none}"
+            cat /tmp/output_ssh.txt
         else
             echo -e "${green}$ip 上的命令执行失败，错误信息:${none}"
-            echo -e "${green}$output${none}"
+            cat /tmp/output_ssh.txt
         fi
+        rm /tmp/output_ssh.txt
     done < "$server_info_file"
 
     # 询问用户是否继续输入另一个命令
