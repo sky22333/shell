@@ -74,14 +74,13 @@ configure_and_transfer() {
 EOF
 
     local ip=$(curl -s http://ipinfo.io/ip)
-    local config="vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"英国TK专用\",\"add\":\"$ip\",\"port\":$PORT,\"id\":\"$UUID\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/$RANDOM_PATH\",\"type\":\"none\",\"host\":\"\",\"tls\":\"\"}" | base64 -w 0)"
+    local config="vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"TK节点定制\",\"add\":\"$ip\",\"port\":$PORT,\"id\":\"$UUID\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/$RANDOM_PATH\",\"type\":\"none\",\"host\":\"\",\"tls\":\"\"}" | base64 -w 0)"
     echo -e "${green}Vmess 节点配置信息:${none}"
     echo $config
 
     echo $config > /tmp/xray_config.txt
-    sshpass -p 'D[2h-+Uy*P?dcUN{' ssh -o StrictHostKeyChecking=no root@202.182.118.164 "cat >> /home/xray.txt" < /tmp/xray_config.txt
+    sshpass -p '密码' ssh -o StrictHostKeyChecking=no root@地址 "cat >> /home/xray.txt" < /tmp/xray_config.txt
 }
-
 # 主执行逻辑
 install_dependencies
 configure_and_transfer
