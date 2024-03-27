@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# 定义颜色输出
+green='\033[0;32m'
+none='\033[0m' # 没有颜色
+
 # 检查并安装 sshpass
 if ! command -v sshpass &> /dev/null; then
     echo "sshpass could not be found, attempting to install..."
@@ -34,8 +38,13 @@ while true; do
 
     # 读取服务器信息并执行命令
     while IFS=' ' read -r ip port user password; do
-        echo "Connecting to $ip..."
+        echo -e "Connecting to ${green}$ip${none}..."
         sshpass -p "$password" ssh -o StrictHostKeyChecking=no -p "$port" "$user@$ip" "$command"
+        if [ $? -eq 0 ]; then
+            echo -e "Command executed successfully on ${green}$ip${none}."
+        else
+            echo -e "Failed to execute command on ${green}$ip${none}."
+        fi
     done < "$server_info_file"
 
     # 询问用户是否继续输入另一个命令
