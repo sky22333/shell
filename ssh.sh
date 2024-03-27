@@ -11,7 +11,7 @@ if ! command -v sshpass &> /dev/null; then
 fi
 
 # 服务器信息文件路径
-server_info_file="ssh.txt"
+server_info_file="servers.txt"
 
 # 检查服务器信息文件是否存在
 if [ ! -f "$server_info_file" ]; then
@@ -19,8 +19,26 @@ if [ ! -f "$server_info_file" ]; then
     exit 1
 fi
 
-# 读取服务器信息并存储到数组中
-mapfile -t servers < "$server_info_file"
+# 执行命令的函数
+execute_command() {
+    local ip=$1
+    local port=$2
+    local user=$3
+    local password=$4
+    local command=$5
+
+    echo -e "正在连接到 ${green}$ip${none}..."
+    sshpass -p "$password" ssh -o StrictHostKeyChecking=no -p "$port" "$user@$ip" -Tn "$command" > /tmp/output_ssh.txt 2>&1
+    exit_status=$?
+    if [ $exit_status -eq 0 ]; then
+        echo -e "${green}$ip 上的命令执行成功:${none}"
+        cat /tmp/output_ssh.txt
+    else
+        echo -e "${green}$ip 上的命令执行失败，错误信息:${none}"
+        cat /tmp/output_ssh.txt
+    fi
+    rm /tmp/output_ssh.txt
+}
 
 # 循环，直到用户决定停止
 while true; do
@@ -36,21 +54,10 @@ while true; do
         fi
     fi
 
-    # 遍历服务器信息数组并执行命令
-    for server_info in "${servers[@]}"; do
-        read -r ip port user password <<< "$server_info"
-        echo -e "正在连接到 ${green}$ip${none}..."
-        sshpass -p "$password" ssh -o StrictHostKeyChecking=no -p "$port" "$user@$ip" -Tn "$command" > /tmp/output_ssh.txt 2>&1
-        exit_status=$?
-        if [ $exit_status -eq 0 ]; then
-            echo -e "${green}$ip 上的命令执行成功:${none}"
-            cat /tmp/output_ssh.txt
-        else
-            echo -e "${green}$ip 上的命令执行失败，错误信息:${none}"
-            cat /tmp/output_ssh.txt
-        fi
-        rm /tmp/output_ssh.txt
-    done
+    # 读取服务器信息并执行命令
+    while IFS=' ' read -r ip port user password; do
+        execute_command "$ip" "$port" "$user" "$password" "$command"
+    done < "$server_info_file"
 
     # 询问用户是否继续输入另一个命令
     echo "你想要执行另一个脚本/命令吗？(y/n)"
