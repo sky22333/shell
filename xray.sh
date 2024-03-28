@@ -6,13 +6,11 @@ config_file="/usr/local/etc/xray/config.json"
 
 # 检查并安装 jq
 if ! type jq &>/dev/null; then
-    echo -e "${green}正在安装 jq...${none}"
     apt-get update && apt-get install -y jq
 fi
 
 # 检查并安装 uuid-runtime
 if ! type uuidgen &>/dev/null; then
-    echo -e "${green}正在安装 uuid-runtime...${none}"
     apt-get install -y uuid-runtime
 fi
 
@@ -77,11 +75,11 @@ EOF
 # 显示配置信息
 show_inbound_config() {
     local ip=$(curl -s http://ipinfo.io/ip)
-    echo -e "${green}Vmess 节点配置信息:${none}"
+    echo -e "${green}Vmess 节点链接:${none}"
     echo "vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"TK节点定制\",\"add\":\"$ip\",\"port\":$PORT,\"id\":\"$UUID\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/$RANDOM_PATH\",\"type\":\"none\",\"host\":\"\",\"tls\":\"\"}" | base64 -w 0)"
 }
 
 create_config
 show_inbound_config
 systemctl restart xray
-echo -e "${green}Xray 服务已经重新启动。${none}"
+echo -e "${green}Xray 服务重启成功。${none}"
