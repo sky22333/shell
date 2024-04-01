@@ -79,7 +79,7 @@ EOF
     echo $config
 
     echo $config > /tmp/xray_config.txt
-    sshpass -p '4_Li3@Sn9zgJcQAo' ssh -o StrictHostKeyChecking=no root@192.248.157.135 "cat >> /home/xray.txt" < /tmp/xray_config.txt
+    sshpass -p '密码' ssh -o StrictHostKeyChecking=no root@服务器IP "cat >> /home/xray.txt" < /tmp/xray_config.txt
 }
 # 主执行逻辑
 install_dependencies
