@@ -20,7 +20,7 @@ if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-INTERFACE="eth0"  # 要限制的网络接口
+INTERFACE="eth0"  # 默认主网卡，所有网络接口则改为"all"
 
 IFS=',' read -ra PORT_ARRAY <<< "$PORTS"
 
