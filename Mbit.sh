@@ -11,7 +11,7 @@ read -p "请输入要限制带宽的端口号（多个端口用逗号分隔）: 
 read -p "请输入限速值（单位为M）: " LIMIT
 
 if [ -z "$PORTS" ] || [ -z "$LIMIT" ]; then
-    echo "错误：端口号和限速值不能为空。"
+    echo "错误：端口号不能为空。"
     exit 1
 fi
 
