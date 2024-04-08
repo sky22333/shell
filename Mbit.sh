@@ -33,4 +33,4 @@ do
     echo -e "${GREEN}端口 $PORT 的带宽限制已设置为 ${LIMIT}Mbit。${NC}"
 done
 
-echo -e "${YELLOW}如果需要更改请先清除限速：sudo tc qdisc del dev $INTERFACE root${NC}"
+echo -e "${YELLOW}如果要更改配置请先清除限速规则：sudo tc qdisc del dev $INTERFACE root${NC}"
