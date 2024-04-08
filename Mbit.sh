@@ -25,5 +25,5 @@ do
     echo -e "${GREEN}端口 $PORT 的带宽限制已设置为 ${LIMIT}Mbit。${NC}"
 done
 
-echo -e "${YELLOW}要解除限速请执行 sudo tc qdisc del dev eth0 root${NC}"
+echo -e "${YELLOW}要解除限速请执行：sudo tc qdisc del dev eth0 root${NC}"
 systemctl restart systemd-networkd
