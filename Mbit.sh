@@ -1,6 +1,7 @@
 #!/bin/bash
 
 GREEN='\033[0;32m'  # 绿色
+YELLOW='\033[1;33m' # 黄色
 NC='\033[0m'        # 恢复默认颜色
 
 apt update
@@ -24,4 +25,5 @@ do
     echo -e "${GREEN}端口 $PORT 的带宽限制已设置为 ${LIMIT}Mbit。${NC}"
 done
 
+echo -e "${YELLOW}要解除限速请执行 sudo tc qdisc del dev eth0 root${NC}"
 systemctl restart systemd-networkd
