@@ -55,3 +55,12 @@ wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/x.sh
 ```
 wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/ssh.sh && bash ssh.sh
 ```
+
+
+###  端口限速脚本
+
+
+
+```
+wget -N --no-check-certificate https://github.com/taotao1058/shell/raw/main/Mbit.sh && bash Mbit.sh
+```
