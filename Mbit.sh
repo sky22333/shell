@@ -1,8 +1,8 @@
 #!/bin/bash
 
-GREEN='\033[0;32m'  # 绿色
-YELLOW='\033[1;33m' # 黄色
-NC='\033[0m'        # 恢复默认颜色
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
 apt update
 apt install -y iproute2
@@ -13,7 +13,6 @@ read -p "请输入限速值（单位为M）: " LIMIT
 
 INTERFACE="eth0"  # 要限制的网络接口
 
-# 使用逗号分隔端口号
 IFS=',' read -ra PORT_ARRAY <<< "$PORTS"
 
 for PORT in "${PORT_ARRAY[@]}"
