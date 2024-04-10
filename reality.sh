@@ -106,8 +106,8 @@ EOF
 # 显示配置信息
 show_inbound_config() {
     local ip=$(curl -s http://ipinfo.io/ip)
-    echo -e "${green}Vless-reality节点链接:${none}"
-    echo "vless://$(echo -n "{\"v\":\"2\",\"ps\":\"Vless-reality\",\"add\":\"$ip\",\"port\":443,\"id\":\"$UUID\",\"net\":\"grpc\",\"path\":\"/$RANDOM_PATH\",\"tls\":\"\",\"sni\":\"tesla.com\",\"type\":\"none\",\"host\":\"\"}" | base64 -w 0)"
+    echo -e "${green}Vless+reality节点链接:${none}"
+    echo "vless://$(echo -n "{\"v\":\"2\",\"ps\":\"vless+reality\",\"add\":\"$ip\",\"port\":443,\"id\":\"$UUID\",\"net\":\"grpc\",\"path\":\"/$RANDOM_PATH\",\"tls\":\"\",\"sni\":\"tesla.com\",\"type\":\"none\",\"host\":\"\",\"fingerprint\":\"chrome\"}" | base64 -w 0)"
 }
 
 create_config
