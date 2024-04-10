@@ -20,6 +20,9 @@ if ! type xray &>/dev/null; then
     bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
 fi
 
+# 生成一个随机端口号（10000以上）
+PORT=$(shuf -i 10000-65535 -n 1)
+
 # 生成一个随机 UUID
 UUID=$(uuidgen)
 
@@ -27,7 +30,7 @@ UUID=$(uuidgen)
 RANDOM_PATH=$(cat /dev/urandom | tr -dc 'a-zA-Z' | head -c 11)
 
 # 生成一个随机的私钥
-PRIVATE_KEY=$(openssl rand -hex 32)
+PRIVATE_KEY=$(xray x25519)
 
 # 生成随机的shortIds
 SHORT_ID_1=$(openssl rand -hex 8)
@@ -106,8 +109,8 @@ EOF
 # 显示配置信息
 show_inbound_config() {
     local ip=$(curl -s http://ipinfo.io/ip)
-    echo -e "${green}Vless+reality节点链接:${none}"
-    echo "vless://$(echo -n "{\"v\":\"2\",\"ps\":\"vless+reality\",\"add\":\"$ip\",\"port\":443,\"id\":\"$UUID\",\"net\":\"grpc\",\"path\":\"/$RANDOM_PATH\",\"tls\":\"\",\"sni\":\"tesla.com\",\"type\":\"none\",\"host\":\"\",\"fingerprint\":\"chrome\"}" | base64 -w 0)"
+    echo -e "${green}Vless 节点链接:${none}"
+    echo "vless://$(echo -n "{\"v\":\"2\",\"ps\":\"TK节点定制\",\"add\":\"$ip\",\"port\":443,\"id\":\"$UUID\",\"net\":\"grpc\",\"path\":\"/$RANDOM_PATH\",\"tls\":\"\",\"sni\":\"tesla.com\",\"type\":\"none\",\"host\":\"\",\"fingerprint\":\"chrome\"}" | base64 -w 0)"
 }
 
 create_config
