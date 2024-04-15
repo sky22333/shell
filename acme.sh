@@ -22,13 +22,16 @@ install_requirements() {
     fi
 
     if ! command -v lsof &> /dev/null; then
-
         $install_cmd lsof
     fi
 
     if ! command -v curl &> /dev/null; then
-
         $install_cmd curl
+    fi
+
+    if ! command -v socat &> /dev/null; then
+        $install_cmd socat
+    else
     fi
 }
 
