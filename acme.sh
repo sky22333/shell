@@ -29,9 +29,12 @@ install_requirements() {
         $install_cmd curl
     fi
 
+    # 检查并安装 socat
     if ! command -v socat &> /dev/null; then
+        echo -e "\033[0;32msocat 未安装，正在安装...\033[0m"
         $install_cmd socat
     else
+        echo -e "\033[0;32msocat 已安装\033[0m"
     fi
 }
 
