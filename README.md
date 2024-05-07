@@ -50,13 +50,6 @@ touch /home/xray.txt
 wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/x.sh && bash x.sh
 ```
 
-### 批量管理多台服务器脚本
-
-先在`root`目录下创建`ssh.txt`文件，文件内填入服务器信息，每行一个服务器，每行包含四部分信息（IP地址、端口、用户名和密码），用空格分隔。
-```
-wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/ssh.sh && bash ssh.sh
-```
-
 
 ###  端口限速脚本
 
