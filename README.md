@@ -37,10 +37,7 @@ wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/xray.s
 ```
 
 
-### sbox-reality
-
-基于 Sing-box 内核的 VLESS Reality 协议脚本
-
+### sbox-reality一键脚本
 
 ```
 wget -N --no-check-certificate https://raw.githubusercontent.com/sky22333/shell/main/reality.sh && bash reality.sh
