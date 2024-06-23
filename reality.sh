@@ -66,11 +66,11 @@ install_singbox(){
     fi
 
     if [[ $SYSTEM == "CentOS" ]]; then
-        wget https://github.com/SagerNet/sing-box/releases/download/"$last_version"/sing-box_"$last_version"_linux_$(archAffix).rpm -O sing-box.rpm
+        wget https://github.com/SagerNet/sing-box/releases/download/"v$last_version"/sing-box_"$last_version"_linux_$(archAffix).rpm -O sing-box.rpm
         rpm -ivh sing-box.rpm
         rm -f sing-box.rpm
     else
-        wget https://github.com/SagerNet/sing-box/releases/download/"$last_version"/sing-box_"$last_version"_linux_$(archAffix).deb -O sing-box.deb
+        wget https://github.com/SagerNet/sing-box/releases/download/"v$last_version"/sing-box_"$last_version"_linux_$(archAffix).deb -O sing-box.deb
         dpkg -i sing-box.deb
         rm -f sing-box.deb
     fi
