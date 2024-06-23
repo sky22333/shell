@@ -36,6 +36,16 @@ wget -N --no-check-certificate https://raw.githubusercontent.com/sky22333/shell/
 wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/xray.sh && bash xray.sh
 ```
 
+
+### sbox-reality
+
+基于 Sing-box 内核的 VLESS Reality 协议脚本
+
+
+```
+wget -N --no-check-certificate https://raw.githubusercontent.com/sky22333/shell/main/reality.sh && bash reality.sh
+```
+
 ### 批量搭建vmess节点并把节点信息传输到另一台机器
 
 一：先把`x.sh`文件中的第88行填入你目的主机的密码和IP
