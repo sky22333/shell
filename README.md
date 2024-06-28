@@ -30,6 +30,11 @@ wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/vmess.
 wget -N --no-check-certificate https://raw.githubusercontent.com/sky22333/shell/main/hy2/hysteria.sh && bash hysteria.sh
 ```
 
+### sing-box一键脚本（多协议）
+```
+bash <(wget -qO- -o- https://github.com/admin8800/sing-box/raw/main/install.sh)
+```
+#### 使用`sing-box`查看管理菜单
 
 ### vmess+ws一键脚本
 ```
