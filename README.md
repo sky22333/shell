@@ -2,32 +2,34 @@
 
 
 
-```
-wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/acme.sh && bash acme.sh
-```
 
+```
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/acme.sh)
+```
 
 ###  一键搭建LNMP环境的WordPress脚本
 
 适用于Ubuntu系统。（需先把域名解析到公网IP并开放80和443端口用于自动配置TLS证书）
 
-```
-wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/wordpress.sh && bash wordpress.sh
-```
 
+```
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/wordpress.sh)
+```
 
 ###  快速批量搭建二级代理脚本
 
 适用于Debian、Ubuntu、Kali Linux 系统。xray内核 vmess入站，多sk5出站
 
+
 ```
-wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/vmess.sh && bash vmess.sh
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess.sh)
 ```
 
 ### Hysteria 2 一键搭建脚本
 
+
 ```
-wget -N --no-check-certificate https://raw.githubusercontent.com/sky22333/shell/main/hy2/hysteria.sh && bash hysteria.sh
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/hy2/hysteria.sh)
 ```
 
 ### sing-box一键脚本（多协议）
@@ -37,10 +39,10 @@ bash <(wget -qO- -o- https://github.com/admin8800/sing-box/raw/main/install.sh)
 #### 使用`sing-box`查看管理菜单
 
 ### vmess+ws一键脚本
-```
-wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/xray.sh && bash xray.sh
-```
 
+```
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/xray.sh)
+```
 
 ### 批量搭建vmess节点并把节点信息传输到另一台机器
 
@@ -53,14 +55,19 @@ touch /home/xray.txt
 三：然后再执行此脚本
 
 ```
-wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/x.sh && bash x.sh
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/x.sh)
 ```
 
 
 ###  端口限速脚本
 
+```
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/Mbit.sh)
+```
 
+
+###  一键安装Docker和Docker compose
 
 ```
-wget -N --no-check-certificate https://github.com/sky22333/shell/raw/main/Mbit.sh && bash Mbit.sh
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/kaiji.sh)
 ```
