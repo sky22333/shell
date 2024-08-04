@@ -7,7 +7,7 @@ sudo bash -c 'echo "127.0.0.1 wovow" >> /etc/hosts'
 echo "" > /etc/motd
 echo "" > ~/.bashrc
 
-cat << 'EOF' >> /etc/motd
+cat << 'EOF' > /etc/motd
 《C语言从研发到脱发》
 《C++从入门到放弃》
 《Java从跨平台到跨行业》
@@ -21,7 +21,6 @@ cat << 'EOF' >> /etc/motd
 《Debug455个经典案例，让电脑开机蓝屏》
 《零基础学C语言，学完负基础》
 《CSS从绘制框架到改行画画》
-
 EOF
 
 if ! command -v docker &> /dev/null; then
