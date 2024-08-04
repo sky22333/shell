@@ -5,7 +5,7 @@ sudo hostnamectl set-hostname wovow
 sudo bash -c 'echo "127.0.0.1 wovow" >> /etc/hosts'
 
 echo "" > /etc/motd
-echo "" > /root/.bashrc
+echo "" > ~/.bashrc
 
 cat << 'EOF' >> /etc/motd
 《C语言从研发到脱发》
@@ -39,5 +39,6 @@ else
 fi
 
 source /etc/motd
+source ~/.bashrc
 
-echo "设置完成！欢迎大佬上机！"
+echo "配置完成！欢迎大佬上机！"
