@@ -7,23 +7,19 @@ sudo bash -c 'echo "127.0.0.1 wovow" >> /etc/hosts'
 echo "" > /etc/motd
 
 cat << 'EOF' >> /etc/motd
-# 自定义终端欢迎语
-if [ -n "$PS1" ]; then
-    echo -e "\e[32m《C语言从研发到脱发》\e[0m"
-    echo -e "\e[32m《C++从入门到放弃》\e[0m"
-    echo -e "\e[32m《Java从跨平台到跨行业》\e[0m"
-    echo -e "\e[32m《iOS开发从入门到下架》\e[0m"
-    echo -e "\e[32m《Android开发大全——从开始到转行》\e[0m"
-    echo -e "\e[32m《PHP由初学至搬砖》\e[0m"
-    echo -e "\e[32m《黑客攻防:从入门到入狱》\e[0m"
-    echo -e "\e[32m《MySQL从删库到跑路》\e[0m"
-    echo -e "\e[32m《服务器运维管理从网络异常到硬盘全红》\e[0m"
-    echo -e "\e[32m《服务器运维管理从网维到网管》\e[0m"
-    echo -e "\e[32m《Office三件套从入门到手写》\e[0m"
-    echo -e "\e[32m《Debug455个经典案例，让电脑开机蓝屏》\e[0m"
-    echo -e "\e[32m《零基础学C语言，学完负基础》\e[0m"
-    echo -e "\e[32m《CSS从绘制框架到改行画画》\e[0m"
-fi
+《C语言从研发到脱发》
+《C++从入门到放弃》
+《Java从跨平台到跨行业》
+《iOS开发从入门到下架》
+《Android开发大全——从开始到转行》
+《PHP由初学至搬砖》
+《黑客攻防:从入门到入狱》
+《MySQL从删库到跑路》
+《服务器运维管理从网络异常到硬盘全红》
+《服务器运维管理从网维到网管》
+《Debug455个经典案例，让电脑开机蓝屏》
+《零基础学C语言，学完负基础》
+《CSS从绘制框架到改行画画》
 EOF
 
 if ! command -v docker &> /dev/null; then
