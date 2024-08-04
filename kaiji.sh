@@ -4,9 +4,9 @@ sudo hostnamectl set-hostname wovow
 
 sudo bash -c 'echo "127.0.0.1 wovow" >> /etc/hosts'
 
-echo "" > ~/.bashrc
+echo "" > /etc/motd
 
-cat << 'EOF' >> ~/.bashrc
+cat << 'EOF' >> /etc/motd
 # 自定义终端欢迎语
 if [ -n "$PS1" ]; then
     echo -e "\e[32m《C语言从研发到脱发》\e[0m"
@@ -41,6 +41,6 @@ else
     echo "Docker Compose 已经安装，跳过安装步骤。"
 fi
 
-source ~/.bashrc
+source /etc/motd
 
 echo "设置完成！欢迎大佬上机！"
