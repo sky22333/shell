@@ -2,9 +2,7 @@
 
 sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
-sudo bash -c 'echo "127.0.0.1 wovow" >> /etc/hosts'
-
-sudo hostnamectl set-hostname wovow
+sudo hostnamectl set-hostname localhost
 
 # 清空 /etc/motd 文件并设置内容
 cat << 'EOF' > /etc/motd
