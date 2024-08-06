@@ -217,8 +217,8 @@ inst_pwd(){
 }
 
 inst_site(){
-    read -rp "请输入 Hysteria 2 的伪装网站地址 （去除https://） [回车世嘉maimai日本网站]：" proxysite
-    [[ -z $proxysite ]] && proxysite="maimai.sega.jp"
+    read -rp "请输入 Hysteria 2 的伪装网站地址 （去除https://） [默认www.tesla.com]：" proxysite
+    [[ -z $proxysite ]] && proxysite="www.tesla.com"
     yellow "使用在 Hysteria 2 节点的伪装网站为：$proxysite"
 }
 
@@ -240,7 +240,7 @@ insthysteria(){
     fi
     ${PACKAGE_INSTALL} curl wget sudo qrencode procps iptables-persistent netfilter-persistent
 
-    wget -N https://raw.githubusercontent.com/taotao1058/shell/main/hy2/install_server.sh
+    wget -N https://raw.githubusercontent.com/sky22333/shell/main/hy2/install_server.sh
     bash install_server.sh
     rm -f install_server.sh
 
@@ -546,7 +546,7 @@ showconf(){
 }
 
 update_core(){
-    wget -N https://raw.githubusercontent.com/taotao1058/shell/main/hy2/install_server.sh
+    wget -N https://raw.githubusercontent.com/sky22333/shell/main/hy2/install_server.sh
     bash install_server.sh
     
     rm -f install_server.sh
@@ -556,10 +556,9 @@ menu() {
     clear
     echo -e " ${GREEN}===================================${PLAIN} "
     echo -e "       ${GREEN}Hysteria 2 一键安装脚本${PLAIN}          "
-    echo -e "     ${GREEN}小白第一次使用直接路回车即可${PLAIN}        "
     echo -e " ${GREEN}===================================${PLAIN} "
     echo -e " ${GREEN}1.${PLAIN} 安装 Hysteria 2"
-    echo -e " ${GREEN}2.${PLAIN} ${RED}卸载 Hysteria 2${PLAIN}"
+    echo -e " ${GREEN}2.${PLAIN} 卸载 Hysteria 2"
     echo " -------------"
     echo -e " ${GREEN}3.${PLAIN} 关闭、重启 Hysteria 2"
     echo -e " ${GREEN}4.${PLAIN} 修改 Hysteria 2 配置"
