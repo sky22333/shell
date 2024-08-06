@@ -224,11 +224,12 @@ configure_nginx
 install_wordpress
 
 # 输出安装信息
-echo "WordPress 安装完成，请保存以下重要信息。"
-echo "数据库名称：$db_name"
-echo "数据库用户：$db_user"
-echo "数据库密码：$db_password"
-echo "MySQL root 密码：$mysqlrootpass"
-echo "nginx配置文件 /etc/nginx/nginx.conf"
-echo "数据库配置文件 /root/.my.cnf"
-echo "站点目录 $install_dir"
+echo "\033[32m WordPress 安装完成，请保存以下重要信息。 \033[0m"
+echo "\033[32m 数据库名称：$db_name \033[0m"
+echo "\033[32m 数据库用户：$db_user \033[0m"
+echo "\033[32m 数据库密码：$db_password \033[0m"
+echo "\033[32m MySQL root 密码：$mysqlrootpass \033[0m"
+echo "\033[32m nginx配置文件路径 /etc/nginx/nginx.conf \033[0m"
+echo "\033[32m 数据库配置文件路径 /root/.my.cnf \033[0m"
+echo "\033[32m 站点目录 $install_dir \033[0m"
+echo "\033[32m 请访问你的域名进入WordPress \033[0m"
