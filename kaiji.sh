@@ -15,7 +15,7 @@ echo "" > ~/.bashrc
 cat << 'EOF' >> ~/.bashrc
 # 自定义终端欢迎语
 if [ -n "$PS1" ]; then
-    echo -e "\e[32m欢迎上机！\e[0m"
+    echo -e "欢迎上机！"
 fi
 EOF
 
