@@ -63,3 +63,8 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/Mbit.sh)
 ```
 bash <(wget -qO- https://github.com/sky22333/shell/raw/main/kaiji.sh)
 ```
+
+### vultr开机脚本
+```
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vultr-cli.sh)
+```
