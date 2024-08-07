@@ -21,7 +21,7 @@ install_vultr_cli() {
     fi
     check_wget    
     # 指定要安装的 Vultr CLI 版本
-    local VULTR_CLI_VERSION="v3.0.1"
+    local VULTR_CLI_VERSION="v3.3.1"
     local DOWNLOAD_URL="https://github.com/vultr/vultr-cli/releases/download/${VULTR_CLI_VERSION}/vultr-cli_${VULTR_CLI_VERSION}_linux_amd64.tar.gz"
     
     # 下载 Vultr CLI
