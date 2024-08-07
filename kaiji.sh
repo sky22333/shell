@@ -1,7 +1,6 @@
 #!/bin/bash
 
 sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-
 sudo hostnamectl set-hostname localhost
 
 # 清空 /etc/motd 文件并设置内容
