@@ -6,19 +6,7 @@ sudo hostnamectl set-hostname localhost
 
 # 清空 /etc/motd 文件并设置内容
 cat << 'EOF' > /etc/motd
-《C语言从研发到脱发》
-《C++从入门到放弃》
-《Java从跨平台到跨行业》
-《iOS开发从入门到下架》
-《Android开发大全——从开始到转行》
-《PHP由初学至搬砖》
-《黑客攻防:从入门到入狱》
-《MySQL从删库到跑路》
-《服务器运维管理从网络异常到硬盘全红》
-《服务器运维管理从网维到网管》
-《Debug455个经典案例，让电脑开机蓝屏》
-《零基础学C语言，学完负基础》
-《CSS从绘制框架到改行画画》
+
 EOF
 
 # 清空 ~/.bashrc 文件并设置内容
