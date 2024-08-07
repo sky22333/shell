@@ -7,14 +7,6 @@
 bash <(wget -qO- https://github.com/sky22333/shell/raw/main/acme.sh)
 ```
 
-###  一键搭建LNMP环境的WordPress脚本
-
-适用于ubuntu/debian系统。（先把域名解析到公网IP并开放80和443端口）
-
-
-```
-bash <(wget -qO- https://github.com/sky22333/shell/raw/main/wordpress.sh)
-```
 
 ###  快速批量搭建二级代理脚本
 
