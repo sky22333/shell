@@ -9,7 +9,7 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/acme.sh)
 
 ###  一键搭建LNMP环境的WordPress脚本
 
-适用于Ubuntu系统。（需先把域名解析到公网IP并开放80和443端口用于自动配置TLS证书）
+适用于ubuntu/debian系统。（先把域名解析到公网IP并开放80和443端口）
 
 
 ```
