@@ -6,7 +6,6 @@ sudo hostnamectl set-hostname localhost
 
 # 清空 /etc/motd 文件并设置内容
 cat << 'EOF' > /etc/motd
-
 EOF
 
 # 清空 ~/.bashrc 文件并设置内容
@@ -16,7 +15,7 @@ echo "" > ~/.bashrc
 cat << 'EOF' >> ~/.bashrc
 # 自定义终端欢迎语
 if [ -n "$PS1" ]; then
-    echo -e "\e[32m欢迎大佬上机！\e[0m"
+    echo -e "\e[32m欢迎上机！\e[0m"
 fi
 EOF
 
@@ -37,4 +36,4 @@ else
     echo "Docker Compose 已经安装，跳过安装步骤。"
 fi
 
-echo "配置完成！欢迎大佬上机！"
+echo "配置完成！"
