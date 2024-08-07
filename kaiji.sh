@@ -3,9 +3,8 @@
 sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 sudo hostnamectl set-hostname localhost
 
-# 清空 /etc/motd 文件并设置内容
-cat << 'EOF' > /etc/motd
-EOF
+# 清空 /etc/motd 文件
+echo "" > /etc/motd
 
 # 清空 ~/.bashrc 文件并设置内容
 echo "" > ~/.bashrc
