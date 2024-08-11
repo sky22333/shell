@@ -5,7 +5,7 @@
 #
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2023 Aperture Internet Laboratory
-#
+# 此配置文件来自于https://get.hy2.sh
 
 set -e
 
