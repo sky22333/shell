@@ -237,7 +237,7 @@ main_menu() {
     while true; do
         echo -e "\n${green} xray节点配置文件路径：/usr/local/etc/xray 菜单列表:${none}"
         echo "1. 查看所有节点"
-        echo "2. 新增节点出站"
+        echo "2. 新增vmess入站sk5出站"
         echo "3. 删除节点"
         echo "4. 退出"
         read -p "请输入选项: " choice
