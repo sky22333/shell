@@ -77,6 +77,14 @@ check_and_install_jq() {
     fi
 }
 
+# 检查并安装uuid-runtime
+check_and_install_uuid_runtime() {
+    if ! type uuidgen &>/dev/null; then
+        echo -e "${yellow}正在安装 uuid-runtime...${none}"
+        apt-get update && apt-get install -y uuid-runtime
+    fi
+}
+
 # 检查并安装xray
 check_and_install_xray() {
     if ! type xray &>/dev/null; then
@@ -255,6 +263,7 @@ main_menu() {
 # 调用主菜单函数
 check_and_install_curl
 check_and_install_jq
+check_and_install_uuid_runtime
 check_and_install_xray
 create_default_config
 get_local_ip
