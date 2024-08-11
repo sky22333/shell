@@ -82,4 +82,4 @@ show_inbound_config() {
 create_config
 show_inbound_config
 systemctl restart xray
-echo -e "${green}Xray 服务重启成功。${none}"
+echo -e "${green}Xray 服务已启动。${none}"
