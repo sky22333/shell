@@ -46,7 +46,7 @@ sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https cu
 ```
 `/etc/caddy/Caddyfile`写入配置文件
 
-可以直接使用域名
+#可以直接使用域名
 ```
 http://IP:80 {
     root * /var/www
