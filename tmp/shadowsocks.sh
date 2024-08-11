@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # 定义变量
-SERVER_IP="目标服务器IP"
-SERVER_PASSWORD="目标服务器密码"
-NODE_NAME="节点名称"
+SERVER_IP="目标服务器IP"           # 目标服务器的IP地址
+SERVER_PASSWORD="目标服务器密码"    # 目标服务器的登录密码
+NODE_NAME="节点名称"                # 用于标识节点的名称
 TARGET_DIR="/home/xray.txt"
 
 green='\e[32m'
