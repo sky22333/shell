@@ -81,7 +81,7 @@ EOF
 
     local ip=$(curl -s http://ipinfo.io/ip)
     local config="vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"$NODE_NAME\",\"add\":\"$ip\",\"port\":$PORT,\"id\":\"$UUID\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/$RANDOM_PATH\",\"type\":\"none\",\"host\":\"\",\"tls\":\"\"}" | base64 -w 0)"
-    echo -e "${green}Vmess 节点配置信息:${none}"
+    echo -e "${green}Vmess-ws节点链接:${none}"
     echo $config
 
     echo $config > /tmp/xray_config.txt
