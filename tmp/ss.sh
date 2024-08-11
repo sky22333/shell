@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # 定义变量
-SERVER_IP="192.168.12.23"           # 目标服务器的IP地址
-SERVER_PASSWORD="password"         # 目标服务器的登录密码
-NODE_NAME="美国独享"                # 用于标识节点的名称
+SERVER_IP="103.136.68.74"           # 目标服务器的IP地址
+SERVER_PASSWORD="QWER7890."         # 目标服务器的登录密码
+NODE_NAME="美国定制"                # 用于标识节点的名称
 TARGET_DIR="/home/xray.txt"
 
 green='\e[32m'
