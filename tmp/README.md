@@ -20,7 +20,7 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/tmp/shadowsocks.sh)
 # 停止 Xray 服务
 systemctl stop xray
 
-# 禁用 Xray 服务
+# 禁用 Xray 服务和开机自启
 systemctl disable xray
 
 # 删除 Xray 二进制文件
