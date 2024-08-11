@@ -175,7 +175,7 @@ add_new_nodes() {
 
         # 用户输入出站代理信息
         echo "配置第 $((i+1)) 个出站代理 (节点$new_port)"
-        read -p "请输入出站socks5地址, 端口, 用户名, 密码 (以空格分隔): " outbound_addr outbound_port outbound_user outbound_pass
+        read -p "请输入出站socks5地址, 端口, 用户名, 密码 (按顺序以空格分隔): " outbound_addr outbound_port outbound_user outbound_pass
 
         # 添加入站配置（入站地址设置为 "0.0.0.0"）
         jq --argjson port "$new_port" --arg id "$new_id" --arg tag "$new_tag" '
