@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# 定义变量
+SERVER_IP="目标服务器IP"
+SERVER_PASSWORD="目标服务器密码"
+NODE_NAME="节点名称"
+TARGET_DIR="/home/xray.txt"
+
 green='\e[32m'
 none='\e[0m'
 config_file="/usr/local/etc/xray/config.json"
@@ -74,15 +80,17 @@ configure_and_transfer() {
 EOF
 
     local ip=$(curl -s http://ipinfo.io/ip)
-    local config="vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"TK节点定制\",\"add\":\"$ip\",\"port\":$PORT,\"id\":\"$UUID\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/$RANDOM_PATH\",\"type\":\"none\",\"host\":\"\",\"tls\":\"\"}" | base64 -w 0)"
+    local config="vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"$NODE_NAME\",\"add\":\"$ip\",\"port\":$PORT,\"id\":\"$UUID\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/$RANDOM_PATH\",\"type\":\"none\",\"host\":\"\",\"tls\":\"\"}" | base64 -w 0)"
     echo -e "${green}Vmess 节点配置信息:${none}"
     echo $config
 
     echo $config > /tmp/xray_config.txt
-    sshpass -p '密码' ssh -o StrictHostKeyChecking=no root@服务器IP "cat >> /home/xray.txt" < /tmp/xray_config.txt
+    sshpass -p "$SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no root@$SERVER_IP "cat >> $TARGET_DIR" < /tmp/xray_config.txt
 }
+
 # 主执行逻辑
 install_dependencies
 configure_and_transfer
 systemctl restart xray
+systemctl enable xray
 echo -e "${green}Xray 服务已经重新启动。${none}"

@@ -50,8 +50,8 @@ configure_and_transfer() {
     ]
 }
 EOF
-
-    local config="ss://$(echo -n "aes-256-gcm:$PASSWORD" | base64 -w 0)@$SERVER_IP:9527#$NODE_NAME"
+    local ip=$(curl -s http://ipinfo.io/ip)
+    local config="ss://$(echo -n "aes-256-gcm:$PASSWORD" | base64 -w 0)@$ip:9527#$NODE_NAME"
     echo -e "${green}Shadowsocks 节点配置信息:${none}"
     echo $config
     echo $config > /tmp/xray_config.txt
@@ -62,4 +62,5 @@ EOF
 install_dependencies
 configure_and_transfer
 systemctl restart xray
+systemctl enable xray
 echo -e "${green}Xray 服务已经重新启动。${none}"
