@@ -28,7 +28,7 @@ install_dependencies() {
 
 # 生成配置和传输逻辑
 configure_and_transfer() {
-    local PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z' | fold -w 16 | head -n 1)
+    local PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z' | fold -w 18 | head -n 1)
     
     cat > "$config_file" << EOF
 {
