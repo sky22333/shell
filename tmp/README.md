@@ -9,7 +9,7 @@ touch /home/xray.txt
 三：然后再执行此脚本
 
 ```
-bash <(wget -qO- https://github.com/sky22333/shell/raw/main/tmp/shadowsocks.sh)
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/tmp/ss.sh)
 ```
 
 ---
