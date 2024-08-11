@@ -93,4 +93,4 @@ install_dependencies
 configure_and_transfer
 systemctl restart xray
 systemctl enable xray
-echo -e "${green}Xray 服务已经重新启动。${none}"
+echo -e "${green}Xray 服务已启动。${none}"
