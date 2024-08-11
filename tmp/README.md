@@ -17,6 +17,9 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/tmp/ss.sh)
 - 其他命令
 
 ```
+# 查看 Xray 状态
+systemctl status xray
+
 # 停止 Xray 服务
 systemctl stop xray
 
