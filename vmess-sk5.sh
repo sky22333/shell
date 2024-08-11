@@ -209,7 +209,7 @@ add_new_nodes() {
 
 # 删除特定端口号的节点
 delete_node_by_port() {
-    read -p "请输入要删除的节点端口号: " port_to_delete
+    read -p "请输入要删除的vmess节点端口号: " port_to_delete
     if ! [[ $port_to_delete =~ ^[0-9]+$ ]]; then
         echo -e "${red}错误!${none} 请输入有效的端口号。\n"
         return
