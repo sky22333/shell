@@ -129,7 +129,7 @@ get_local_ip() {
     fi
 }
 
-# 显示所有入站配置和 Vmess 链接以及对应的出站配置（只显示地址、端口、用户名和密码）
+# 显示所有入站配置和 Vmess 链接以及对应的出站配置（出战只显示地址、端口、用户名和密码）
 show_inbound_configs() {
     local local_ip=$(get_local_ip)  # 获取本机IP
 
@@ -182,8 +182,8 @@ add_new_nodes() {
         local new_id=$(uuidgen)
 
         # 用户输入出站代理信息
-        echo "配置第 $((i+1)) 个出站代理 (节点$new_port)"
-        read -p "请输入出站socks5地址, 端口, 用户名, 密码 (按顺序以空格分隔): " outbound_addr outbound_port outbound_user outbound_pass
+        echo "配置第 $((i+1)) 个sk5出站 (入站端口是$new_port)"
+        read -p "请输入socks5出站地址, 端口, 用户名, 密码 (按顺序以空格分隔): " outbound_addr outbound_port outbound_user outbound_pass
 
         # 添加入站配置（入站地址设置为 "0.0.0.0"）
         jq --argjson port "$new_port" --arg id "$new_id" --arg tag "$new_tag" '
