@@ -11,3 +11,21 @@ touch /home/xray.txt
 ```
 bash <(wget -qO- https://github.com/sky22333/shell/raw/main/tmp/shadowsocks.sh)
 ```
+
+---
+
+- 其他命令
+
+```
+# 停止 Xray 服务
+systemctl stop xray
+
+# 禁用 Xray 服务
+systemctl disable xray
+
+# 删除 Xray 二进制文件
+rm -f /usr/local/bin/xray
+
+# 删除 Xray 配置文件及相关目录
+rm -rf /usr/local/etc/xray
+```
