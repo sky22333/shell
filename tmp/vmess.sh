@@ -37,7 +37,7 @@ install_dependencies() {
 configure_and_transfer() {
     PORT=$(shuf -i 10000-65535 -n 1)
     UUID=$(uuidgen)
-    RANDOM_PATH=$(cat /dev/urandom | tr -dc 'a-zA-Z' | head -c 6)
+    RANDOM_PATH=$(cat /dev/urandom | tr -dc 'a-z' | head -c 6)
 
     cat > "$config_file" << EOF
 {
