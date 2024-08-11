@@ -64,7 +64,7 @@ default_config='
 # 检查并安装curl
 check_and_install_curl() {
     if ! type curl &>/dev/null; then
-        echo -e "${yellow}正在安装需要的环境...${none}"
+        echo -e "${yellow}正在安装curl...${none}"
         apt-get update && apt-get install -y curl
     fi
 }
@@ -72,7 +72,7 @@ check_and_install_curl() {
 # 检查并安装jq
 check_and_install_jq() {
     if ! type jq &>/dev/null; then
-        echo -e "${yellow}正在安装需要的环境...${none}"
+        echo -e "${yellow}正在安装jq...${none}"
         apt-get update && apt-get install -y jq
     fi
 }
