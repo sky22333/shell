@@ -37,7 +37,7 @@ rm -rf /usr/local/etc/xray
 ### 自托管脚本
 创建脚本文件
 ```
-mkdir -p /var/www && touch /var/www/shell.sh && chmod 700 /var/www/shell.sh
+mkdir -p /var/www && touch /var/www/shell.sh && chmod 644 /var/www/shell.sh
 ```
 
 一键安装caddy
