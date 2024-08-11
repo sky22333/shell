@@ -15,7 +15,7 @@ default_config='
         "settings": {
             "clients": [
                 {
-                    "id": "7e5b5085-9436-4bbb-a8d2-1dc899f816e8"
+                    "id": "sky22333"
                 }
             ]
         },
@@ -23,7 +23,7 @@ default_config='
             "network": "ws",
             "security": "none",
             "wsSettings": {
-                "path": "/morenbukeyong"
+                "path": "/sky22333"
             }
         },
         "tag": "inbound0"
