@@ -32,3 +32,40 @@ rm -f /usr/local/bin/xray
 # 删除 Xray 配置文件及相关目录
 rm -rf /usr/local/etc/xray
 ```
+
+
+### 自托管脚本
+创建脚本文件
+```
+mkdir -p /var/www && touch /var/www/shell.sh && chmod 700 /var/www/shell.sh
+```
+
+一键安装caddy
+```
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list && sudo apt update && sudo apt install -y caddy
+```
+`/etc/caddy/Caddyfile`写入配置文件
+```
+http://IP:80 {
+    root * /var/www
+    file_server
+}
+```
+启动运行
+```
+sudo systemctl restart caddy
+```
+查看状态
+```
+systemctl status caddy
+```
+停止和卸载
+```
+sudo systemctl stop caddy && sudo apt-get purge --auto-remove caddy
+```
+
+
+用户远程运行脚本
+```
+bash <(curl -fsSL http://公网IP/shell.sh)
+```
