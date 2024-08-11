@@ -26,8 +26,8 @@ PORT=$(shuf -i 10000-65535 -n 1)
 # 生成一个随机 UUID
 UUID=$(uuidgen)
 
-# 生成一个 11 位的随机英文字符串作为路径
-RANDOM_PATH=$(cat /dev/urandom | tr -dc 'a-zA-Z' | head -c 6)
+# 生成一个 6 位的随机英文字符串作为路径
+RANDOM_PATH=$(cat /dev/urandom | tr -dc 'a-z' | head -c 6)
 
 # 创建配置文件
 create_config() {
