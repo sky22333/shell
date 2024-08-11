@@ -75,7 +75,7 @@ EOF
 # 显示配置信息
 show_inbound_config() {
     local ip=$(curl -s http://ipinfo.io/ip)
-    echo -e "${green}Vmess 节点链接:${none}"
+    echo -e "${green}Vmess-ws节点链接:${none}"
     echo "vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"vmess+ws\",\"add\":\"$ip\",\"port\":$PORT,\"id\":\"$UUID\",\"aid\":\"0\",\"net\":\"ws\",\"path\":\"/$RANDOM_PATH\",\"type\":\"none\",\"host\":\"\",\"tls\":\"\"}" | base64 -w 0)"
 }
 

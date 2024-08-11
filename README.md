@@ -14,7 +14,7 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/acme.sh)
 
 
 ```
-bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess.sh)
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-sk5.sh)
 ```
 
 ### Hysteria 2 一键搭建脚本
@@ -33,7 +33,7 @@ bash <(wget -qO- -o- https://github.com/admin8800/sing-box/raw/main/install.sh)
 ### vmess+ws一键脚本
 
 ```
-bash <(wget -qO- https://github.com/sky22333/shell/raw/main/xray.sh)
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)
 ```
 
 
