@@ -91,7 +91,7 @@ sudo apt-get install shc gcc -y
 | `shc -f <script>`             | 编译指定的 Shell 脚本文件。                                        | `shc -f script.sh`                                             |
 | `shc -o <output>`             | 指定输出的可执行文件名。                                          | `shc -f script.sh -o myscript`                                 |
 | `shc -e <YYYY-MM-DD>`         | 设置脚本的过期日期，格式为 `YYYY-MM-DD`。                          | `shc -f script.sh -e 2024-12-31`                               |
-| `shc -m "<message>"`          | 设置当脚本过期时显示的消息。                                       | `shc -f script.sh -e 2024-12-31 -m "This script has expired!"` |
+| `shc -m "<message>"`          | 设置当脚本过期时显示的消息。                                       | `shc -f script.sh -e 2024-12-31 -m "脚本已过期"` |
 | `shc -r`                      | 允许在编译后的脚本中保留运行时的环境变量。                        | `shc -r -f script.sh`                                          |
 | `shc -T`                      | 不生成中间的 C 源代码文件。                                        | `shc -f script.sh -T`                                          |
 | `shc -v`                      | 显示详细信息，帮助调试。                                           | `shc -v -f script.sh`                                          |
