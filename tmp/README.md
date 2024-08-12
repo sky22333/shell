@@ -98,5 +98,11 @@ sudo apt-get install shc gcc -y
 | `shc -x`                      | 对脚本中的字符串进行 XOR 加密以增加安全性。                       | `shc -x -f script.sh`                                          |
 | `shc -l <lib>`                | 添加特定的库文件链接到编译的二进制文件中。                        | `shc -f script.sh -l /usr/lib/somelibrary.so`                  |
 
+- 远程执行加密脚本
+```
+curl -fsSL http://公网IP/my.sh -o my.sh && chmod +x my.sh && ./my.sh
+```
+需要系统一致
+
 ---
 ---
