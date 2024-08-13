@@ -144,6 +144,12 @@ server5 ansible_host=192.168.1.5 ansible_user=root ansible_port=22 ansible_ssh_p
 ```
 
 ### 4：使用ping模块测试所有被控主机连通性
+
+查看所有被控机的信息(可选)
+```
+ansible-inventory --list -i /etc/ansible/hosts
+```
+ping测试
 ```
 ansible -m ping all
 ```
