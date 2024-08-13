@@ -109,6 +109,12 @@ curl -fsSL http://公网IP/my.sh -o my.sh && chmod +x my.sh && ./my.sh
 
 ## 🔵ansible批量管理主机运维工具
 
+- ### 一键安装脚本
+  
+```
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/tmp/ansible.sh)
+```
+ 
 ### 1：安装并创建配置文件
 ```
 sudo apt update
