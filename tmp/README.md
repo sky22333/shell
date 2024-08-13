@@ -188,3 +188,13 @@ ansible -m ping all
 ```
 ansible-playbook renwu.yml
 ```
+
+
+#### 解释
+- **ok**: 表示在该主机上成功完成的任务数。
+- **changed**: 表示在该主机上有多少任务进行了更改（如文件被复制、脚本被执行）。
+- **unreachable**: 表示无法连接的主机数量。
+- **failed**: 表示任务失败的数量。
+- **skipped**: 表示被跳过的任务数量。
+- **rescued**: 表示在任务失败后被恢复的数量。
+- **ignored**: 表示被忽略的任务数量。
