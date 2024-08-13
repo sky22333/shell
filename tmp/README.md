@@ -171,19 +171,32 @@ ansible -m ping all
 ---
 # 定义要执行任务的主机组
 - hosts: myservers
-  become: yes  # 以管理员权限运行命令
+  become: yes   
   tasks:
-    - name: 将Shell脚本复制到远程主机
+    - name: 更新包列表
+      apt:
+        update_cache: yes
+
+    - name: 安装所需的软件包
+      apt:
+        name:
+          - curl
+          - wget
+          - zip
+          - tar
+        state: present
+
+    - name: 将脚本复制到远程主机
       copy:
         # 本地脚本路径
-        src: /etc/ansible/script.sh  
+        src: /etc/ansible/ss.sh
         # 远程主机上的目标路径
-        dest: /tmp/script.sh  
+        dest: /tmp/ss.sh  
         # 设置脚本权限为可执行
         mode: '0755'  
 
-    - name: 在远程主机上执行Shell脚本
-      shell: /tmp/script.sh  # 在远程主机上执行脚本
+    - name: 在远程主机上执行脚本
+      shell: /tmp/ss.sh  # 在远程主机上执行脚本
 ```
 
 
@@ -194,12 +207,20 @@ ansible -m ping all
 - hosts: myservers
   become: yes  # 以管理员权限运行命令
   tasks:
-    - name: 更新包列表并安装所需的软件包
-      shell: |
-        apt update
-        apt install curl wget git zip tar lsof -y
+    - name: 更新包列表
+      apt:
+        update_cache: yes
 
-    - name: 在远程主机上执行Shell脚本
+    - name: 安装所需的软件包
+      apt:
+        name:
+          - curl
+          - wget
+          - zip
+          - tar
+        state: present
+
+    - name: 在被控主机上执行远程脚本
       shell: bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)
       args:
         executable: /bin/bash  # 确保使用bash执行命令
