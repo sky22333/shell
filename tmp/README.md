@@ -157,7 +157,7 @@ ansible -m ping all
 - hosts: myservers  
   tasks:
     # 任务1: 将Shell脚本复制到远程主机
-    - name: Copy shell script to remote servers
+    - name: 将Shell脚本复制到远程主机
       copy:
         # 本地脚本路径
         src: /home/script.sh  
@@ -167,7 +167,7 @@ ansible -m ping all
         mode: '0755'  
 
     # 任务2: 在远程主机上执行Shell脚本
-    - name: Execute shell script on remote servers
+    - name: 在远程主机上执行Shell脚本
       shell: /tmp/script.sh  # 在远程主机上执行脚本
 ```
 
@@ -179,7 +179,7 @@ ansible -m ping all
 - hosts: myservers  
   tasks:
     # 任务1: 直接在被控主机上执行远程脚本
-    - name: Execute remote script via bash with wget
+    - name: 在远程主机上执行Shell脚本
       shell: bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)
       args:
         executable: /bin/bash  # 确保使用bash执行命令
