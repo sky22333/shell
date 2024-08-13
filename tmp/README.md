@@ -136,10 +136,10 @@ touch /etc/ansible/hosts && cd /etc/ansible
 ```
 [myservers]
 server1 ansible_host=192.168.1.1 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
-server2 ansible_host=192.168.1.2 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
-server3 ansible_host=192.168.1.3 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
-server4 ansible_host=192.168.1.4 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
-server5 ansible_host=192.168.1.5 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
+server2 ansible_host=192.168.1.2 ansible_user=root ansible_port=22 ansible_ssh_pass=password2
+server3 ansible_host=192.168.1.3 ansible_user=root ansible_port=22 ansible_ssh_pass=password3
+server4 ansible_host=192.168.1.4 ansible_user=root ansible_port=22 ansible_ssh_pass=password4
+server5 ansible_host=192.168.1.5 ansible_user=root ansible_port=22 ansible_ssh_pass=password5
 ```
 
 4：使用ping模块测试所有主机连通性
