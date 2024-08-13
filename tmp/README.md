@@ -117,9 +117,9 @@ sudo apt install ansible -y
 
 ### 2：禁用被控主机密钥检查
 ```
-sudo nano /etc/ansible/ansible.cfg
+sudo mkdir -p /etc/ansible && sudo touch /etc/ansible/ansible.cfg && cd /etc/ansible
 ```
-添加以下配置
+`ansible.cfg`中添加以下配置
 ```
 [defaults]
 host_key_checking = False
@@ -131,10 +131,10 @@ ansible_ssh_common_args = '-o StrictHostKeyChecking=no'
 
 创建配置文件
 ```
-touch /etc/ansible/hosts && cd /etc/ansible
+touch hosts
 ```
 
-编辑`/etc/ansible/hosts`文件，添加目标主机示例
+添加目标主机示例
 ```
 [myservers]
 1 ansible_host=192.168.1.1 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
