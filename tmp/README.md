@@ -160,7 +160,7 @@ ansible -m ping all
     - name: 将Shell脚本复制到远程主机
       copy:
         # 本地脚本路径
-        src: /home/script.sh  
+        src: /etc/ansible/script.sh  
         # 远程主机上的目标路径
         dest: /tmp/script.sh  
         # 设置脚本权限为可执行
