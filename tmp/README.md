@@ -212,7 +212,7 @@ ansible -m ping all
 ansible-playbook renwu.yml
 ```
 
-- 临时对所有主机执行命令
+- 临时对所有主机执行普通命令
 ```
 ansible all -a "pwd"
 ```
@@ -224,6 +224,14 @@ ansible all -m shell -a "bash <(wget -qO- https://github.com/sky22333/shell/raw/
 ```
 ansible all -m copy -a "src=/etc/ansible/script.sh dest=/tmp/script.sh mode=0755"
 ansible all -m shell -a "/tmp/script.sh"
+```
+- 临时对1，3号主机执行shell命令
+```
+ansible 1,3 -m shell -a "你的命令"
+```
+- 临时对1，3号主机执行普通命令
+```
+ansible 1,3 -a "pwd"
 ```
 
 ---
