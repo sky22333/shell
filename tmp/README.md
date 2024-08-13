@@ -151,6 +151,8 @@ ansible -m ping all
 ### 5：创建被控主机任务配置文件
 
 以`renwu.yml`文件名为例
+
+`touch /etc/ansible/script.sh`
 ```
 ---
 # 定义要执行任务的主机组
