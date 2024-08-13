@@ -28,7 +28,7 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/hy2/hysteria.sh)
 ```
 bash <(wget -qO- -o- https://github.com/admin8800/sing-box/raw/main/install.sh)
 ```
-#### 使用`sing-box`查看管理菜单
+> **使用`sing-box`命令查看管理菜单**
 
 ### vmess+ws一键脚本
 
