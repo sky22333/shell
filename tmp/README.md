@@ -150,9 +150,7 @@ ansible -m ping all
 
 ### 5：创建被控主机任务配置文件
 
-以`renwu.yml`文件名为例
-
-`touch renwu.yml`
+创建`renwu.yml`文件名为例，添加以下配置
 
 ```
 ---
