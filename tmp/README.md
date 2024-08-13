@@ -109,17 +109,18 @@ curl -fsSL http://公网IP/my.sh -o my.sh && chmod +x my.sh && ./my.sh
 
 ## 🔵ansible批量管理主机运维工具
 
-### 1：安装
+### 1：安装并创建配置文件
 ```
 sudo apt update
 sudo apt install ansible -y
 ```
+```
+mkdir -p /etc/ansible && cd /etc/ansible && touch ansible.cfg hosts renwu.yml
+```
+
 
 ### 2：禁用被控主机密钥检查
-创建配置文件
-```
-mkdir -p /etc/ansible && cd /etc/ansible && touch ansible.cfg
-```
+
 `ansible.cfg`中添加以下配置
 ```
 [defaults]
@@ -130,12 +131,8 @@ ansible_ssh_common_args = '-o StrictHostKeyChecking=no'
 
 ### 3：配置被控主机清单
 
-创建配置文件
-```
-touch hosts
-```
 
-添加目标主机示例
+`hosts`中添加被控主机示例
 ```
 [myservers]
 1 ansible_host=192.168.1.1 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
@@ -157,7 +154,7 @@ ansible -m ping all
 
 ### 5：创建被控主机任务配置文件
 
-创建`renwu.yml`文件名为例，添加以下配置
+`renwu.yml`中添加任务示例
 
 ```
 ---
