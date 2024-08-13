@@ -117,7 +117,7 @@ sudo apt install ansible -y
 
 ### 2：禁用被控主机密钥检查
 ```
-sudo mkdir -p /etc/ansible && sudo touch /etc/ansible/ansible.cfg && cd /etc/ansible
+mkdir -p /etc/ansible && cd /etc/ansible && touch ansible.cfg
 ```
 `ansible.cfg`中添加以下配置
 ```
