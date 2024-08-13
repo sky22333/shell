@@ -154,9 +154,9 @@ ansible -m ping all
 ```
 ---
 # 定义要执行任务的主机组
-- hosts: myservers  
+- hosts: myservers
+  become: yes  # 以管理员权限运行命令
   tasks:
-    # 任务1: 将Shell脚本复制到远程主机
     - name: 将Shell脚本复制到远程主机
       copy:
         # 本地脚本路径
@@ -166,7 +166,6 @@ ansible -m ping all
         # 设置脚本权限为可执行
         mode: '0755'  
 
-    # 任务2: 在远程主机上执行Shell脚本
     - name: 在远程主机上执行Shell脚本
       shell: /tmp/script.sh  # 在远程主机上执行脚本
 ```
@@ -176,9 +175,14 @@ ansible -m ping all
 ```
 ---
 # 定义要执行任务的主机组
-- hosts: myservers  
+- hosts: myservers
+  become: yes  # 以管理员权限运行命令
   tasks:
-    # 任务1: 直接在被控主机上执行远程脚本
+    - name: 更新包列表并安装所需的软件包
+      shell: |
+        apt update
+        apt install curl wget git zip tar lsof -y
+
     - name: 在远程主机上执行Shell脚本
       shell: bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)
       args:
@@ -191,7 +195,7 @@ ansible-playbook renwu.yml
 ```
 
 
-#### 解释
+#### 执行结果解释
 - **ok**: 表示在该主机上成功完成的任务数。
 - **changed**: 表示在该主机上有多少任务进行了更改（如文件被复制、脚本被执行）。
 - **unreachable**: 表示无法连接的主机数量。
