@@ -118,7 +118,11 @@ sudo apt install ansible -y
 mkdir -p /etc/ansible && cd /etc/ansible && touch ansible.cfg hosts renwu.yml
 ```
 
-> ansible.cfg: 配置Ansible的全局设置。hosts: 定义要管理的主机和主机组。renwu.yml（或playbook）: 描述要在主机上执行的任务和操作步骤。
+> `ansible.cfg` 配置Ansible的全局设置。
+
+> `hosts` 定义要管理的主机和主机组。
+
+> `renwu.yml（或playbook）` 描述要在主机上执行的任务和操作步骤。
 
 ### 2：禁用被控主机密钥检查
 
