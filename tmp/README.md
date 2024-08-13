@@ -210,7 +210,7 @@ ansible -m ping all
 ansible-playbook renwu.yml
 ```
 
-执行单个命令
+临时对所有主机执行命令
 ```
 ansible all -a "ls"
 ```
