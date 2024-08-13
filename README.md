@@ -10,7 +10,7 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/acme.sh)
 
 ###  快速批量搭建二级代理脚本
 
-适用于Debian、Ubuntu、Kali Linux 系统。xray内核 vmess入站，多sk5出站
+适用于Debian、Ubuntu系统。xray内核 vmess入站，多sk5出站
 
 
 ```
