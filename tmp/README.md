@@ -106,3 +106,69 @@ curl -fsSL http://公网IP/my.sh -o my.sh && chmod +x my.sh && ./my.sh
 
 ---
 ---
+
+### ansible
+1：安装
+```
+sudo apt update
+sudo apt install ansible -y
+```
+
+2：配置Ansible主机清单
+
+编辑`/etc/ansible/hosts`文件，添加目标主机示例
+```
+[myservers]
+server1 ansible_host=192.168.1.1 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
+server2 ansible_host=192.168.1.2 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
+server3 ansible_host=192.168.1.3 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
+server4 ansible_host=192.168.1.4 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
+server5 ansible_host=192.168.1.5 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
+```
+
+3：使用ping模块测试所有主机连通性
+```
+ansible -m ping all
+```
+
+4：创建Ansible Playbook主机任务配置文件
+
+以`renwu.yml`文件名为例
+```
+---
+# 定义要执行任务的主机组
+- hosts: myservers  
+  tasks:
+    # 任务1: 将Shell脚本复制到远程主机
+    - name: Copy shell script to remote servers
+      copy:
+        # 本地脚本路径
+        src: /home/script.sh  
+        # 远程主机上的目标路径
+        dest: /tmp/script.sh  
+        # 设置脚本权限为可执行
+        mode: '0755'  
+
+    # 任务2: 在远程主机上执行Shell脚本
+    - name: Execute shell script on remote servers
+      shell: /tmp/script.sh  # 在远程主机上执行脚本
+```
+
+
+直接执行远程脚本示例
+```
+---
+# 定义要执行任务的主机组
+- hosts: myservers  
+  tasks:
+    # 任务1: 直接在被控主机上执行远程脚本
+    - name: Execute remote script via bash with wget
+      shell: bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)
+      args:
+        executable: /bin/bash  # 确保使用bash执行命令
+```
+
+5：运行任务
+```
+ansible-playbook renwu.yml
+```
