@@ -205,18 +205,25 @@ ansible -m ping all
         executable: /bin/bash  # 确保使用bash执行命令
 ```
 
-### 6：运行任务，需要在`renwu.yml`同目录运行
+### 6：用法
+
+- 对所有被控机器运行`renwu.yml`中的任务
 ```
 ansible-playbook renwu.yml
 ```
 
-临时对所有主机执行命令
+- 临时对所有主机执行命令
 ```
 ansible all -a "pwd"
 ```
-临时对所有主机运行远程脚本
+- 临时对所有主机运行远程脚本
 ```
 ansible all -m shell -a "bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)"
+```
+- 临时将本地脚本复制给所有被控主机并执行
+```
+ansible all -m copy -a "src=/etc/ansible/script.sh dest=/tmp/script.sh mode=0755"
+ansible all -m shell -a "/tmp/script.sh"
 ```
 
 ---
