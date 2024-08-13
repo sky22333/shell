@@ -129,7 +129,7 @@ host_key_checking = False
 
 创建配置文件
 ```
-sudo mkdir -p /etc/ansible && touch /etc/ansible/hosts
+touch /etc/ansible/hosts && cd /etc/ansible
 ```
 
 编辑`/etc/ansible/hosts`文件，添加目标主机示例
