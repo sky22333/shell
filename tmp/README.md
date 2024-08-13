@@ -107,7 +107,7 @@ curl -fsSL http://公网IP/my.sh -o my.sh && chmod +x my.sh && ./my.sh
 ---
 ---
 
-### ansible
+## ansible批量管理主机运维工具
 1：安装
 ```
 sudo apt update
