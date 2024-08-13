@@ -114,7 +114,18 @@ sudo apt update
 sudo apt install ansible -y
 ```
 
-2：配置Ansible主机清单
+2：禁用主机密钥检查
+```
+sudo nano /etc/ansible/ansible.cfg
+```
+添加以下配置
+```
+[defaults]
+host_key_checking = False
+```
+
+
+3：配置Ansible主机清单
 
 创建配置文件
 ```
@@ -131,12 +142,12 @@ server4 ansible_host=192.168.1.4 ansible_user=root ansible_port=22 ansible_ssh_p
 server5 ansible_host=192.168.1.5 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
 ```
 
-3：使用ping模块测试所有主机连通性
+4：使用ping模块测试所有主机连通性
 ```
 ansible -m ping all
 ```
 
-4：创建Ansible Playbook主机任务配置文件
+5：创建Ansible Playbook主机任务配置文件
 
 以`renwu.yml`文件名为例
 ```
@@ -173,7 +184,7 @@ ansible -m ping all
         executable: /bin/bash  # 确保使用bash执行命令
 ```
 
-5：运行任务
+6：运行任务，需要在`renwu.yml`同目录运行
 ```
 ansible-playbook renwu.yml
 ```
