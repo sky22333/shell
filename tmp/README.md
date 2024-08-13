@@ -201,6 +201,8 @@ ansible -m ping all
 ansible-playbook renwu.yml
 ```
 
+---
+---
 
 #### 执行结果解释
 - **ok**: 表示在该主机上成功完成的任务数。
