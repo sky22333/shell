@@ -152,7 +152,6 @@ ansible -m ping all
 
 以`renwu.yml`文件名为例
 
-`touch /etc/ansible/script.sh`
 ```
 ---
 # 定义要执行任务的主机组
