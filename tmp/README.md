@@ -210,6 +210,12 @@ ansible -m ping all
 ansible-playbook renwu.yml
 ```
 
+执行单个命令
+```
+ansible all -a "ls"
+```
+
+
 ---
 ---
 
@@ -221,6 +227,10 @@ ansible-playbook renwu.yml
 - **skipped**: 表示被跳过的任务数量。
 - **rescued**: 表示在任务失败后被恢复的数量。
 - **ignored**: 表示被忽略的任务数量。
+
+-绿色：任务顺利完成
+-橙色：任务执行后有变化，比如文件被修改或某些服务被重启。
+-红色：任务执行失败，一般会终止剩余的所有任务。
 
 
 #### 如果所有被控机端口和密码都一样
