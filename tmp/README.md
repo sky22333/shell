@@ -212,9 +212,12 @@ ansible-playbook renwu.yml
 
 临时对所有主机执行命令
 ```
-ansible all -a "ls"
+ansible all -a "pwd"
 ```
-
+临时对所有主机运行远程脚本
+```
+ansible all -m shell -a "bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)"
+```
 
 ---
 ---
