@@ -212,7 +212,7 @@ ansible-playbook renwu.yml
 - **ignored**: 表示被忽略的任务数量。
 
 
-- 所有被控机端口和密码都一样可以这样写
+#### 所有被控机端口和密码都一样可以这样写
 ```
 [all:vars]
 ansible_user=root
