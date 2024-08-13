@@ -123,6 +123,7 @@ sudo nano /etc/ansible/ansible.cfg
 ```
 [defaults]
 host_key_checking = False
+ansible_ssh_common_args = '-o StrictHostKeyChecking=no'
 ```
 
 
