@@ -137,11 +137,11 @@ touch /etc/ansible/hosts && cd /etc/ansible
 编辑`/etc/ansible/hosts`文件，添加目标主机示例
 ```
 [myservers]
-server1 ansible_host=192.168.1.1 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
-server2 ansible_host=192.168.1.2 ansible_user=root ansible_port=22 ansible_ssh_pass=password2
-server3 ansible_host=192.168.1.3 ansible_user=root ansible_port=22 ansible_ssh_pass=password3
-server4 ansible_host=192.168.1.4 ansible_user=root ansible_port=22 ansible_ssh_pass=password4
-server5 ansible_host=192.168.1.5 ansible_user=root ansible_port=22 ansible_ssh_pass=password5
+1 ansible_host=192.168.1.1 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
+2 ansible_host=192.168.1.2 ansible_user=root ansible_port=22 ansible_ssh_pass=password2
+3 ansible_host=192.168.1.3 ansible_user=root ansible_port=22 ansible_ssh_pass=password3
+4 ansible_host=192.168.1.4 ansible_user=root ansible_port=22 ansible_ssh_pass=password4
+5 ansible_host=192.168.1.5 ansible_user=root ansible_port=22 ansible_ssh_pass=password5
 ```
 
 ### 4：使用ping模块测试所有被控主机连通性
@@ -210,3 +210,17 @@ ansible-playbook renwu.yml
 - **skipped**: 表示被跳过的任务数量。
 - **rescued**: 表示在任务失败后被恢复的数量。
 - **ignored**: 表示被忽略的任务数量。
+
+
+- 所有被控机端口和密码都一样可以这样写
+```
+[all:vars]
+ansible_user=root
+ansible_ssh_pass=your_password
+ansible_port=22
+
+[myservers]
+1 ansible_host=192.168.1.101
+2 ansible_host=192.168.1.102
+3 ansible_host=192.168.1.103
+```
