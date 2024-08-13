@@ -23,8 +23,6 @@ cat <<EOL > hosts
 1 ansible_host=192.168.1.1 ansible_user=root ansible_port=22 ansible_ssh_pass=password1
 2 ansible_host=192.168.1.2 ansible_user=root ansible_port=22 ansible_ssh_pass=password2
 3 ansible_host=192.168.1.3 ansible_user=root ansible_port=22 ansible_ssh_pass=password3
-4 ansible_host=192.168.1.4 ansible_user=root ansible_port=22 ansible_ssh_pass=password4
-5 ansible_host=192.168.1.5 ansible_user=root ansible_port=22 ansible_ssh_pass=password5
 EOL
 
 # 创建 renwu.yml 文件并添加任务
@@ -32,19 +30,32 @@ cat <<EOL > renwu.yml
 ---
 # 定义要执行任务的主机组
 - hosts: myservers
-  become: yes  # 以管理员权限运行命令
+  become: yes   
   tasks:
-    - name: 将Shell脚本复制到远程主机
+    - name: 更新包列表
+      apt:
+        update_cache: yes
+
+    - name: 安装所需的软件包
+      apt:
+        name:
+          - curl
+          - wget
+          - zip
+          - tar
+        state: present
+
+    - name: 将脚本复制到远程主机
       copy:
         # 本地脚本路径
-        src: /etc/ansible/script.sh  
+        src: /etc/ansible/ss.sh
         # 远程主机上的目标路径
-        dest: /tmp/script.sh  
+        dest: /tmp/ss.sh  
         # 设置脚本权限为可执行
         mode: '0755'  
 
-    - name: 在远程主机上执行Shell脚本
-      shell: /tmp/script.sh  # 在远程主机上执行脚本
+    - name: 在远程主机上执行脚本
+      shell: /tmp/ss.sh  # 在远程主机上执行脚本
 EOL
 
 # 输出成功信息
