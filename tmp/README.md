@@ -205,7 +205,7 @@ ansible -m ping all
         executable: /bin/bash  # 确保使用bash执行命令
 ```
 
-### 6：用法
+### 6：用法示例
 
 - 对所有被控机器运行`renwu.yml`中的任务
 ```
@@ -233,6 +233,36 @@ ansible 1,3 -m shell -a "你的命令"
 ```
 ansible 1,3 -a "pwd"
 ```
+---
+
+#### 命令解释
+> `-m` 用于指定 Ansible 模块
+ 
+> `-a` 用于指定传递给模块的参数或命令
+
+| 模块              | 指令    | 中文解释                                     | 用法示例                                          |
+|-------------------|---------|----------------------------------------------|---------------------------------------------------|
+| `shell`           | `-a`    | 执行 shell 命令。支持管道、重定向等 shell 特性。 | `ansible all -m shell -a "pwd"`                  |
+| `command`         | `-a`    | 执行命令，不通过 shell。默认模块                     | `ansible all -m command -a "ls -l"`              |
+| `copy`            | `-a`    | 复制文件或目录到目标主机。                    | `ansible all -m copy -a "src=/local/file dest=/remote/file mode=0644"` |
+| `file`            | `-a`    | 管理文件和目录的属性（如权限、所有权等）。    | `ansible all -m file -a "path=/remote/file state=absent"` |
+| `yum`             | `-a`    | 使用 Yum 包管理器安装、更新或删除软件包（适用于 RHEL/CentOS）。 | `ansible all -m yum -a "name=nginx state=present"` |
+| `apt`             | `-a`    | 使用 APT 包管理器安装、更新或删除软件包（适用于 Debian/Ubuntu）。 | `ansible all -m apt -a "name=nginx state=latest"` |
+| `service`         | `-a`    | 管理服务（如启动、停止、重启服务）。         | `ansible all -m service -a "name=nginx state=started"` |
+| `systemd`         | `-a`    | 管理 systemd 服务（如启动、停止、重启服务）。| `ansible all -m systemd -a "name=nginx state=started"` |
+| `user`            | `-a`    | 管理用户账户（如创建、删除用户）。           | `ansible all -m user -a "name=alice state=present"` |
+| `group`           | `-a`    | 管理用户组（如创建、删除组）。               | `ansible all -m group -a "name=admin state=present"` |
+| `git`             | `-a`    | 管理 Git 仓库（如克隆、拉取、提交等）。      | `ansible all -m git -a "repo=https://github.com/user/repo.git dest=/path/to/repo"` |
+| `template`        | `-a`    | 使用 Jinja2 模板引擎渲染模板文件。            | `ansible all -m template -a "src=template.j2 dest=/etc/config"` |
+| `cron`            | `-a`    | 管理 cron 任务。                             | `ansible all -m cron -a "name='Backup' minute='0' hour='2' job='/usr/bin/backup.sh'"` |
+| `wait_for`        | `-a`    | 等待某个条件满足（如端口开放、文件存在等）。 | `ansible all -m wait_for -a "port=80 delay=10 timeout=300"` |
+| `docker_container`| `-a`    | 管理 Docker 容器（如启动、停止、删除容器）。 | `ansible all -m docker_container -a "name=my_container state=started"` |
+| `docker_image`    | `-a`    | 管理 Docker 镜像（如拉取、删除镜像）。      | `ansible all -m docker_image -a "name=nginx tag=latest state=present"` |
+| `lineinfile`      | `-a`    | 在文件中插入、删除或修改行。               | `ansible all -m lineinfile -a "path=/etc/hosts line='127.0.0.1 localhost' state=present"` |
+| `ini_file`        | `-a`    | 修改 INI 配置文件。                         | `ansible all -m ini_file -a "path=/etc/myconfig.ini section=database option=host value=localhost"` |
+| `debug`           | `-a`    | 打印调试信息。                               | `ansible all -m debug -a "msg='This is a debug message'"` |
+
+
 
 ---
 ---
