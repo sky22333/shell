@@ -1,6 +1,12 @@
 #!/bin/bash
 # 一键部署WordPress脚本
 
+# 检查是否已经安装WordPress
+if [ -d "/var/www/html/wordpress/wp-config.php" ]; then
+    echo -e "\033[32mWordPress 已经安装，跳过部署步骤，如需重新安装，请先删除/var/www/html/wordpress和备份相关数据\033[0m"
+    exit 0
+fi
+
 # 使用黄色字体提示用户输入域名
 echo -e "\033[33m请输入您的域名(确保已经解析到本机): \033[0m"
 read DOMAIN
@@ -32,7 +38,9 @@ DB_NAME="wordpress"
 DB_USER="wpuser"
 DB_PASSWORD=$(openssl rand -base64 12)
 
-sudo mysql -u root -e "CREATE DATABASE ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+# 删除旧的用户（如果存在）并创建新用户
+sudo mysql -u root -e "DROP USER IF EXISTS '${DB_USER}'@'localhost';"
+sudo mysql -u root -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 sudo mysql -u root -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';"
 sudo mysql -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
 sudo mysql -u root -e "FLUSH PRIVILEGES;"
