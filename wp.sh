@@ -1,0 +1,81 @@
+#!/bin/bash
+
+# 使用黄色字体提示用户输入域名
+echo -e "\033[33m请输入您的域名(确保已经解析到本机): \033[0m"
+read DOMAIN
+
+# 更新系统包
+sudo apt update && sudo apt upgrade -y
+
+# 安装必要的软件包
+sudo apt install -y mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-zip wget unzip
+
+# 启动并启用MariaDB
+sudo systemctl start mariadb
+sudo systemctl enable mariadb
+
+# MariaDB安全设置
+sudo mysql_secure_installation <<EOF
+
+y
+y
+y
+y
+y
+EOF
+
+# 创建WordPress数据库和用户
+DB_NAME="wordpress"
+DB_USER="wpuser"
+DB_PASSWORD=$(openssl rand -base64 12)
+
+sudo mysql -u root -e "CREATE DATABASE ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -u root -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';"
+sudo mysql -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
+sudo mysql -u root -e "FLUSH PRIVILEGES;"
+
+# 下载并配置WordPress
+mkdir -p /var/www/html
+cd /var/www/html
+wget https://zh-cn.wordpress.org/latest-zh_CN.tar.gz
+tar -xzvf latest-zh_CN.tar.gz
+rm latest-zh_CN.tar.gz
+
+# 设置文件权限
+sudo chown -R www-data:www-data /var/www/html/wordpress
+sudo find /var/www/html/wordpress/ -type d -exec chmod 750 {} \;
+sudo find /var/www/html/wordpress/ -type f -exec chmod 640 {} \;
+
+# 安装Caddy
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update
+sudo apt install -y caddy
+
+# 配置Caddy
+sudo bash -c "cat > /etc/caddy/Caddyfile" <<EOF
+$DOMAIN {
+    root * /var/www/html/wordpress
+    encode zstd gzip
+    php_fastcgi unix//run/php/php7.4-fpm.sock
+    file_server
+
+    @static {
+        path *.css *.js *.gif *.jpg *.jpeg *.png *.svg *.woff *.woff2
+        file
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+    header Cache-Control "public, max-age=3600"
+}
+EOF
+
+# 启动Caddy
+sudo systemctl restart caddy
+
+# 绿色字体打印数据库信息
+echo -e "\033[32m数据库信息: \033[0m"
+echo -e "\033[32m数据库名: ${DB_NAME}\033[0m"
+echo -e "\033[32m用户名: ${DB_USER}\033[0m"
+echo -e "\033[32m密码: ${DB_PASSWORD}\033[0m"
+echo -e "\033[32m您的wordpress站点已经部署完成\033[0m"
