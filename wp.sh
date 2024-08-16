@@ -38,6 +38,7 @@ DB_NAME="wordpress"
 DB_USER="wpuser"
 DB_PASSWORD=$(openssl rand -base64 12)
 
+
 # 删除旧的用户（如果存在）并创建新用户
 sudo mysql -u root -e "DROP USER IF EXISTS '${DB_USER}'@'localhost';"
 sudo mysql -u root -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
