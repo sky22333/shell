@@ -1,0 +1,383 @@
+#!/bin/bash
+
+trap _exit INT QUIT TERM
+
+_red() {
+    printf '\033[1;31;31m%b\033[0m' "$1"
+}
+
+_green() {
+    printf '\033[1;31;32m%b\033[0m' "$1"
+}
+
+_yellow() {
+    printf '\033[1;31;33m%b\033[0m' "$1"
+}
+
+_printargs() {
+    printf -- "%s" "[$(date)] "
+    printf -- "%s" "$1"
+    printf "\n"
+}
+
+_info() {
+    _printargs "$@"
+}
+
+_warn() {
+    printf -- "%s" "[$(date)] "
+    _yellow "$1"
+    printf "\n"
+}
+
+_error() {
+    printf -- "%s" "[$(date)] "
+    _red "$1"
+    printf "\n"
+    exit 2
+}
+
+_exit() {
+    printf "\n"
+    _red "$0 已终止。"
+    printf "\n"
+    exit 1
+}
+
+_exists() {
+    local cmd="$1"
+    if eval type type >/dev/null 2>&1; then
+        eval type "$cmd" >/dev/null 2>&1
+    elif command >/dev/null 2>&1; then
+        command -v "$cmd" >/dev/null 2>&1
+    else
+        which "$cmd" >/dev/null 2>&1
+    fi
+    local rt=$?
+    return ${rt}
+}
+
+_error_detect() {
+    local cmd="$1"
+    _info "${cmd}"
+    if ! eval "${cmd}" 1>/dev/null; then
+        _error "执行命令 (${cmd}) 失败，请检查并重试。"
+    fi
+}
+
+_sleep_sec() {
+    seconds=$1
+    while [ "${seconds}" -ge "0" ]; do
+      echo -ne "\r     \r"
+      _green "${seconds}"
+      seconds=$((seconds - 1))
+      sleep 1
+    done
+    echo -ne "\r"
+}
+
+check_sys() {
+    local value="$1"
+    local release=''
+    if [ -f /etc/redhat-release ]; then
+        release="rhel"
+    elif grep -Eqi "debian" /etc/issue; then
+        release="debian"
+    elif grep -Eqi "ubuntu" /etc/issue; then
+        release="ubuntu"
+    elif grep -Eqi "centos|red hat|redhat" /etc/issue; then
+        release="rhel"
+    elif grep -Eqi "debian" /proc/version; then
+        release="debian"
+    elif grep -Eqi "ubuntu" /proc/version; then
+        release="ubuntu"
+    elif grep -Eqi "centos|red hat|redhat" /proc/version; then
+        release="rhel"
+    fi
+    if [ "${value}" == "${release}" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+vhost() {
+    case "$1" in
+        [aA][dD][dD])
+            add_vhost
+            ;;
+        [lL][iI][sS][tT])
+            list_vhost
+            ;;
+        [dD][eE][lL])
+            del_vhost
+            ;;
+        *)
+            _error "用法: lcmp vhost [add|list|del]"
+            ;;
+    esac
+}
+
+database() {
+    case "$1" in
+        [aA][dD][dD])
+            add_database_menu
+            add_database
+            ;;
+        [lL][iI][sS][tT])
+            list_database
+            ;;
+        [dD][eE][lL])
+            del_database
+            ;;
+        [eE][dD][iI][tT])
+            edit_database
+            ;;
+        *)
+            _error "用法: lcmp db [add|list|del|edit]"
+            ;;
+    esac
+}
+
+add_vhost() {
+    while true; do
+        read -r -p "[$(date)] 请输入域名（例如: www.example.com）: " domain
+        if [ -n "${domain}" ] && [[ "${domain}" = "${domain%[[:space:]]*}" ]]; then
+            if [ -f "/etc/caddy/conf.d/${domain}.conf" ]; then
+                _error "域名 ${domain} 已存在，请检查并重试。"
+            else
+                _info "域名: $(_green "${domain}")"
+            fi
+            break
+        else
+            _red "域名不能为空或包含空格。\n"
+        fi
+    done
+
+    read -r -p "[$(date)] 请输入域名 ${domain} 的目录（默认目录: /data/www/${domain}）: " vhostdir
+    if [ -z "${vhostdir}" ]; then
+        vhostdir="/data/www/${domain}"
+    fi
+    _info "虚拟主机目录: $(_green "${vhostdir}")"
+
+    read -r -p "[$(date)] 是否创建一个 MariaDB 数据库及相同名称的用户 (y/n): " create_database
+    if [ "${create_database}" == "y" ] || [ "${create_database}" == "Y" ]; then
+        verify_db_password
+        add_database_menu
+    fi
+    _info "创建虚拟主机目录"
+    _error_detect "mkdir -p ${vhostdir}"
+    _info "设置虚拟主机目录权限"
+    _error_detect "chmod -R 755 ${vhostdir}"
+    _error_detect "chown -R caddy:caddy ${vhostdir}"
+    add_vhost_config
+    if [ "${create_database}" == "y" ] || [ "${create_database}" == "Y" ]; then
+        add_database
+    fi
+    _error_detect "systemctl restart caddy"
+    _info "虚拟主机信息:"
+    _info "域名: $(_green "${domain}")"
+    _info "虚拟主机目录: $(_green "${vhostdir}")"
+    _info "虚拟主机配置: $(_green "/etc/caddy/conf.d/${domain}.conf")"
+    list_vhost
+    if [ "${create_database}" == "y" ] || [ "${create_database}" == "Y" ]; then
+        _info "数据库用户名: ${database_name}"
+        _info "数据库用户密码: ${mysql_password}"
+        _info "数据库名称: ${database_name}"
+    fi
+}
+
+add_vhost_config() {
+    cat >"/etc/caddy/conf.d/${domain}.conf" <<EOF
+${domain} {
+	header {
+		Strict-Transport-Security "max-age=31536000; preload"
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+	}
+	root * ${vhostdir}
+	encode gzip
+	php_fastcgi ${php_sock}
+	file_server {
+		index index.html
+	}
+	log {
+		output file /var/log/caddy/access_${domain}.log {
+			roll_size 100mb
+			roll_keep 3
+			roll_keep_for 7d
+		}
+	}
+}
+EOF
+}
+
+list_vhost() {
+    _info "Caddy 虚拟主机列表:"
+    local vhosts=()
+    while IFS=' ' read -r line; do vhosts+=("${line}"); done < <(find /etc/caddy/conf.d/ -name "*.conf" -type f -printf "%f\n" | sed 's/.conf//g' | grep -v "default")
+    if [ "${#vhosts[@]}" -gt 0 ]; then
+        for i in "${vhosts[@]}"; do
+            _info "$(_green "${i}")"
+        done
+    else
+        _info "未找到 Caddy 虚拟主机。您可以使用命令 $(_green "lcmp vhost add") 创建一个新的 Caddy 虚拟主机。"
+    fi
+}
+
+del_vhost() {
+    list_vhost
+    while true; do
+        read -r -p "[$(date)] 请输入要删除的域名: " domain
+        if [ -z "${domain}" ]; then
+            _red "域名不能为空。\n"
+        else
+            break
+        fi
+    done
+    if [ -f "/etc/caddy/conf.d/${domain}.conf" ]; then
+        rm -f "/etc/caddy/conf.d/${domain}.conf"
+        _info "域名 $(_red "${domain}") 已被删除。"
+        _info "网站文件不会被删除以保证安全。"
+        _info "删除虚拟主机配置"
+        _error_detect "systemctl restart caddy"
+    else
+        _error "未找到域名 ${domain} 的虚拟主机配置。"
+    fi
+}
+
+add_database_menu() {
+    _info "添加 MariaDB 数据库菜单"
+    _info "数据库创建选项:"
+    _info "1. 创建一个新的数据库"
+    _info "2. 创建一个新的数据库用户"
+    _info "3. 创建数据库及用户"
+    _info "4. 退出"
+}
+
+verify_db_password() {
+    while true; do
+        read -r -p "[$(date)] 请输入 MariaDB root 用户密码: " -s root_password
+        echo
+        read -r -p "[$(date)] 请再次输入 MariaDB root 用户密码: " -s root_password_confirm
+        echo
+        if [ "${root_password}" == "${root_password_confirm}" ]; then
+            break
+        else
+            _red "两次输入的密码不匹配，请重试。"
+        fi
+    done
+}
+
+add_database() {
+    local choice
+    while true; do
+        read -r -p "[$(date)] 请选择数据库创建选项 [1-4]: " choice
+        case $choice in
+            1)
+                read -r -p "[$(date)] 请输入数据库名称: " database_name
+                _info "创建数据库: $(_green "${database_name}")"
+                _error_detect "mysql -uroot -p${root_password} -e \"CREATE DATABASE ${database_name};\""
+                ;;
+            2)
+                read -r -p "[$(date)] 请输入数据库用户名: " database_user
+                read -r -p "[$(date)] 请输入数据库用户密码: " -s database_password
+                echo
+                _info "创建数据库用户: $(_green "${database_user}")"
+                _error_detect "mysql -uroot -p${root_password} -e \"CREATE USER '${database_user}'@'localhost' IDENTIFIED BY '${database_password}';\""
+                ;;
+            3)
+                read -r -p "[$(date)] 请输入数据库名称: " database_name
+                read -r -p "[$(date)] 请输入数据库用户名: " database_user
+                read -r -p "[$(date)] 请输入数据库用户密码: " -s database_password
+                echo
+                _info "创建数据库: $(_green "${database_name}")"
+                _info "创建数据库用户: $(_green "${database_user}")"
+                _error_detect "mysql -uroot -p${root_password} -e \"CREATE DATABASE ${database_name};\""
+                _error_detect "mysql -uroot -p${root_password} -e \"CREATE USER '${database_user}'@'localhost' IDENTIFIED BY '${database_password}';\""
+                _error_detect "mysql -uroot -p${root_password} -e \"GRANT ALL PRIVILEGES ON ${database_name}.* TO '${database_user}'@'localhost';\""
+                _error_detect "mysql -uroot -p${root_password} -e \"FLUSH PRIVILEGES;\""
+                ;;
+            4)
+                break
+                ;;
+            *)
+                _red "无效的选项，请选择 1-4。"
+                ;;
+        esac
+    done
+}
+
+list_database() {
+    _info "数据库列表:"
+    _error_detect "mysql -uroot -p${root_password} -e \"SHOW DATABASES;\""
+}
+
+del_database() {
+    read -r -p "[$(date)] 请输入要删除的数据库名称: " database_name
+    _info "删除数据库: $(_red "${database_name}")"
+    _error_detect "mysql -uroot -p${root_password} -e \"DROP DATABASE ${database_name};\""
+}
+
+edit_database() {
+    _info "编辑数据库功能尚未实现。"
+}
+
+# 主程序
+if [ "$#" -lt 1 ]; then
+    _error "用法: lcmp [vhost|db]"
+fi
+
+case "$1" in
+    [vV][hH][oO][sS][tT])
+        vhost "$2"
+        ;;
+    [dD][bB])
+        database "$2"
+        ;;
+    *)
+        _error "无效的命令: $1"
+        ;;
+esac
+if [ "$#" -lt 1 ]; then
+    _error "用法: lcmp [start|stop|restart|status|vhost|db]"
+fi
+
+case "$1" in
+    start)
+        lcmp_start
+        ;;
+    stop)
+        lcmp_stop
+        ;;
+    restart)
+        lcmp_stop
+        sleep 1
+        lcmp_start
+        ;;
+    status)
+        lcmp_status
+        ;;
+    vhost)
+        vhost "$2"
+        ;;
+    db)
+        verify_db_password
+        database "$2"
+        clean_temp_mycnf
+        ;;
+    *)
+        _info "用法:"
+        _info "$(_green "lcmp start")      启动所有 LCMP 服务"
+        _info "$(_green "lcmp stop")       停止所有 LCMP 服务"
+        _info "$(_green "lcmp restart")    重启所有 LCMP 服务"
+        _info "$(_green "lcmp status")     查看所有 LCMP 服务的状态"
+        _info "$(_green "lcmp vhost add")  创建一个新的 Caddy 虚拟主机"
+        _info "$(_green "lcmp vhost list") 列出所有 Caddy 虚拟主机"
+        _info "$(_green "lcmp vhost del")  删除一个 Caddy 虚拟主机"
+        _info "$(_green "lcmp db add")     创建一个 MariaDB 数据库和同名用户"
+        _info "$(_green "lcmp db list")    列出所有 MariaDB 数据库"
+        _info "$(_green "lcmp db del")     删除一个 MariaDB 数据库和同名用户"
+        _info "$(_green "lcmp db edit")    更新 MariaDB 数据库用户的密码"
+        ;;
+esac
