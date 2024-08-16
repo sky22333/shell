@@ -1,5 +1,6 @@
 #!/bin/bash
 # 该脚本引用自https://github.com/teddysun/lcmp
+# Linux + Caddy + MariaDB + PHP 安装脚本
 # 处理退出信号
 trap _exit INT QUIT TERM
 
