@@ -6,11 +6,11 @@ echo -e "\033[33m请输入您的域名(确保已经解析到本机): \033[0m"
 read DOMAIN
 
 # 更新系统包
-echo -e "\033[33m正在更新系统包...首次安装可能较慢...\033[0m"
+echo -e "\033[33m正在更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
 sudo apt update > /dev/null 2>&1 && sudo apt upgrade -y > /dev/null 2>&1
 
 # 安装必要的软件包
-echo -e "\033[33m正在安装必要的软件包...首次安装可能较慢...\033[0m"
+echo -e "\033[33m正在安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
 sudo apt install -y mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-zip wget unzip > /dev/null 2>&1
 
 # 启动并启用MariaDB
