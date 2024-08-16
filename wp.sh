@@ -5,10 +5,12 @@ echo -e "\033[33m请输入您的域名(确保已经解析到本机): \033[0m"
 read DOMAIN
 
 # 更新系统包
-sudo apt update && sudo apt upgrade -y
+echo -e "\033[33m正在更新系统包...首次安装可能较慢...\033[0m"
+sudo apt update > /dev/null 2>&1 && sudo apt upgrade -y > /dev/null 2>&1
 
 # 安装必要的软件包
-sudo apt install -y mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-zip wget unzip
+echo -e "\033[33m正在安装必要的软件包...首次安装可能较慢...\033[0m"
+sudo apt install -y mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-zip wget unzip > /dev/null 2>&1
 
 # 启动并启用MariaDB
 sudo systemctl start mariadb
@@ -38,7 +40,7 @@ sudo mysql -u root -e "FLUSH PRIVILEGES;"
 mkdir -p /var/www/html
 cd /var/www/html
 wget https://zh-cn.wordpress.org/latest-zh_CN.tar.gz
-tar -xzvf latest-zh_CN.tar.gz
+tar -xzvf latest-zh_CN.tar.gz > /dev/null 2>&1
 rm latest-zh_CN.tar.gz
 
 # 设置文件权限
