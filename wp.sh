@@ -15,7 +15,7 @@ while true; do
     read DOMAIN
     
     # 显示用户输入的域名并要求确认
-    echo -e "\033[32m您输入的域名是: \033[0m$DOMAIN"
+    echo -e "\033[32m您输入的域名是: $DOMAIN\033[0m"
     echo -e "\033[33m请确认这个域名是否正确 (yes/no): \033[0m"
     read CONFIRM
     
