@@ -29,7 +29,7 @@ done
 
 # 更新系统包
 echo -e "\033[32m更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
-sudo apt-get update -q
+sudo apt-get update -q && sudo apt-get upgrade -y -q
 
 # 安装必要的软件包
 echo -e "\033[32m安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
