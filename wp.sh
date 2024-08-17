@@ -28,20 +28,12 @@ while true; do
 done
 
 # 更新系统包
-echo -e "\033[32m正在更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
+echo -e "\033[32m更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
 sudo apt-get update -q && sudo apt-get upgrade -y -q
 
 # 安装必要的软件包
-echo -e "\033[32m正在安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
+echo -e "\033[32m安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
 sudo apt-get install -y -q mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-zip wget unzip
-
-# 检查并卸载 Apache
-if dpkg -l | grep -q apache2; then
-    sudo systemctl stop apache2
-    sudo systemctl disable apache2
-    sudo apt-get remove --purge -y apache2 apache2-utils apache2-bin apache2.2-common
-fi
-
 
 # 启动并启用MariaDB
 sudo systemctl start mariadb
@@ -62,6 +54,7 @@ DB_NAME="wordpress"
 DB_USER="wpuser"
 DB_PASSWORD=$(openssl rand -base64 12)
 
+
 # 删除旧的用户（如果存在）并创建新用户
 sudo mysql -u root -e "DROP USER IF EXISTS '${DB_USER}'@'localhost';"
 sudo mysql -u root -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -73,10 +66,6 @@ sudo mysql -u root -e "FLUSH PRIVILEGES;"
 mkdir -p /var/www/html
 cd /var/www/html
 wget https://zh-cn.wordpress.org/latest-zh_CN.tar.gz
-if [ $? -ne 0 ]; then
-    echo -e "\033[31m下载 WordPress 失败。\033[0m"
-    exit 1
-fi
 tar -xzvf latest-zh_CN.tar.gz > /dev/null 2>&1
 rm latest-zh_CN.tar.gz
 
@@ -95,16 +84,12 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo 
 sudo apt update -q
 sudo apt install -y -q caddy
 
-# 自动检测 PHP 版本
-PHP_VERSION=$(php -v | head -n 1 | awk '{print $2}' | cut -d'.' -f1-2)
-PHP_FPM_SOCKET="/run/php/php${PHP_VERSION}-fpm.sock"
-
 # 配置Caddy
 sudo bash -c "cat > /etc/caddy/Caddyfile" <<EOF
 $DOMAIN {
     root * /var/www/html/wordpress
     encode zstd gzip
-    php_fastcgi unix://$PHP_FPM_SOCKET
+    php_fastcgi unix//run/php/php7.4-fpm.sock
     file_server
 }
 EOF
