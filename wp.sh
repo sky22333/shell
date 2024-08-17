@@ -28,11 +28,11 @@ while true; do
 done
 
 # 更新系统包
-echo -e "\033[33m正在更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
+echo -e "\033[32m正在更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
 sudo apt-get update -q && sudo apt-get upgrade -y -q
 
 # 安装必要的软件包
-echo -e "\033[33m正在安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
+echo -e "\033[32m正在安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
 sudo apt-get install -y -q mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-zip wget unzip
 
 # 启动并启用MariaDB
