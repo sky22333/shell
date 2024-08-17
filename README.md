@@ -7,7 +7,7 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/acgfaka.sh)
 
 
 - ### 一键自动安装WordPress
-> 适用于`Debian/Ubuntu`系统    基于`Caddy` `php` `mariadb`环境
+> 适用于`Debian/Ubuntu`系统全版本    基于`Caddy` `php` `mariadb`环境
 ```
 bash <(wget -qO- https://github.com/sky22333/shell/raw/main/wp.sh)
 ```
