@@ -108,20 +108,12 @@ EOF
 # 启动Caddy
 sudo systemctl restart caddy
 
-# 获取软件版本信息
-CADDY_VERSION=$(caddy version)
-PHP_VERSION=$(php -v | head -n 1 | awk '{print $2}')
-MARIADB_VERSION=$(mariadb --version | awk '{print $5}' | tr -d ',')
-
 echo -e "\033[32m============================================================\033[0m"
 echo -e "\033[32m                  数据库信息: \033[0m"
 echo -e "\033[32m============================================================\033[0m"
 echo -e "\033[33m数据库名:     \033[36m${DB_NAME}\033[0m"
 echo -e "\033[33m用户名:       \033[36m${DB_USER}\033[0m"
 echo -e "\033[33m密码:         \033[36m${DB_PASSWORD}\033[0m"
-echo -e "\033[33mCaddy 版本:   \033[36m${CADDY_VERSION}\033[0m"
-echo -e "\033[33mPHP 版本:     \033[36m${PHP_VERSION}\033[0m"
-echo -e "\033[33mMariaDB 版本: \033[36m${MARIADB_VERSION}\033[0m"
 echo -e "\033[32m============================================================\033[0m"
 echo -e "\033[32m站点域名:     \033[36m${DOMAIN}\033[0m"
 echo -e "\033[32m您的 WordPress 站点已经部署完成，请记录好相关信息。\033[0m"
