@@ -19,8 +19,7 @@ while true; do
     echo -e "\033[33m请确认这个域名是否正确 (yes/no): \033[0m"
     read CONFIRM
     
-    # 判断用户的确认输入
-    if [[ "$CONFIRM" == "yes" || "$CONFIRM" == "y" ]]; then
+    if [[ "${CONFIRM,,}" == "yes" || "${CONFIRM,,}" == "y" ]]; then
         echo -e "\033[32m域名确认成功: $DOMAIN\033[0m"
         break
     else
