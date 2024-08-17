@@ -60,7 +60,7 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/Mbit.sh)
 - ###  一键安装Docker和Docker compose
 
 ```
-bash <(wget -qO- https://github.com/sky22333/shell/raw/main/kaiji.sh)
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/docker.sh)
 ```
 
 - ### vultr开机脚本
