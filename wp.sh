@@ -1,6 +1,8 @@
 #!/bin/bash
 # 一键部署WordPress脚本
 
+if [[ "$OS" != "Debian" && "$OS" != "Ubuntu" ]]; thenecho -e "\033[31m该脚本仅支持在 Debian 或 Ubuntu 系统上运行。\033[0m"exit 1
+
 # 检查是否已经安装WordPress
 if [ -d "/var/www/html/wordpress/wp-config.php" ]; then
     echo -e "\033[32mWordPress 已经安装，跳过部署步骤，如需重新安装，请先删除/var/www/html/wordpress和备份相关数据\033[0m"
