@@ -9,8 +9,24 @@ if [ -f "/var/www/html/wordpress/wp-config.php" ]; then
 fi
 
 # 使用黄色字体提示用户输入域名
-echo -e "\033[33m请输入您的域名(确保已经解析到本机): \033[0m"
-read DOMAIN
+while true; do
+    # 提示用户输入域名
+    echo -e "\033[33m请输入您的域名(确保已经解析到本机): \033[0m"
+    read DOMAIN
+    
+    # 显示用户输入的域名并要求确认
+    echo -e "\033[33m您输入的域名是: \033[0m$DOMAIN"
+    echo -e "\033[33m请确认这个域名是否正确 (yes/no): \033[0m"
+    read CONFIRM
+    
+    # 判断用户的确认输入
+    if [[ "$CONFIRM" == "yes" || "$CONFIRM" == "y" ]]; then
+        echo -e "\033[32m域名确认成功: $DOMAIN\033[0m"
+        break
+    else
+        echo -e "\033[31m请重新输入域名。\033[0m"
+    fi
+done
 
 # 更新系统包
 echo -e "\033[33m正在更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
