@@ -8,7 +8,6 @@ if [ -d "/var/www/html/acgfaka" ]; then
     exit 0
 fi
 
-# 获取用户输入的域名
 while true; do
     echo -e "\033[33m请输入您的域名(确保已经解析到本机): \033[0m"
     read DOMAIN
@@ -17,6 +16,7 @@ while true; do
     echo -e "\033[33m请确认这个域名是否正确 (yes/no, 默认回车确认): \033[0m"
     read CONFIRM
     
+    # 如果用户按回车，则默认为确认
     if [[ -z "${CONFIRM// }" ]]; then
         CONFIRM="yes"
     fi
@@ -31,27 +31,56 @@ done
 
 # 安装必要的软件包
 echo -e "\033[32m安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
-sudo apt update -q
-sudo apt install -y -q mariadb-server php8.1 php8.1-mysql php8.1-fpm php8.1-curl php8.1-cgi php8.1-mbstring php8.1-xml php8.1-gd php8.1-xmlrpc php8.1-soap php8.1-intl php8.1-opcache php8.1-zip wget unzip socat curl debian-keyring debian-archive-keyring apt-transport-https software-properties-common caddy
 
-# 安装 Caddy
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+# 创建 sources.list.d 目录（如果不存在的话）
+if [ ! -d /etc/apt/sources.list.d/ ]; then
+    mkdir -p /etc/apt/sources.list.d/
+fi
+
+# 添加 Caddy 源和密钥
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+
+# 检查操作系统
+if grep -Eqi "debian" /etc/issue || grep -Eqi "debian" /proc/version; then
+    OS="debian"
+    # Debian 系统设置 PHP 仓库
+    curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+    echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" >/etc/apt/sources.list.d/php.list
+elif grep -Eqi "ubuntu" /etc/issue || grep -Eqi "ubuntu" /proc/version; then
+    OS="ubuntu"
+    # Ubuntu 系统设置 PHP PPA
+    sudo apt update -q
+    sudo apt install -yq software-properties-common
+    sudo add-apt-repository -yq ppa:ondrej/php
+else
+    echo "不支持的操作系统。本脚本仅支持 Debian 或 Ubuntu。"
+    exit 1
+fi
 
 # 更新源列表
 sudo apt update -q
+
+# 安装必要的软件包
+sudo apt install -y -q mariadb-server php8.1 php8.1-mysql php8.1-fpm php8.1-curl php8.1-cgi php8.1-mbstring php8.1-xml php8.1-gd php8.1-xmlrpc php8.1-soap php8.1-intl php8.1-opcache php8.1-zip wget unzip socat curl caddy
 
 PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
 PHP_INI_FILE="/etc/php/${PHP_VERSION}/fpm/php.ini"
 OPCACHE_FILE_CACHE_DIR="/var/cache/opcache"
 
+# 确保缓存目录存在并设置权限
+if [ ! -d "$OPCACHE_FILE_CACHE_DIR" ]; then
+    echo -e "\033[32m创建 OPcache 缓存目录...\033[0m"
+    sudo mkdir -p "$OPCACHE_FILE_CACHE_DIR"
+    sudo chown -R www-data:www-data "$OPCACHE_FILE_CACHE_DIR"
+fi
+
 # 确保 OPcache 配置存在
 if ! grep -q "^opcache.enable=1" "$PHP_INI_FILE"; then
     echo -e "\033[32m启用 OPcache 扩展...请稍等...\033[0m"
     
-    sudo mkdir -p "$OPCACHE_FILE_CACHE_DIR"
-    sudo chown -R www-data:www-data "$OPCACHE_FILE_CACHE_DIR"
-
+    # 写入 OPcache 配置
     sudo tee -a "$PHP_INI_FILE" > /dev/null <<EOL
 [opcache]
 opcache.enable=1
@@ -62,19 +91,23 @@ opcache.revalidate_freq=2
 opcache.save_comments=1
 opcache.file_cache=${OPCACHE_FILE_CACHE_DIR}
 opcache.file_cache_size=128
-opcache.file_cache_only=0  # 内存缓存启用
+opcache.file_cache_only=0  # 修改为 0 表示启用内存缓存
 opcache.file_cache_consistency_checks=1
 EOL
+
     echo -e "\033[32mOPcache 配置已完成。\033[0m"
 fi
 
 # 重启 PHP-FPM 服务
 sudo systemctl restart php${PHP_VERSION}-fpm
 
-# 启动并启用 Caddy 和 MariaDB 服务
-sudo systemctl enable --now caddy mariadb
+# 启动并启用 Caddy 服务
+sudo systemctl start caddy
+sudo systemctl enable caddy
 
-# 配置 MariaDB
+sudo systemctl start mariadb
+sudo systemctl enable mariadb
+
 sudo mysql_secure_installation <<EOF
 
 y
@@ -84,33 +117,32 @@ y
 y
 EOF
 
-# 创建数据库和用户
+# 创建acgfaka数据库和用户
 DB_NAME="acgfaka"
 DB_USER="acguser"
 DB_PASSWORD=$(openssl rand -base64 12)
 
-sudo mysql -u root <<EOF
-DROP USER IF EXISTS '${DB_USER}'@'localhost';
-CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';
-GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';
-FLUSH PRIVILEGES;
-EOF
+sudo mysql -u root -e "DROP USER IF EXISTS '${DB_USER}'@'localhost';"
+sudo mysql -u root -e "CREATE DATABASE IF NOT EXISTS ${DB_NAME} DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+sudo mysql -u root -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASSWORD}';"
+sudo mysql -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
+sudo mysql -u root -e "FLUSH PRIVILEGES;"
 
-# 下载并配置 acgfaka
-sudo mkdir -p /var/www/html
+# 下载并配置acgfaka
+mkdir -p /var/www/html
 cd /var/www/html
-sudo wget https://github.com/lizhipay/acg-faka/archive/refs/heads/main.zip
-sudo unzip main.zip > /dev/null 2>&1
-sudo rm main.zip
-sudo mv acg-faka-main acgfaka
+wget https://github.com/lizhipay/acg-faka/archive/refs/heads/main.zip
+unzip main.zip > /dev/null 2>&1
+rm main.zip
+mv acg-faka-main acgfaka
 
 sudo chown -R www-data:www-data /var/www/html/acgfaka
 sudo find /var/www/html/acgfaka/ -type d -exec chmod 750 {} \;
 sudo find /var/www/html/acgfaka/ -type f -exec chmod 640 {} \;
 
 # 配置 Caddyfile
-sudo tee /etc/caddy/Caddyfile > /dev/null <<EOL
+CADDY_CONF="/etc/caddy/Caddyfile"
+sudo tee $CADDY_CONF > /dev/null <<EOL
 $DOMAIN {
     root * /var/www/html/acgfaka
     encode zstd gzip
@@ -127,7 +159,6 @@ EOL
 # 重新加载 Caddy 配置
 sudo systemctl reload caddy
 
-# 输出数据库信息
 echo -e "\033[32m============================================================\033[0m"
 echo -e "\033[32m                  数据库信息: \033[0m"
 echo -e "\033[32m============================================================\033[0m"
