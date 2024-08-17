@@ -88,13 +88,6 @@ $DOMAIN {
     encode zstd gzip
     php_fastcgi unix//run/php/php7.4-fpm.sock
     file_server
-
-    @static {
-        path *.css *.js *.gif *.jpg *.jpeg *.png *.svg *.woff *.woff2
-        file
-    }
-    header @static Cache-Control "public, max-age=3153600, immutable"
-    header Cache-Control "public, max-age=3600"
 }
 EOF
 
