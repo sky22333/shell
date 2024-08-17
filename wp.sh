@@ -1,6 +1,9 @@
 #!/bin/bash
 # 一键部署WordPress脚本
 
+# 检测操作系统类型
+OS=$(lsb_release -si)
+
 # 检查操作系统是否为 Debian 或 Ubuntu
 if [[ "$OS" != "Debian" && "$OS" != "Ubuntu" ]]; then
     echo -e "\033[31m该脚本仅支持在 Debian 或 Ubuntu 系统上运行。\033[0m"
