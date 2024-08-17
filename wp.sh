@@ -78,7 +78,7 @@ $DOMAIN {
         path *.css *.js *.gif *.jpg *.jpeg *.png *.svg *.woff *.woff2
         file
     }
-    header @static Cache-Control "public, max-age=31536000, immutable"
+    header @static Cache-Control "public, max-age=3153600, immutable"
     header Cache-Control "public, max-age=3600"
 }
 EOF
