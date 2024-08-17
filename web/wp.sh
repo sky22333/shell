@@ -1,5 +1,6 @@
 #!/bin/bash
 # 一键部署WordPress脚本
+# 项目地址https://github.com/sky22333/shell
 
 # 检查是否已经安装 WordPress
 if [ -d "/var/www/html/wordpress" ]; then
@@ -42,6 +43,7 @@ y
 y
 EOF
 
+# 项目地址https://github.com/sky22333/shell
 # 创建WordPress数据库和用户
 DB_NAME="wordpress"
 DB_USER="wpuser"
