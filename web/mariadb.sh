@@ -17,6 +17,11 @@ _error_detect() {
     fi
 }
 
+generate_random_password() {
+    # 生成一个随机密码
+    tr -dc 'A-Za-z0-9_@%+~#!' </dev/urandom | head -c 16
+}
+
 install_mariadb() {
     _info "开始安装MariaDB"
     _error_detect "apt update"
@@ -27,8 +32,12 @@ install_mariadb() {
 }
 
 configure_database() {
-    read -r -p "请输入新数据库名称: " database_name
-    read -r -p "请输入新数据库用户密码: " mysql_password
+    database_name="mymariadb"
+    mysql_password=$(generate_random_password)
+    db_root_password="${mysql_password}"
+
+    # 设置 root 密码
+    _error_detect "mysql -e \"ALTER USER 'root'@'localhost' IDENTIFIED BY '${db_root_password}';\""
 
     cat >/tmp/.add_mysql.sql<<EOF
 CREATE USER '${database_name}'@'localhost' IDENTIFIED BY '${mysql_password}';
@@ -55,6 +64,7 @@ print_db_info() {
     _info "数据库名称：${database_name}"
     _info "数据库用户：${database_name}"
     _info "数据库密码：${mysql_password}"
+    _info "MariaDB root 密码：${db_root_password}"
     _info "请妥善保管以上信息"
 }
 
