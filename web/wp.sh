@@ -14,8 +14,13 @@ while true; do
     read DOMAIN
     
     echo -e "\033[32m您输入的域名是: $DOMAIN\033[0m"
-    echo -e "\033[33m请确认这个域名是否正确 (yes/no): \033[0m"
+    echo -e "\033[33m请确认这个域名是否正确 (yes/no, 默认回车确认): \033[0m"
     read CONFIRM
+    
+    # 如果用户按回车，则默认为确认
+    if [[ -z "${CONFIRM// }" ]]; then
+        CONFIRM="yes"
+    fi
     
     if [[ "${CONFIRM,,}" == "yes" || "${CONFIRM,,}" == "y" ]]; then
         echo -e "\033[32m域名确认成功: $DOMAIN\033[0m"
