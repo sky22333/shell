@@ -1,5 +1,6 @@
 #!/bin/bash
 # 一键部署异次元发卡脚本
+# 项目地址https://github.com/sky22333/shell
 
 # 检查是否已经安装 acgfaka
 if [ -d "/var/www/html/acgfaka" ]; then
@@ -59,6 +60,7 @@ else
     exit 1
 fi
 
+# 项目地址https://github.com/sky22333/shell
 # 更新源列表
 sudo apt update -q
 
