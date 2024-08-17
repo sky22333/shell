@@ -84,12 +84,23 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo 
 sudo apt update -q
 sudo apt install -y -q caddy
 
-# 配置Caddy
+# 检查并获取已安装的 PHP 版本
+PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
+
+# 检查是否安装了 Apache 并停止 Apache 服务
+if systemctl is-active --quiet apache2; then
+    sudo systemctl stop apache2
+    sudo systemctl disable apache2
+else
+    echo -e "\033[32m当前环境是正常状态。\033[0m"
+fi
+
+# 根据 PHP 版本生成 Caddyfile
 sudo bash -c "cat > /etc/caddy/Caddyfile" <<EOF
 $DOMAIN {
     root * /var/www/html/wordpress
     encode zstd gzip
-    php_fastcgi unix//run/php/php7.4-fpm.sock
+    php_fastcgi unix//run/php/php${PHP_VERSION}-fpm.sock
     file_server
 }
 EOF
