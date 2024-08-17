@@ -1,4 +1,4 @@
-- ### 一键自动部署WordPress
+- ### 一键自动安装WordPress
 > 适用于`Debian/Ubuntu`系统    基于caddy php7.4 环境
 ```
 bash <(wget -qO- https://github.com/sky22333/shell/raw/main/wp.sh)
