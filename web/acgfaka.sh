@@ -13,8 +13,13 @@ while true; do
     read DOMAIN
     
     echo -e "\033[32m您输入的域名是: $DOMAIN\033[0m"
-    echo -e "\033[33m请确认这个域名是否正确 (yes/no): \033[0m"
+    echo -e "\033[33m请确认这个域名是否正确 (yes/no, 默认回车确认): \033[0m"
     read CONFIRM
+    
+    # 如果用户按回车，则默认为确认
+    if [[ -z "${CONFIRM// }" ]]; then
+        CONFIRM="yes"
+    fi
     
     if [[ "${CONFIRM,,}" == "yes" || "${CONFIRM,,}" == "y" ]]; then
         echo -e "\033[32m域名确认成功: $DOMAIN\033[0m"
@@ -26,8 +31,39 @@ done
 
 # 安装必要的软件包
 echo -e "\033[32m安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
-sudo apt-get update -q
-sudo apt-get install -y -q mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-opcache php-zip wget unzip apache2 socat curl
+
+# 创建 sources.list.d 目录（如果不存在的话）
+if [ ! -d /etc/apt/sources.list.d/ ]; then
+    mkdir -p /etc/apt/sources.list.d/
+fi
+
+# 添加 Caddy 源和密钥
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update -q
+# 检查操作系统
+if grep -Eqi "debian" /etc/issue || grep -Eqi "debian" /proc/version; then
+    OS="debian"
+    # Debian 系统设置 PHP 仓库
+    curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+    echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -sc) main" >/etc/apt/sources.list.d/php.list
+elif grep -Eqi "ubuntu" /etc/issue || grep -Eqi "ubuntu" /proc/version; then
+    OS="ubuntu"
+    # Ubuntu 系统设置 PHP PPA
+    sudo apt update -q
+    sudo apt install -yq software-properties-common
+    sudo add-apt-repository -yq ppa:ondrej/php
+else
+    echo "不支持的操作系统。本脚本仅支持 Debian 或 Ubuntu。"
+    exit 1
+fi
+
+# 更新源列表
+sudo apt update -q
+
+# 安装必要的软件包
+sudo apt install -y -q mariadb-server php8.1 php8.1-mysql php8.1-fpm php8.1-curl php8.1-cgi php8.1-mbstring php8.1-xml php8.1-gd php8.1-xmlrpc php8.1-soap php8.1-intl php8.1-opcache php8.1-zip wget unzip socat curl caddy
 
 PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
 PHP_INI_FILE="/etc/php/${PHP_VERSION}/fpm/php.ini"
@@ -50,24 +86,40 @@ if ! grep -q "^opcache.enable=1" "$PHP_INI_FILE"; then
 opcache.enable=1
 opcache.memory_consumption=256
 opcache.interned_strings_buffer=16
-opcache.max_accelerated_files=20000
-opcache.revalidate_freq=2
+opcache.max_accelerated_files=5000
+opcache.revalidate_freq=5
 opcache.save_comments=1
 opcache.file_cache=${OPCACHE_FILE_CACHE_DIR}
 opcache.file_cache_size=128
 opcache.file_cache_only=0  # 修改为 0 表示启用内存缓存
 opcache.file_cache_consistency_checks=1
 EOL
+fi
 
-    echo -e "\033[32mOPcache 配置已完成。\033[0m"
+# 设置时区
+TIMEZONE="Asia/Shanghai"
+
+# 检查并设置 date.timezone
+if grep -q "^date.timezone" "$PHP_INI_FILE"; then
+    # 如果存在 date.timezone 配置但不是 Asia/Shanghai，则更新
+    if ! grep -q "^date.timezone = $TIMEZONE" "$PHP_INI_FILE"; then
+        echo -e "\033[32m更新 date.timezone 为 $TIMEZONE...\033[0m"
+        sudo sed -i "s#^date.timezone.*#date.timezone = $TIMEZONE#g" "$PHP_INI_FILE"
+    fi
+else
+    # 如果 date.timezone 配置不存在，则添加
+    echo -e "\033[32m设置 date.timezone 为 $TIMEZONE...\033[0m"
+    sudo tee -a "$PHP_INI_FILE" > /dev/null <<EOL
+date.timezone = $TIMEZONE
+EOL
 fi
 
 # 重启 PHP-FPM 服务
 sudo systemctl restart php${PHP_VERSION}-fpm
 
-# 启动并启用 Apache 服务
-sudo systemctl start apache2
-sudo systemctl enable apache2
+# 启动并启用 Caddy 服务
+sudo systemctl start caddy
+sudo systemctl enable caddy
 
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
@@ -104,106 +156,24 @@ sudo chown -R www-data:www-data /var/www/html/acgfaka
 sudo find /var/www/html/acgfaka/ -type d -exec chmod 750 {} \;
 sudo find /var/www/html/acgfaka/ -type f -exec chmod 640 {} \;
 
-# 配置 Apache 虚拟主机
-APACHE_CONF="/etc/apache2/sites-available/acgfaka.conf"
-sudo tee $APACHE_CONF > /dev/null <<EOL
-<VirtualHost *:80>
-    ServerName $DOMAIN
-    DocumentRoot /var/www/html/acgfaka
+# 配置 Caddyfile
+CADDY_CONF="/etc/caddy/Caddyfile"
+sudo tee $CADDY_CONF > /dev/null <<EOL
+$DOMAIN {
+    root * /var/www/html/acgfaka
+    encode zstd gzip
+    file_server
 
-    <Directory /var/www/html/acgfaka>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    ErrorLog ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined
-</VirtualHost>
+    # PHP 处理
+    php_fastcgi unix//run/php/php${PHP_VERSION}-fpm.sock
+    
+    # 伪静态
+    try_files {path} {path}/ /index.php?s={path}&{query}
+}
 EOL
 
-sudo systemctl stop apache2
-
-generate_random_email() {
-    local prefix=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10)
-    echo "${prefix}@gmail.com"
-}
-
-# SSL证书生成和配置
-generate_ssl_certificate() {
-    echo -e "\033[0;32m正在为 $DOMAIN 生成 SSL 证书...\033[0m"
-    
-    # 确保 acme.sh 已安装
-    if ! command -v acme.sh &> /dev/null; then
-        echo -e "\033[0;32macme.sh 未安装，正在安装...\033[0m"
-        curl https://get.acme.sh | sh
-        source ~/.bashrc
-    else
-        echo -e "\033[0;32macme.sh 已安装\033[0m"
-    fi
-    
-    local email=$(generate_random_email)
-    echo -e "\033[0;32m使用随机生成的邮箱地址 $email 进行账户注册...\033[0m"
-
-    # 注册账户并设置电子邮件地址
-    ~/.acme.sh/acme.sh --register-account -m "$email"
-    
-    ~/.acme.sh/acme.sh --issue --force --standalone -d "$DOMAIN"
-    
-    if [ $? -ne 0 ]; then
-        echo -e "\033[0;31mSSL 证书生成失败\033[0m"
-        exit 1
-    fi
-
-    local cert_path="/root/.acme.sh/${DOMAIN}_ecc/fullchain.cer"
-    local key_path="/root/.acme.sh/${DOMAIN}_ecc/${DOMAIN}.key"
-
-    ~/.acme.sh/acme.sh --install-cert -d "$DOMAIN" \
-        --key-file "$key_path" \
-        --fullchain-file "$cert_path"
-
-    # 配置 Apache 使用 SSL 证书
-    APACHE_SSL_CONF="/etc/apache2/sites-available/acgfaka-ssl.conf"
-    sudo tee $APACHE_SSL_CONF > /dev/null <<EOL
-<VirtualHost *:443>
-    ServerName $DOMAIN
-    DocumentRoot /var/www/html/acgfaka
-
-    <Directory /var/www/html/acgfaka>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    ErrorLog ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined
-
-    SSLEngine on
-    SSLCertificateFile $cert_path
-    SSLCertificateKeyFile $key_path
-</VirtualHost>
-EOL
-
-    # 启用 Apache 的 mod_rewrite 模块
-    sudo a2enmod rewrite
-
-    # 启用 SSL 模块
-    sudo a2enmod ssl
-
-    # 启用 HTTP 站点配置
-    sudo a2ensite acgfaka.conf
-
-    # 启用 HTTPS 站点配置
-    sudo a2ensite acgfaka-ssl.conf
-
-    # 重启 Apache 配置
-    sudo systemctl restart apache2
-
-    echo -e "\033[0;32m证书路径: $cert_path\033[0m"
-    echo -e "\033[0;32m密钥路径: $key_path\033[0m"
-}
-
-generate_ssl_certificate
+# 重新加载 Caddy 配置
+sudo systemctl reload caddy
 
 echo -e "\033[32m============================================================\033[0m"
 echo -e "\033[32m                  数据库信息: \033[0m"
