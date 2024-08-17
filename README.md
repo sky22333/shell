@@ -1,3 +1,11 @@
+- ###  一键部署异次元发卡
+> 适用于`Debian12/Ubuntu22.04`系统
+```
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/acgfaka.sh)
+```
+
+
+
 - ### 一键自动安装WordPress
 > 适用于`Debian/Ubuntu`系统    基于`Caddy` `php` `mariadb`环境
 ```
