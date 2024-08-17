@@ -27,45 +27,14 @@ while true; do
     fi
 done
 
-# 判断操作系统类型
-if [ -f /etc/debian_version ]; then
-    DISTRO=$(lsb_release -is)
-    if [ "$DISTRO" = "Ubuntu" ]; then
-        # Ubuntu 系统
-        echo -e "\033[32m检测到 Ubuntu 系统\033[0m"
-        
-        # 更新系统包
-        echo -e "\033[32m更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
-        sudo add-apt-repository ppa:ondrej/php -y
-        sudo apt update -q
-        
-        # 安装必要的软件包
-        echo -e "\033[32m安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
-        sudo apt install -y -q mariadb-server php8.0 php8.0-mysql php8.0-fpm php8.0-curl php8.0-json php8.0-cgi php8.0-mbstring php8.0-xml php8.0-gd php8.0-xmlrpc php8.0-soap php8.0-intl php8.0-zip wget unzip
+# 更新系统包
+echo -e "\033[32m正在更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
+sudo apt-get update -q && sudo apt-get upgrade -y -q
 
-    elif [ "$DISTRO" = "Debian" ]; then
-        # Debian 系统
-        echo -e "\033[32m检测到 Debian 系统\033[0m"
-        
-        # 更新系统包
-        echo -e "\033[32m更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
-        sudo apt-get install -y gnupg2
-        curl -fsSL https://packages.sury.org/php/apt.gpg | sudo apt-key add -
-        echo "deb https://packages.sury.org/php/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/php.list
-        sudo apt update -q
-        
-        # 安装必要的软件包
-        echo -e "\033[32m安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
-        sudo apt install -y -q mariadb-server php8.0 php8.0-mysql php8.0-fpm php8.0-curl php8.0-json php8.0-cgi php8.0-mbstring php8.0-xml php8.0-gd php8.0-xmlrpc php8.0-soap php8.0-intl php8.0-zip wget unzip
+# 安装必要的软件包
+echo -e "\033[32m正在安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
+sudo apt-get install -y -q mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-zip wget unzip
 
-    else
-        echo -e "\033[31m不支持的操作系统：$DISTRO\033[0m"
-        exit 1
-    fi
-else
-    echo -e "\033[31m未能检测到 Debian 或 Ubuntu 系统\033[0m"
-    exit 1
-fi
 # 启动并启用MariaDB
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
@@ -120,7 +89,7 @@ sudo bash -c "cat > /etc/caddy/Caddyfile" <<EOF
 $DOMAIN {
     root * /var/www/html/wordpress
     encode zstd gzip
-    php_fastcgi unix//run/php/php8.0-fpm.sock
+    php_fastcgi unix//run/php/php7.4-fpm.sock
     file_server
 }
 EOF
