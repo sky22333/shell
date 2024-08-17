@@ -58,8 +58,6 @@ print_db_info() {
     _info "请妥善保管以上信息"
 }
 
-[ $EUID -ne 0 ] && _error "此脚本必须以root身份运行"
-
 _info "MariaDB 安装脚本开始执行"
 
 install_mariadb
