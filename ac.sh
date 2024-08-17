@@ -94,8 +94,24 @@ opcache.file_cache_size=128
 opcache.file_cache_only=0  # 修改为 0 表示启用内存缓存
 opcache.file_cache_consistency_checks=1
 EOL
+fi
 
-    echo -e "\033[32mOPcache 配置已完成。\033[0m"
+# 设置时区
+TIMEZONE="Asia/Shanghai"
+
+# 检查并设置 date.timezone
+if grep -q "^date.timezone" "$PHP_INI_FILE"; then
+    # 如果存在 date.timezone 配置但不是 Asia/Shanghai，则更新
+    if ! grep -q "^date.timezone = $TIMEZONE" "$PHP_INI_FILE"; then
+        echo -e "\033[32m更新 date.timezone 为 $TIMEZONE...\033[0m"
+        sudo sed -i "s#^date.timezone.*#date.timezone = $TIMEZONE#g" "$PHP_INI_FILE"
+    fi
+else
+    # 如果 date.timezone 配置不存在，则添加
+    echo -e "\033[32m设置 date.timezone 为 $TIMEZONE...\033[0m"
+    sudo tee -a "$PHP_INI_FILE" > /dev/null <<EOL
+date.timezone = $TIMEZONE
+EOL
 fi
 
 # 重启 PHP-FPM 服务
