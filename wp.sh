@@ -2,8 +2,8 @@
 # 一键部署WordPress脚本
 
 # 检查是否已经安装 WordPress
-if [ -f "/var/www/html/wordpress/wp-config.php" ]; then
-    echo -e "\033[32m检测到WordPress已经安装。\033[0m"
+if [ -d "/var/www/html/wordpress" ]; then
+    echo -e "\033[32m检测到 WordPress 已经安装。\033[0m"
     echo -e "\033[33m如需重新安装，请删除 /var/www/html/wordpress 并做好相关备份。\033[0m"
     exit 0
 fi
