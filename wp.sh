@@ -79,7 +79,7 @@ if systemctl is-active --quiet apache2; then
     sudo systemctl stop apache2
     sudo systemctl disable apache2
 else
-    echo -e "\033[32m当前环境是正常状态。\033[0m"
+    echo -e "当前环境是正常状态。"
 fi
 
 sudo bash -c "cat > /etc/caddy/Caddyfile" <<EOF
