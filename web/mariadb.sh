@@ -3,11 +3,11 @@
 # MariaDB安装脚本
 
 _info() {
-    echo "[$(date)] $1"
+    echo -e "\e[32m$1\e[0m"
 }
 
 _error() {
-    echo "[$(date)] 错误: $1"
+    echo -e "\e[31m错误: $1\e[0m"
     exit 1
 }
 
@@ -35,9 +35,9 @@ CREATE USER '${database_name}'@'localhost' IDENTIFIED BY '${mysql_password}';
 CREATE USER '${database_name}'@'127.0.0.1' IDENTIFIED BY '${mysql_password}';
 GRANT USAGE ON *.* TO '${database_name}'@'localhost' IDENTIFIED BY '${mysql_password}';
 GRANT USAGE ON *.* TO '${database_name}'@'127.0.0.1' IDENTIFIED BY '${mysql_password}';
-CREATE DATABASE IF NOT EXISTS \`${database_name}\`;
-GRANT ALL PRIVILEGES ON \`${database_name}\`.* TO '${database_name}'@'localhost';
-GRANT ALL PRIVILEGES ON \`${database_name}\`.* TO '${database_name}'@'127.0.0.1';
+CREATE DATABASE IF NOT EXISTS ${database_name};
+GRANT ALL PRIVILEGES ON ${database_name}.* TO '${database_name}'@'localhost';
+GRANT ALL PRIVILEGES ON ${database_name}.* TO '${database_name}'@'127.0.0.1';
 FLUSH PRIVILEGES;
 EOF
 
