@@ -6,12 +6,12 @@ config_file="/usr/local/etc/xray/config.json"
 
 # 检查并安装 jq
 if ! type jq &>/dev/null; then
-    apt-get update && apt-get install -y jq
+    apt-get update && apt-get install -yq jq
 fi
 
 # 检查并安装 uuid-runtime
 if ! type uuidgen &>/dev/null; then
-    apt-get install -y uuid-runtime
+    apt-get install -yq uuid-runtime
 fi
 
 # 检查并安装 xray
