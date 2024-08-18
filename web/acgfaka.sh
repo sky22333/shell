@@ -93,7 +93,7 @@ opcache.revalidate_freq=5
 opcache.save_comments=1
 opcache.file_cache=${OPCACHE_FILE_CACHE_DIR}
 opcache.file_cache_size=128
-opcache.file_cache_only=0  # 修改为 0 表示启用内存缓存
+opcache.file_cache_only=0
 opcache.file_cache_consistency_checks=1
 EOL
 fi
