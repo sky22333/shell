@@ -132,7 +132,7 @@ echo -e "${GREEN}服务端口: 7000${NC}"
 if [[ $answer =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}反向代理: 已配置（使用Caddy）${NC}"
 else
-    echo -e "${YELLOW}反向代理: 未配置（请手动设置）${NC}"
+    echo -e "${YELLOW}反向代理: 未配置（请自行将域名反代到7000端口）${NC}"
 fi
 echo -e "${YELLOW}==========================================${NC}"
 echo -e "\n${GREEN}请记录好上述信息，特别是认证Token，它用于支付对接。${NC}"
