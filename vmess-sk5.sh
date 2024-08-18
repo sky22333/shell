@@ -65,7 +65,7 @@ default_config='
 check_and_install_curl() {
     if ! type curl &>/dev/null; then
         echo -e "${yellow}正在安装curl...${none}"
-        apt-get update && apt-get install -y curl
+        apt-get update && apt-get install -yq curl
     fi
 }
 
@@ -73,7 +73,7 @@ check_and_install_curl() {
 check_and_install_jq() {
     if ! type jq &>/dev/null; then
         echo -e "${yellow}正在安装jq...${none}"
-        apt-get update && apt-get install -y jq
+        apt-get update && apt-get install -yq jq
     fi
 }
 
@@ -81,7 +81,7 @@ check_and_install_jq() {
 check_and_install_uuid_runtime() {
     if ! type uuidgen &>/dev/null; then
         echo -e "${yellow}正在安装 uuid-runtime...${none}"
-        apt-get update && apt-get install -y uuid-runtime
+        apt-get update && apt-get install -yq uuid-runtime
     fi
 }
 
