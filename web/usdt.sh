@@ -37,7 +37,7 @@ check_error "安装wget和zip失败"
 
 echo -e "${GREEN}正在下载和解压文件...${NC}"
 cd /usr/local
-wget -O bepusdt.zip https://github.com/sky22333/bepusdt/releases/download/main/bepusdt-linux-amd64.zip
+wget -O bepusdt.zip https://github.com/sky22333/bepusdt/releases/download/1.9.27/bepusdt-linux-amd64.zip
 check_error "下载文件失败"
 unzip bepusdt.zip
 check_error "解压文件失败"
