@@ -31,10 +31,10 @@ while true; do
 done
 
 echo -e "\033[32m更新系统包...首次更新可能较慢...请耐心等待。。。\033[0m"
-sudo apt-get update -q
+sudo apt-get update -yq
 
 echo -e "\033[32m安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
-sudo apt-get install -y -q mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-zip wget unzip
+sudo apt-get install -y -q mariadb-server php php-mysql php-fpm php-curl php-json php-cgi php-mbstring php-xml php-gd php-xmlrpc php-soap php-intl php-opcache php-zip wget unzip
 
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
@@ -77,10 +77,32 @@ fi
 sudo apt install -y -q debian-keyring debian-archive-keyring apt-transport-https
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-sudo apt update -q
+sudo apt update -yq
 sudo apt install -y -q caddy
 
 PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
+
+OPCACHE_FILE_CACHE_DIR="/var/www/html/wordpress/wp-content/opcache"
+sudo mkdir -p $OPCACHE_FILE_CACHE_DIR
+sudo chown www-data:www-data $OPCACHE_FILE_CACHE_DIR
+
+# 配置OPcache
+sudo bash -c "cat > /etc/php/${PHP_VERSION}/fpm/conf.d/10-opcache.ini" <<EOF
+[opcache]
+opcache.enable=1
+opcache.memory_consumption=256
+opcache.interned_strings_buffer=16
+opcache.max_accelerated_files=9000
+opcache.revalidate_freq=5
+opcache.save_comments=1
+opcache.file_cache=${OPCACHE_FILE_CACHE_DIR}
+opcache.file_cache_size=128
+opcache.file_cache_only=0
+opcache.file_cache_consistency_checks=1
+EOF
+
+# 重启PHP-FPM服务
+sudo systemctl restart php${PHP_VERSION}-fpm
 
 if systemctl is-active --quiet apache2; then
     sudo systemctl stop apache2
