@@ -54,7 +54,7 @@ elif grep -Eqi "ubuntu" /etc/issue || grep -Eqi "ubuntu" /proc/version; then
     # Ubuntu 系统设置 PHP PPA
     sudo apt update -q
     sudo apt install -yq software-properties-common
-    sudo add-apt-repository -yq ppa:ondrej/php
+    sudo add-apt-repository -y ppa:ondrej/php
 else
     echo "不支持的操作系统。本脚本仅支持 Debian 或 Ubuntu。"
     exit 1
