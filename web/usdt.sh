@@ -84,7 +84,7 @@ fi
 
 
 # 询问是否需要自动开启域名反代
-read -p "$(echo -e ${YELLOW}是否需要自动开启域名反代？（这将占用80和443端口，请确保当前环境没有运行网站服务，回车不开启）[y/N]: ${NC})" answer
+read -p "$(echo -e ${YELLOW}是否需要自动开启域名反代？（这将占用80和443端口，请确保当前环境没有运行网站服务，回车默认不开启）[y/N]: ${NC})" answer
 
 if [ ! -d /etc/apt/sources.list.d/ ]; then
     mkdir -p /etc/apt/sources.list.d/
