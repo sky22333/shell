@@ -44,9 +44,9 @@ check_error "解压文件失败"
 rm bepusdt.zip
 
 # 配置软件自启
-echo -e "${GREEN}正在配置软件自启...${NC}"
+echo -e "${GREEN}正在配置软件开机自启...${NC}"
 sudo chmod 755 /usr/local/bepusdt/bepusdt.service
-check_error "更改服务文件权限失败"
+check_error "赋予执行权限失败"
 sudo mv /usr/local/bepusdt/bepusdt.service /etc/systemd/system/
 check_error "移动服务文件失败"
 sudo systemctl enable bepusdt.service
