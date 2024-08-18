@@ -1,9 +1,10 @@
 #!/bin/bash
 # usdt支付一键搭建脚本bash <(wget -qO- https://github.com/sky22333/shell/raw/main/web/usdt.sh)
-# 卸载命令
+# 卸载bepusdt
 # sudo systemctl stop bepusdt.service
 # sudo systemctl disable bepusdt.service
 # sudo rm -rf /usr/local/bepusdt
+# 卸载Caddy
 # sudo systemctl stop caddy
 # sudo apt-get purge --auto-remove caddy
 
