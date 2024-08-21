@@ -25,7 +25,7 @@ fi
 # 更新源列表并安装必要的软件包
 sudo apt update -q
 sudo apt install -yq mariadb-server php8.1 php8.1-mysql php8.1-fpm php8.1-curl php8.1-cgi php8.1-mbstring \
-    php8.1-xml php8.1-gd php8.1-xmlrpc php8.1-soap php8.1-intl php8.1-opcache php8.1-zip wget unzip socat curl caddy
+    php8.1-xml php8.1-gd php8.1-xmlrpc php8.1-soap php8.1-intl php8.1-opcache php8.1-zip unzip socat
 
 # 获取 PHP 版本信息
 PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
