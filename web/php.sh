@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# 检查apt源配置目录
+if [ ! -d /etc/apt/sources.list.d/ ]; then
+    mkdir -p /etc/apt/sources.list.d/
+fi
+
 # 检查操作系统并设置 PHP 仓库
 if grep -Eqi "debian" /etc/issue || grep -Eqi "debian" /proc/version; then
     OS="debian"
