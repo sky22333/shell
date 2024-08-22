@@ -41,7 +41,7 @@ echo -e "${BLUE}检测到默认网络接口: $INTERFACE${NC}"
 if tc qdisc show dev $INTERFACE | grep -q "htb"; then
     echo -e "${YELLOW}当前存在限速规则：${NC}"
     tc -s qdisc ls dev $INTERFACE
-    echo -e "${GREEN}如果要更改配置请先清除限速规则，请运行以下命令：${NC}"
+    echo -e "${GREEN}如果要更改配置请先清除限速规则，请运行以下命令，然后重新执行脚本。${NC}"
     echo -e "${YELLOW}sudo tc qdisc del dev $INTERFACE root${NC}"
     exit 0
 fi
@@ -78,5 +78,5 @@ do
     echo -e "${GREEN}网络接口 $INTERFACE 的端口 $PORT 带宽限制已设置为 ${LIMIT}Mbit。${NC}"
 done
 
-echo -e "${YELLOW}如果要更改配置请先清除限速规则：${NC}"
+echo -e "${YELLOW}如果要更改配置请先清除限速规则，请运行以下命令，然后重新执行脚本。${NC}"
 echo -e "${YELLOW}sudo tc qdisc del dev $INTERFACE root${NC}"
