@@ -7,11 +7,21 @@ NC='\033[0m'
 apt update
 apt install -y iproute2
 
+# 获取默认网络接口
+INTERFACE=$(ip route | grep default | awk '{print $5}' | head -n1)
+
+if [ -z "$INTERFACE" ]; then
+    echo "错误：无法检测到默认网络接口。"
+    exit 1
+fi
+
+echo "检测到默认网络接口: $INTERFACE"
+
 read -p "请输入要限制带宽的端口号（多个端口用逗号分隔）: " PORTS
 read -p "请输入限速值（单位为M）: " LIMIT
 
 if [ -z "$PORTS" ] || [ -z "$LIMIT" ]; then
-    echo "错误：端口号不能为空。"
+    echo "错误：端口号和限速值不能为空。"
     exit 1
 fi
 
@@ -19,8 +29,6 @@ if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then
     echo "错误：限速值必须是一个数字。"
     exit 1
 fi
-
-INTERFACE="eth0"  # 默认主网卡，所有网络接口则改为"all"
 
 IFS=',' read -ra PORT_ARRAY <<< "$PORTS"
 
