@@ -18,13 +18,13 @@ fi
 # 检查是否安装了iproute2
 if ! command -v tc &> /dev/null
 then
-    echo -e "${BLUE}网络管理工具未安装，正在安装...${NC}"
+    echo -e "${BLUE}iproute2未安装，正在安装...${NC}"
     if ! apt update -q && apt install -yq iproute2; then
         echo -e "${RED}安装iproute2失败。请检查您的网络连接和系统状态。${NC}"
         exit 1
     fi
 else
-    echo -e "${BLUE}网络管理工具已安装。${NC}"
+    echo -e "${BLUE}iproute2已安装。${NC}"
 fi
 
 # 获取默认网络接口
@@ -46,7 +46,6 @@ if tc qdisc show dev $INTERFACE | grep -q "htb"; then
     exit 0
 fi
 
-# 如果没有限速规则，则设置新规则
 printf "${GREEN}请输入要限制带宽的端口号（多个端口用逗号分隔）: ${NC}"
 read PORTS
 printf "${GREEN}请输入限速值（单位为M）: ${NC}"
