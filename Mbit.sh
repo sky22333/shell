@@ -38,26 +38,9 @@ fi
 echo -e "${BLUE}检测到默认网络接口: $INTERFACE${NC}"
 
 # 检查是否存在限速规则
-if tc qdisc show dev "$INTERFACE" | grep -q "htb"; then
+if tc qdisc show dev $INTERFACE | grep -q "htb"; then
     echo -e "${YELLOW}当前存在限速规则：${NC}"
-    tc -s qdisc ls dev "$INTERFACE"
-    
-    # 获取带宽信息
-    echo -e "${YELLOW}带宽限制信息：${NC}"
-    tc -s class show dev "$INTERFACE" | grep "class htb" | while read -r line; do
-        CLASS_ID=$(echo "$line" | awk '{print $3}')
-        RATE=$(echo "$line" | grep -oP 'rate \K[0-9]+[a-z]+')
-        if [ -n "$RATE" ]; then
-            echo -e "${BLUE}类ID: $CLASS_ID, 限制速率: $RATE${NC}"
-        fi
-    done
-    
-    # 获取限速端口信息
-    echo -e "${YELLOW}限速端口信息：${NC}"
-    tc -s filter show dev "$INTERFACE" | grep -oP 'match ip dport \K[0-9]+' | while read -r port; do
-        echo -e "${BLUE}限速端口: $port${NC}"
-    done
-
+    tc -s qdisc ls dev $INTERFACE
     echo -e "${GREEN}如果要更改配置请先清除限速规则，请运行以下命令，然后重新执行脚本。${NC}"
     echo -e "${YELLOW}sudo tc qdisc del dev $INTERFACE root${NC}"
     exit 0
@@ -65,7 +48,7 @@ fi
 
 printf "${GREEN}请输入要限制带宽的端口号（多个端口用逗号分隔）: ${NC}"
 read PORTS
-printf "${GREEN}请输入带宽限速值（单位为兆）: ${NC}"
+printf "${GREEN}请输入限速值（单位为M）: ${NC}"
 read LIMIT
 
 if [ -z "$PORTS" ] || [ -z "$LIMIT" ]; then
