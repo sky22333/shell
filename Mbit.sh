@@ -65,7 +65,7 @@ fi
 
 printf "${GREEN}请输入要限制带宽的端口号（多个端口用逗号分隔）: ${NC}"
 read PORTS
-printf "${GREEN}请输入限速值（单位为Mbit/s）: ${NC}"
+printf "${GREEN}请输入带宽限速值（单位为兆）: ${NC}"
 read LIMIT
 
 if [ -z "$PORTS" ] || [ -z "$LIMIT" ]; then
