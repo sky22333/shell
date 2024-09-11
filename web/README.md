@@ -4,7 +4,7 @@
 sudo rm -r /var/www/
 ```
 
-- 停止
+- 停止相关服务
 ```
 sudo systemctl stop caddy apache2 mariadb
 ```
