@@ -107,6 +107,7 @@ sudo systemctl restart php${PHP_VERSION}-fpm
 if systemctl is-active --quiet apache2; then
     sudo systemctl stop apache2
     sudo systemctl disable apache2
+    sudo apt remove --purge apache2 -y
 else
     echo -e "当前环境是正常状态。"
 fi
