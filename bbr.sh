@@ -360,7 +360,7 @@ echo "----------------------------------------"
 echo " 一键开启 TCP BBR 脚本"
 echo "----------------------------------------"
 echo
-echo "按任意键开始...或者 Ctrl+C 取消"
+echo "按任意键启用BBR...或者 Ctrl+C 取消"
 char=$(get_char)
 
 install_bbr 2>&1 | tee ${cur_dir}/install_bbr.log
