@@ -353,12 +353,12 @@ kern=$( uname -r )
 
 clear
 echo "---------- 系统信息 ----------"
-echo " 系统       : $opsy"
-echo " 架构       : $arch ($lbit Bit)"
-echo " 内核       : $kern"
-echo "----------------------------------------"
+echo " 系统：     $opsy"
+echo " 架构：     $arch ($lbit Bit)"
+echo " 内核：     $kern"
+echo "-------------------------------------"
 echo " 一键开启 TCP BBR 脚本"
-echo "----------------------------------------"
+echo "-------------------------------------"
 echo
 echo "按任意键启用BBR...或者 Ctrl+C 取消"
 char=$(get_char)
