@@ -5,7 +5,7 @@
 # 系统要求：CentOS 6+、Debian8+、Ubuntu16+
 #
 
-cur_dir="$(cd -P -- "$(dirname -- "$0")" && pwd -P)"
+cur_dir=$(pwd)
 
 _red() {
     printf '\033[1;31;31m%b\033[0m' "$1"
