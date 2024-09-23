@@ -57,11 +57,12 @@ bash <(wget -qO- https://github.com/sky22333/shell/raw/main/Mbit.sh)
 ```
 
 
-- ###  一键安装Docker和Docker compose
-
+- ### 一键安装`docker`和`docker-compose`
+> 适配`Debian`、`Ubuntu`、`Alpine Linux`系统
 ```
-bash <(wget -qO- https://github.com/sky22333/shell/raw/main/docker.sh)
+bash <(wget -qO- https://gitlab.com/yishijie/shell/raw/main/docker.sh)
 ```
+> 为Docker启用IPV6：`bash <(wget -qO- https://gitlab.com/yishijie/shell/raw/main/dockeripv6.sh)`
 
 - ### vultr开机脚本
 ```
