@@ -23,7 +23,10 @@ install_jq() {
 install_xray() {
     if ! command -v xray &> /dev/null; then
         echo "Xray 未安装，正在安装 Xray..."
-        bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh) install
+        if ! bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh) install; then
+            echo "Xray 安装失败，请检查网络连接或安装脚本。"
+            exit 1
+        fi
         echo "Xray 安装完成。"
     else
         echo "Xray 已安装。"
@@ -32,8 +35,7 @@ install_xray() {
 
 # 获取所有公网 IPv4 地址
 get_public_ipv4() {
-    echo "正在获取所有公网 IPv4 地址..."
-    ip -4 addr show | grep inet | grep -v "127.0.0.1" | grep -v "10\." | grep -v "172\." | grep -v "192\.168\." | awk '{print $2}' | cut -d'/' -f1
+    ip -4 addr show | grep inet | grep -vE "127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|169\.254" | awk '{print $2}' | cut -d'/' -f1
 }
 
 # 打印节点链接
@@ -41,13 +43,19 @@ print_node_links() {
     local port=$1
     local id=$2
     local outbound_ip=$3
-    local link="vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"$(hostname)\",\"add\":\"$outbound_ip\",\"port\":\"$port\",\"id\":\"$id\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"\",\"path\":\"/ws\",\"tls\":\"none\"}" | base64 -w 0)"
-    echo "端口: $port, 出站 IP: $outbound_ip, 节点链接: $link"
+    local link="vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"$outbound_ip\",\"add\":\"$outbound_ip\",\"port\":\"$port\",\"id\":\"$id\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"\",\"path\":\"/ws\",\"tls\":\"none\"}" | base64 | tr -d '\n')"
+    echo -e "\033[32m端口: $port, 节点链接: $link\033[0m"
 }
 
 # 配置 Xray 配置文件
 configure_xray() {
     public_ips=($(get_public_ipv4))
+    
+    if [[ ${#public_ips[@]} -eq 0 ]]; then
+        echo "未找到任何公网 IPv4 地址，退出..."
+        exit 1
+    fi
+    
     echo "找到的公网 IPv4 地址: ${public_ips[@]}"
     
     # Xray 配置文件路径
@@ -72,8 +80,8 @@ EOF
         # 生成 UUID
         id=$(uuidgen)
 
-        # 添加入站配置 (vmess + ws)
-        jq --argjson port $port --arg ip $ip --arg id $id '.inbounds += [{
+        # 使用一次 jq 完成 inbounds 和 outbounds 的更新
+        jq --argjson port "$port" --arg ip "$ip" --arg id "$id" '.inbounds += [{
             "port": $port,
             "protocol": "vmess",
             "settings": {
@@ -88,26 +96,20 @@ EOF
                     "path": "/ws"
                 }
             },
-            "tag": ("in-" + ($port | tostring))
-        }]' $config_file > temp.json && mv temp.json $config_file
-        
-        # 添加出站配置 (源进源出)
-        jq --argjson port $port --arg ip $ip '.outbounds += [{
+            "tag": ("in-\($port)")
+        }] | .outbounds += [{
             "protocol": "freedom",
             "settings": {},
             "sendThrough": $ip,
-            "tag": ("out-" + ($port | tostring))
-        }]' $config_file > temp.json && mv temp.json $config_file
-        
-        # 入站对应的出站 (源进源出)
-        jq --argjson port $port '.routing.rules += [{
+            "tag": ("out-\($port)")
+        }] | .routing.rules += [{
             "type": "field",
-            "inboundTag": ["in-" + ($port | tostring)],
-            "outboundTag": "out-" + ($port | tostring)
-        }]' $config_file > temp.json && mv temp.json $config_file
+            "inboundTag": ["in-\($port)"],
+            "outboundTag": "out-\($port)"
+        }]' "$config_file" > temp.json && mv temp.json "$config_file"
 
         # 打印节点链接
-        print_node_links $port $id $ip
+        print_node_links "$port" "$id" "$ip"
 
         # 端口递增
         port=$((port + 1))
@@ -116,13 +118,18 @@ EOF
     echo "Xray 配置完成。"
 }
 
+# 重启 Xray 服务
 restart_xray() {
     echo "正在重启 Xray 服务..."
-    systemctl restart xray
+    if ! systemctl restart xray; then
+        echo "Xray 服务重启失败，请检查配置文件。"
+        exit 1
+    fi
     systemctl enable xray
     echo "Xray 服务已重启。"
 }
 
+# 主函数
 main() {
     install_jq
     install_xray
@@ -131,4 +138,5 @@ main() {
     echo "部署完成。"
 }
 
+# 执行主函数
 main
