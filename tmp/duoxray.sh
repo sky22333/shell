@@ -1,5 +1,6 @@
 #!/bin/bash
 # 站群多IP源进源出节点脚本
+# 作者sky22333
 
 install_jq() {
     if ! command -v jq &> /dev/null; then
