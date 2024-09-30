@@ -48,7 +48,7 @@ print_node_info() {
     local port=$2
     local username=$3
     local password=$4
-    echo -e "\033[32m IP: $ip, 端口: $port, 用户名: $username, 密码: $password\033[0m"
+    echo -e " IP: \033[32m$ip\033[0m 端口: \033[32m$port\033[0m 用户名: \033[32m$username\033[0m 密码: \033[32m$password\033[0m"
 }
 
 configure_xray() {
