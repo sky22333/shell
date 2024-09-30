@@ -1,4 +1,5 @@
 #!/bin/bash
+# 一键搭建站群多IP节点
 
 install_jq() {
     if ! command -v jq &> /dev/null; then
