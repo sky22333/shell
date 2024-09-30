@@ -1,5 +1,5 @@
 #!/bin/bash
-# 一键搭建站群多IP节点
+# 站群多IP源进源出节点脚本
 
 install_jq() {
     if ! command -v jq &> /dev/null; then
