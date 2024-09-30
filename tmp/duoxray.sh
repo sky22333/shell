@@ -1,9 +1,9 @@
 #!/bin/bash
-# 一键部署站群多IP节点
 
-# 检查并安装 jq
+# 检查并安装 jq（如果未安装）
 install_jq() {
     if ! command -v jq &> /dev/null; then
+        echo "jq 未安装，正在安装 jq..."
         if [[ -f /etc/debian_version ]]; then
             sudo apt-get update
             sudo apt-get install -y jq
@@ -19,7 +19,7 @@ install_jq() {
     fi
 }
 
-# 检查并安装 Xray core
+# 检查并安装 Xray core（如果未安装）
 install_xray() {
     if ! command -v xray &> /dev/null; then
         echo "Xray 未安装，正在安装 Xray..."
@@ -30,10 +30,13 @@ install_xray() {
     fi
 }
 
+# 获取所有公网 IPv4 地址
 get_public_ipv4() {
+    echo "正在获取所有公网 IPv4 地址..."
     ip -4 addr show | grep inet | grep -v "127.0.0.1" | grep -v "10\." | grep -v "172\." | grep -v "192\.168\." | awk '{print $2}' | cut -d'/' -f1
 }
 
+# 打印节点链接
 print_node_links() {
     local port=$1
     local id=$2
@@ -47,8 +50,10 @@ configure_xray() {
     public_ips=($(get_public_ipv4))
     echo "找到的公网 IPv4 地址: ${public_ips[@]}"
     
+    # Xray 配置文件路径
     config_file="/usr/local/etc/xray/config.json"
     
+    # 基础配置
     cat > $config_file <<EOF
 {
   "inbounds": [],
@@ -59,12 +64,15 @@ configure_xray() {
 }
 EOF
 
+    # 配置 inbounds 和 outbounds
     port=10001
     for ip in "${public_ips[@]}"; do
         echo "正在配置 IP: $ip 端口: $port"
         
+        # 生成 UUID
         id=$(uuidgen)
 
+        # 添加入站配置 (vmess + ws)
         jq --argjson port $port --arg ip $ip --arg id $id '.inbounds += [{
             "port": $port,
             "protocol": "vmess",
@@ -80,7 +88,7 @@ EOF
                     "path": "/ws"
                 }
             },
-            "tag": "in-$port"
+            "tag": ("in-" + ($port | tostring))
         }]' $config_file > temp.json && mv temp.json $config_file
         
         # 添加出站配置 (源进源出)
@@ -88,7 +96,7 @@ EOF
             "protocol": "freedom",
             "settings": {},
             "sendThrough": $ip,
-            "tag": "out-$port"
+            "tag": ("out-" + ($port | tostring))
         }]' $config_file > temp.json && mv temp.json $config_file
         
         # 入站对应的出站 (源进源出)
@@ -98,8 +106,10 @@ EOF
             "outboundTag": "out-" + ($port | tostring)
         }]' $config_file > temp.json && mv temp.json $config_file
 
+        # 打印节点链接
         print_node_links $port $id $ip
 
+        # 端口递增
         port=$((port + 1))
     done
 
