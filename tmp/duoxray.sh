@@ -41,7 +41,7 @@ print_node_links() {
     local id=$2
     local outbound_ip=$3
     local link="vmess://$(echo -n "{\"v\":\"2\",\"ps\":\"$outbound_ip\",\"add\":\"$outbound_ip\",\"port\":\"$port\",\"id\":\"$id\",\"aid\":\"0\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"\",\"path\":\"/ws\",\"tls\":\"none\"}" | base64 | tr -d '\n')"
-    echo -e "\033[32m端口: $port, 节点链接: $link\033[0m"
+    echo -e "端口: $port, 节点链接: \033[32m $link \033[0m"
 }
 
 configure_xray() {
