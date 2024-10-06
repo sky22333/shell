@@ -163,7 +163,7 @@ CADDY_CONF="/etc/caddy/Caddyfile"
 sudo tee $CADDY_CONF > /dev/null <<EOL
 $DOMAIN {
     root * /var/www/html/acgfaka
-    encode zstd gzip
+    encode brotli gzip
     file_server
 
     # PHP 处理
