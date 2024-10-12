@@ -48,6 +48,11 @@ bash <(wget -qO- -o- https://github.com/admin8800/sing-box/raw/main/install.sh)
 bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)
 ```
 
+- ### L2TP一键脚本
+
+```
+bash <(wget -qO- https://github.com/sky22333/shell/raw/main/l2tp.sh)
+```
 
 
 - ###  端口限速脚本
