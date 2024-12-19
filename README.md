@@ -1,15 +1,15 @@
 - ###  一键切换系统源脚本
 ```
-bash <(curl -sSL https://github.com/sky22333/shell/main/mirrors.sh)
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/mirrors.sh)
 ```
 切换官方系统源
 ```
-bash <(curl -sSL https://github.com/sky22333/shell/main/mirrors.sh) --use-official-source true
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/mirrors.sh) --use-official-source true
 ```
 
 - ###  一键安装Docker和配置镜像地址
 ```
-bash <(curl -sSL https://github.com/sky22333/shell/main/docker.sh)
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/docker.sh)
 ```
 
 
