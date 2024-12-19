@@ -1,5 +1,4 @@
 #!/bin/bash
-## 脚本修改自：https://github.com/SuperManito/LinuxMirrors
 
 ## 定制方法
 # 只需要在头部（此处）定义全局变量即可
@@ -281,6 +280,7 @@ function handle_command_options() {
   --ignore-backup-tips     忽略覆盖备份提示                                               无
   --print-diff             打印源文件修改前后差异                                         无
 
+命令帮助\n"
     }
 
     ## 判断参数
@@ -600,7 +600,7 @@ function run_start() {
 }
 
 function run_end() {
-    echo -e "\n✨️ \033[1;34mPowered by 更换系统软件源\033[0m\n"
+    echo -e "\n✨️ \033[1;34m脚本运行完成\033[0m\n"
 }
 
 ## 报错退出
