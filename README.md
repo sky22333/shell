@@ -1,10 +1,25 @@
+- ###  一键切换系统源脚本
+```
+bash <(curl -sSL https://github.com/sky22333/shell/main/mirrors.sh)
+```
+切换官方系统源
+```
+bash <(curl -sSL https://github.com/sky22333/shell/main/mirrors.sh) --use-official-source true
+```
+
+- ###  一键安装Docker和配置镜像地址
+```
+bash <(curl -sSL https://github.com/sky22333/shell/main/docker.sh)
+```
+
+
+
+
 - ###  一键自动部署异次元发卡
 > 适用于`Debian 11+` `Ubuntu 18.04+`系统    基于`Caddy` `php` `mariadb`环境
 ```
 bash <(wget -qO- https://github.com/sky22333/shell/raw/main/web/acgfaka.sh)
 ```
-
-
 
 - ### 一键自动安装WordPress
 > 适用于`Debian 11+` `Ubuntu 18.04+`系统    基于`Caddy` `php` `mariadb`环境
