@@ -22,8 +22,8 @@ mirror_list_docker_ce=(
 # 格式："软件源名称@软件源地址"
 mirror_list_registry=(
     "毫秒镜像@docker.1ms.run"
-    "1panel镜像@docker.1panel.live"
-    "1panel镜像@proxy.1panel.live"
+    "1panel镜像一@docker.1panel.live"
+    "1panel镜像二@proxy.1panel.live"
     "阿里云（杭州）@registry.cn-hangzhou.aliyuncs.com"
     "阿里云（上海）@registry.cn-shanghai.aliyuncs.com"
     "阿里云（青岛）@registry.cn-qingdao.aliyuncs.com"
