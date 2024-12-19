@@ -263,7 +263,7 @@ function run_start() {
 
 ## 运行结束
 function run_end() {
-    echo -e "\n✨️ \033[1;34m脚本运行结束\033[0m\n"
+    echo -e "\n✨️ \033[1;34m脚本运行完成\033[0m\n"
 }
 
 ## 报错退出
