@@ -2,7 +2,7 @@
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/mirrors.sh)
 ```
-切换官方系统源
+- 切换官方系统源
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/mirrors.sh) --use-official-source true
 ```
