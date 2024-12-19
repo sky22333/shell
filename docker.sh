@@ -1,5 +1,4 @@
 #!/bin/bash
-## 脚本修改自：https://github.com/SuperManito/LinuxMirrors
 
 ## Docker CE 软件源列表
 # 格式："软件源名称@软件源地址"
@@ -139,7 +138,7 @@ function handle_command_options() {
   --source                 指定 Docker CE 源地址                地址
   --source-registry        指定 Docker Registry 源地址          地址
   --codename               指定 Debian 系操作系统的版本代号     代号名称
-  --install-latest         是否安装最新版本的 Docker Engine     true 或 false
+  --install-latest         是否安装最新版本的 Docker     true 或 false
   --close-firewall         是否关闭防火墙                       true 或 false
   --clean-screen           是否在运行前清除屏幕上的所有内容     true 或 false
   --ignore-backup-tips     忽略覆盖备份提示                     无
@@ -364,7 +363,7 @@ function collect_system_info() {
         SOURCE_ARCH="s390x"
         ;;
     i386 | i686)
-        output_error "Docker Engine 不支持安装在 x86_32 架构的环境上！"
+        output_error "Docker 不支持安装在 x86_32 架构的环境上！"
         ;;
     *)
         output_error "未知的系统架构：$(uname -m)"
@@ -490,7 +489,7 @@ function choose_mirrors() {
         ## 是否手动选择安装版本
         if [[ "${CAN_USE_ADVANCED_INTERACTIVE_SELECTION}" == "true" ]]; then
             echo ''
-            interactive_select_boolean "${BOLD}是否安装最新版本的 Docker Engine?${PLAIN}"
+            interactive_select_boolean "${BOLD}是否安装最新版本的 Docker?${PLAIN}"
             if [[ "${_SELECT_RESULT}" == "true" ]]; then
                 INSTALL_LATESTED_DOCKER="true"
             else
@@ -499,7 +498,7 @@ function choose_mirrors() {
                 SOURCE="download.docker.com"
             fi
         else
-            local CHOICE_A=$(echo -e "\n${BOLD}└─ 是否安装最新版本的 Docker Engine? [Y/n] ${PLAIN}")
+            local CHOICE_A=$(echo -e "\n${BOLD}└─ 是否安装最新版本的 Docker? [Y/n] ${PLAIN}")
             read -p "${CHOICE_A}" INPUT
             [[ -z "${INPUT}" ]] && INPUT=Y
             case $INPUT in
@@ -683,7 +682,7 @@ function get_package_manager() {
     echo "${command}"
 }
 
-## 卸载 Docker Engine 原有版本软件包
+## 卸载 Docker 原有版本软件包
 function uninstall_original_version() {
     # 先停止并禁用 Docker 服务
     systemctl disable --now docker >/dev/null 2>&1
@@ -766,7 +765,7 @@ function configure_docker_ce_mirror() {
     esac
 }
 
-## 安装 Docker Engine
+## 安装 Docker
 function install_docker_engine() {
     ## 导出可安装的版本列表
     function export_version_list() {
@@ -910,7 +909,7 @@ function install_docker_engine() {
         if [[ "${CAN_USE_ADVANCED_INTERACTIVE_SELECTION}" == "true" ]]; then
             if [[ "${DOCKER_INSTALLED_VERSION}" == "${DOCKER_VERSION_LATEST}" ]]; then
                 if [[ "${INSTALL_LATESTED_DOCKER}" == "true" ]]; then
-                    echo -e "\n$COMPLETE 检测到已安装 Docker Engine 最新版本，跳过安装"
+                    echo -e "\n$COMPLETE 检测到已安装 Docker 最新版本，跳过安装"
                     rm -rf $DockerVersionFile
                     change_docker_registry_mirror
                     systemctl enable --now docker >/dev/null 2>&1
@@ -919,25 +918,25 @@ function install_docker_engine() {
                     exit
                 else
                     echo ''
-                    interactive_select_boolean "${BOLD}检测到已安装 Docker Engine 最新版本，是否继续安装其它版本?${PLAIN}"
+                    interactive_select_boolean "${BOLD}检测到已安装 Docker 最新版本，是否继续安装其它版本?${PLAIN}"
                 fi
             else
                 echo ''
                 if [[ "${INSTALL_LATESTED_DOCKER}" == "true" ]]; then
-                    interactive_select_boolean "${BOLD}检测到已安装 Docker Engine 旧版本，是否覆盖安装为最新版本?${PLAIN}"
+                    interactive_select_boolean "${BOLD}检测到已安装 Docker 旧版本，是否覆盖安装为最新版本?${PLAIN}"
                 else
-                    interactive_select_boolean "${BOLD}检测到已安装 Docker Engine 旧版本，是否继续安装其它版本?${PLAIN}"
+                    interactive_select_boolean "${BOLD}检测到已安装 Docker 旧版本，是否继续安装其它版本?${PLAIN}"
                 fi
             fi
             if [[ "${_SELECT_RESULT}" == "true" ]]; then
                 uninstall_original_version
                 install_main
-                [ $? -ne 0 ] && output_error "安装 Docker Engine 失败"
+                [ $? -ne 0 ] && output_error "安装 Docker 失败"
             fi
         else
             if [[ "${DOCKER_INSTALLED_VERSION}" == "${DOCKER_VERSION_LATEST}" ]]; then
                 if [[ "${INSTALL_LATESTED_DOCKER}" == "true" ]]; then
-                    echo -e "\n$COMPLETE 检测到已安装 Docker Engine 最新版本，跳过安装"
+                    echo -e "\n$COMPLETE 检测到已安装 Docker 最新版本，跳过安装"
                     rm -rf $DockerVersionFile
                     change_docker_registry_mirror
                     systemctl enable --now docker >/dev/null 2>&1
@@ -945,13 +944,13 @@ function install_docker_engine() {
                     run_end
                     exit
                 else
-                    local CHOICE=$(echo -e "\n${BOLD}└─ 检测到已安装 Docker Engine 最新版本，是否继续安装其它版本? [Y/n] ${PLAIN}")
+                    local CHOICE=$(echo -e "\n${BOLD}└─ 检测到已安装 Docker 最新版本，是否继续安装其它版本? [Y/n] ${PLAIN}")
                 fi
             else
                 if [[ "${INSTALL_LATESTED_DOCKER}" == "true" ]]; then
-                    local CHOICE=$(echo -e "\n${BOLD}└─ 检测到已安装 Docker Engine 旧版本，是否覆盖安装为最新版本? [Y/n] ${PLAIN}")
+                    local CHOICE=$(echo -e "\n${BOLD}└─ 检测到已安装 Docker 旧版本，是否覆盖安装为最新版本? [Y/n] ${PLAIN}")
                 else
-                    local CHOICE=$(echo -e "\n${BOLD}└─ 检测到已安装 Docker Engine 旧版本，是否继续安装其它版本? [Y/n] ${PLAIN}")
+                    local CHOICE=$(echo -e "\n${BOLD}└─ 检测到已安装 Docker 旧版本，是否继续安装其它版本? [Y/n] ${PLAIN}")
                 fi
             fi
             read -p "${CHOICE}" INPUT
@@ -960,7 +959,7 @@ function install_docker_engine() {
             [Yy] | [Yy][Ee][Ss])
                 uninstall_original_version
                 install_main
-                [ $? -ne 0 ] && output_error "安装 Docker Engine 失败"
+                [ $? -ne 0 ] && output_error "安装 Docker 失败"
                 ;;
             [Nn] | [Nn][Oo]) ;;
             *)
@@ -973,7 +972,7 @@ function install_docker_engine() {
     else
         uninstall_original_version
         install_main
-        [ $? -ne 0 ] && output_error "安装 Docker Engine 失败"
+        [ $? -ne 0 ] && output_error "安装 Docker 失败"
     fi
     change_docker_registry_mirror
     systemctl enable --now docker >/dev/null 2>&1
