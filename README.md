@@ -13,6 +13,10 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/docker.sh)
 ```
 
 
+- ### 为Docker启用IPV6
+```
+bash <(wget -qO- https://gitlab.com/yishijie/shell/raw/main/dockeripv6.sh)
+```
 
 
 - ###  一键自动部署异次元发卡
@@ -57,26 +61,9 @@ bash <(wget -qO- -o- https://github.com/admin8800/sing-box/raw/main/install.sh)
 ```
 > **使用`sing-box`命令查看管理菜单**
 
-- ### vmess+ws一键脚本
-
-```
-bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vmess-ws.sh)
-```
-
 
 - ###  端口限速脚本
 
 ```
 bash <(wget -qO- https://github.com/sky22333/shell/raw/main/Mbit.sh)
-```
-
-
-- ### 为Docker启用IPV6
-```
-bash <(wget -qO- https://gitlab.com/yishijie/shell/raw/main/dockeripv6.sh)
-```
-
-- ### vultr开机脚本
-```
-bash <(wget -qO- https://github.com/sky22333/shell/raw/main/vultr-cli.sh)
 ```
