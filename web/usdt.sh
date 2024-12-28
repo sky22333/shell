@@ -118,7 +118,7 @@ if [[ $answer =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}正在配置Caddy...${NC}"
     sudo tee /etc/caddy/Caddyfile > /dev/null << EOL
 $DOMAIN {
-    encode brotli gzip
+    encode zstd gzip
     reverse_proxy localhost:7000
 }
 EOL
