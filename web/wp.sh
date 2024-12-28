@@ -115,7 +115,7 @@ fi
 sudo bash -c "cat > /etc/caddy/Caddyfile" <<EOF
 $DOMAIN {
     root * /var/www/html/wordpress
-    encode brotli gzip
+    encode zstd gzip
     php_fastcgi unix//run/php/php${PHP_VERSION}-fpm.sock
     file_server
 }
