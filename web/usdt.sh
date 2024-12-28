@@ -36,13 +36,13 @@ get_input() {
 # 获取用户输入
 get_input "请输入TG机器人Token" TG_BOT_TOKEN
 get_input "请输入TG账号ID" TG_BOT_ADMIN_ID
-get_input "请输入认证Token" AUTH_TOKEN
+get_input "请输入认证Token（对接密钥）" AUTH_TOKEN
 get_input "请输入USDT域名" DOMAIN
 
 # 下载和解压
 echo -e "${GREEN}正在安装必要的软件...${NC}"
-sudo apt install wget zip -yq
-check_error "安装wget和zip失败"
+sudo apt install wget unzip -yq
+check_error "安装wget和unzip失败"
 
 echo -e "${GREEN}正在下载和解压文件...${NC}"
 cd /usr/local
@@ -93,7 +93,7 @@ fi
 
 
 # 询问是否需要自动开启域名反代
-read -p "$(echo -e ${YELLOW}是否需要自动开启域名反代？（这将占用80和443端口，请确保当前环境没有运行网站服务，回车默认不开启）[y/N]: ${NC})" answer
+read -p "$(echo -e ${YELLOW}是否需要自动开启域名反代？（这将占用80和443端口，请确保当前环境没有运行网站服务，注意：回车不开启，输入y开启）[y/N]: ${NC})" answer
 
 if [ ! -d /etc/apt/sources.list.d/ ]; then
     mkdir -p /etc/apt/sources.list.d/
