@@ -13,12 +13,6 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/docker.sh)
 ```
 
 
-- ### 为Docker启用IPV6
-```
-bash <(wget -qO- https://gitlab.com/yishijie/shell/raw/main/dockeripv6.sh)
-```
-
-
 - ###  一键自动部署异次元发卡
 > 适用于`Debian 11+` `Ubuntu 18.04+`系统    基于`Caddy` `php` `mariadb`环境
 ```
