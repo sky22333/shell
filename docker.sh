@@ -34,9 +34,9 @@ mirror_list_registry=(
     "阿里云（香港）@registry.cn-hongkong.aliyuncs.com"
     "阿里云（日本）@registry.ap-northeast-1.aliyuncs.com"
     "阿里云（新加坡）@registry.ap-southeast-1.aliyuncs.com"
+    "南京大学（ghcr）@ghcr.nju.edu.cn"
     "腾讯云@mirror.ccs.tencentyun.com"
     "谷歌云@mirror.gcr.io"
-    "南京大学（ghcr）@ghcr.nju.edu.cn"
     "Docker官方@registry.hub.docker.com"
 )
 
