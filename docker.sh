@@ -6,7 +6,7 @@ mirror_list_docker_ce=(
     "阿里云@mirrors.aliyun.com/docker-ce"
     "腾讯云@mirrors.tencent.com/docker-ce"
     "华为云@repo.huaweicloud.com/docker-ce"
-    "微软 Azure 中国@mirror.azure.cn/docker-ce"
+    "微软中国@mirror.azure.cn/docker-ce"
     "网易@mirrors.163.com/docker-ce"
     "火山引擎@mirrors.volces.com/docker"
     "清华大学@mirrors.tuna.tsinghua.edu.cn/docker-ce"
@@ -14,7 +14,7 @@ mirror_list_docker_ce=(
     "南京大学@mirrors.nju.edu.cn/docker-ce"
     "上海交通大学@mirror.sjtu.edu.cn/docker-ce"
     "中国科学技术大学@mirrors.ustc.edu.cn/docker-ce"
-    "中国科学院软件研究所@mirror.iscas.ac.cn/docker-ce"
+    "中科院软件研究所@mirror.iscas.ac.cn/docker-ce"
     "Docker官方@download.docker.com"
 )
 
@@ -24,19 +24,7 @@ mirror_list_registry=(
     "毫秒镜像@docker.1ms.run"
     "1panel镜像一@docker.1panel.live"
     "1panel镜像二@proxy.1panel.live"
-    "阿里云（杭州）@registry.cn-hangzhou.aliyuncs.com"
-    "阿里云（上海）@registry.cn-shanghai.aliyuncs.com"
-    "阿里云（青岛）@registry.cn-qingdao.aliyuncs.com"
-    "阿里云（北京）@registry.cn-beijing.aliyuncs.com"
-    "阿里云（深圳）@registry.cn-shenzhen.aliyuncs.com"
-    "阿里云（广州）@registry.cn-guangzhou.aliyuncs.com"
-    "阿里云（成都）@registry.cn-chengdu.aliyuncs.com"
-    "阿里云（香港）@registry.cn-hongkong.aliyuncs.com"
-    "阿里云（日本）@registry.ap-northeast-1.aliyuncs.com"
-    "阿里云（新加坡）@registry.ap-southeast-1.aliyuncs.com"
     "南京大学（ghcr）@ghcr.nju.edu.cn"
-    "腾讯云@mirror.ccs.tencentyun.com"
-    "谷歌云@mirror.gcr.io"
     "Docker官方@registry.hub.docker.com"
 )
 
@@ -542,12 +530,12 @@ function choose_mirrors() {
         mirror_list_name="mirror_list_registry"
         if [[ "${CAN_USE_ADVANCED_INTERACTIVE_SELECTION}" == "true" ]]; then
             sleep 1 >/dev/null 2>&1
-            eval "interactive_select_mirror \"\${${mirror_list_name}[@]}\" \"\\n \${BOLD}请选择你想使用的 Docker Registry 源：\${PLAIN}\\n\""
+            eval "interactive_select_mirror \"\${${mirror_list_name}[@]}\" \"\\n \${BOLD}请选择你想使用的镜像加速源：\${PLAIN}\\n\""
             SOURCE_REGISTRY="${_SELECT_RESULT#*@}"
             echo -e "\n${GREEN}➜${PLAIN}  Docker Registry：${BOLD}${_SELECT_RESULT%@*}${PLAIN}"
         else
             print_mirrors_list "${mirror_list_name}" 44
-            local CHOICE_C=$(echo -e "\n${BOLD}└─ 请选择并输入你想使用的 Docker Registry 源 [ 1-$(eval echo \${#$mirror_list_name[@]}) ]：${PLAIN}")
+            local CHOICE_C=$(echo -e "\n${BOLD}└─ 请选择并输入你想使用的镜像加速源 [ 1-$(eval echo \${#$mirror_list_name[@]}) ]：${PLAIN}")
             while true; do
                 read -p "${CHOICE_C}" INPUT
                 case "${INPUT}" in
