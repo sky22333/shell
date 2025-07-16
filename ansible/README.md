@@ -2,6 +2,9 @@
 
 #### 运行示例
 ```
+docker pull ghcr.io/sky22333/shell:ansible
+```
+```
 docker run --rm -it \
   -v ./ansible:/etc/ansible \
   -w /etc/ansible \
