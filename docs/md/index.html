@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 实时编辑器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* 默认主题（白天模式） */
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --header-bg: #fff;
+            --header-text: #333;
+            --button-bg: #c4c4c4;
+            --button-hover: #939393;
+            --editor-bg: #fff;
+            --border-color: #ddd;
+            --code-bg: #f6f8fa;
+            --blockquote-color: #6a737d;
+            --blockquote-border: #dfe2e5;
+            --dropdown-bg: #fff;
+            --dropdown-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            --dropdown-hover-bg: #f1f1f1;
+        }
+
+        /* 黑夜模式 */
+        body.theme-dark {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --header-bg: #121212;
+            --header-text: #f0f0f0;
+            --button-bg: #2c3e50;
+            --button-hover: #34495e;
+            --editor-bg: #2d2d2d;
+            --border-color: #444;
+            --code-bg: #383838;
+            --blockquote-color: #aaa;
+            --blockquote-border: #666;
+            --dropdown-bg: #3e3e3e;
+            --dropdown-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            --dropdown-hover-bg: #555;
+        }
+
+        /* 蓝色模式 */
+        body.theme-blue {
+            --bg-color: #e8f4f8;
+            --text-color: #2c3e50;
+            --header-bg: #1e88e5;
+            --header-text: white;
+            --button-bg: #0d47a1;
+            --button-hover: #1565c0;
+            --editor-bg: #f1f8fe;
+            --border-color: #bbdefb;
+            --code-bg: #e3f2fd;
+            --blockquote-color: #546e7a;
+            --blockquote-border: #64b5f6;
+            --dropdown-bg: #ffffff;
+            --dropdown-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            --dropdown-hover-bg: #e3f2fd;
+        }
+
+        /* 赛博朋克模式 */
+        body.theme-cyberpunk {
+            --bg-color: #0a0a16;
+            --text-color: #f0f2f5;
+            --header-bg: #120458;
+            --header-text: #00ff9f;
+            --button-bg: #9900ff;
+            --button-hover: #b14aff;
+            --editor-bg: #1a1a2e;
+            --border-color: #ff00ff;
+            --code-bg: #2d1b54;
+            --blockquote-color: #00fff9;
+            --blockquote-border: #ff00ff;
+            --dropdown-bg: #1a1a2e;
+            --dropdown-shadow: 0 5px 15px rgba(255, 0, 255, 0.3);
+            --dropdown-hover-bg: #2d1b54;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background-color: var(--button-bg);
+            color: var(--header-text);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--button-hover);
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        /* --- Dropdown Menu Styles --- */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            background-color: var(--dropdown-bg);
+            min-width: 160px;
+            box-shadow: var(--dropdown-shadow);
+            z-index: 1;
+            border-radius: 4px;
+            padding: 5px 0;
+            margin-top: 5px;
+        }
+
+        .dropdown-menu button {
+            color: var(--text-color);
+            background-color: transparent;
+            padding: 10px 15px;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            text-align: left;
+            border-radius: 0;
+        }
+
+        .dropdown-menu button:hover {
+            background-color: var(--dropdown-hover-bg);
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+        /* --- End Dropdown Styles --- */
+
+        .theme-selector {
+            margin-left: 10px;
+        }
+
+        #themeSelector {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--editor-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 14px;
+            outline: none;
+        }
+
+        main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .editor-container,
+        .preview-container {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            height: 100%;
+            transition: flex 0.3s ease-in-out, opacity 0.3s ease-in-out;
+            min-width: 0;
+        }
+
+        .editor-container {
+            background-color: var(--editor-bg);
+            border-right: 1px solid var(--border-color);
+            /* 保持与.preview-container一致，无多余样式 */
+            border-radius: 0;
+            padding: 1rem;
+        }
+
+        .preview-container {
+            background-color: var(--editor-bg);
+            padding: 1rem;
+        }
+
+        #editor {
+            width: 100%;
+            height: 100%;
+            border: none;
+            resize: none;
+            font-family: 'Consolas', monospace;
+            font-size: 16px;
+            line-height: 1.6;
+            padding: 4px 10px;
+            outline: none;
+            background-color: transparent;
+            color: var(--text-color);
+        }
+
+        #editor::-webkit-scrollbar {
+            height: 6px;
+            width: 0 !important;
+            background: transparent;
+        }
+        #editor {
+            scrollbar-width: thin; /* Firefox */
+            -ms-overflow-style: none; /* IE 10+ */
+        }
+
+        .markdown-body {
+            padding: 10px;
+            line-height: 1.6;
+        }
+
+        .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin-top: 1.5rem; margin-bottom: 1rem; font-weight: 600; line-height: 1.25; }
+        .markdown-body h1 { font-size: 2em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+        .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+        .markdown-body p { margin-top: 0; margin-bottom: 1rem; }
+        .markdown-body blockquote { padding: 0 1em; color: var(--blockquote-color); border-left: 0.25em solid var(--blockquote-border); margin: 0 0 1rem 0; }
+        .markdown-body pre { background-color: var(--code-bg); border-radius: 3px; padding: 16px; overflow: auto; margin-bottom: 1rem; }
+        .markdown-body pre code { padding: 0; background-color: transparent; }
+        .markdown-body code { font-family: 'Consolas', monospace; background-color: var(--code-bg); padding: 0.2em 0.4em; border-radius: 3px; }
+        .markdown-body img { max-width: 100%; }
+        .markdown-body ul, .markdown-body ol { padding-left: 2em; margin-bottom: 1rem; }
+        .markdown-body table { border-collapse: collapse; margin-bottom: 1rem; display: block; overflow: auto; width: 100%; }
+        .markdown-body th, .markdown-body td { padding: 6px 13px; border: 1px solid var(--border-color); }
+
+        .editor-container::-webkit-scrollbar,
+        .preview-container::-webkit-scrollbar {
+            width: 0 !important;
+            background: transparent;
+        }
+        .editor-container,
+        .preview-container {
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE 10+ */
+        }
+
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 1rem; }
+            main { flex-direction: column; }
+            .editor-container, .preview-container { flex: none; height: 50%; width: 100%; }
+            .editor-container { border-right: none; border-bottom: 1px solid var(--border-color); }
+            main.preview-hidden .editor-container,
+            main.editor-hidden .preview-container { height: 100%; border-bottom: none; }
+        }
+
+        .sync-scroll-toggle {
+            display: flex;
+            align-items: center;
+            margin-left: 18px;
+            font-size: 13px;
+            color: var(--header-text);
+            user-select: none;
+        }
+        .sync-scroll-toggle input[type="checkbox"] {
+            accent-color: var(--button-bg);
+            margin-right: 4px;
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Markdown 实时编辑器</h1>
+            <div class="toolbar">
+                <!-- 文件操作 -->
+                <button id="saveBtn">保存</button>
+                <button id="importBtn">导入 MD</button>
+                <div class="dropdown">
+                    <button class="dropdown-toggle">导出</button>
+                    <div id="export-menu" class="dropdown-menu">
+                        <button id="exportBtn">导出 MD</button>
+                        <button id="exportHtmlBtn">导出 HTML</button>
+                        <button id="exportPdfBtn">导出 PDF</button>
+                    </div>
+                </div>
+
+                <!-- 视图选项 -->
+                <div class="dropdown">
+                    <button class="dropdown-toggle">视图</button>
+                    <div id="view-menu" class="dropdown-menu">
+                        <button id="toggleEditorBtn">切换编辑区</button>
+                        <button id="togglePreviewBtn">切换预览区</button>
+                        <button id="mdGuideBtn">Markdown 指南</button>
+                    </div>
+                </div>
+
+                <!-- 主题选择 -->
+                <div class="theme-selector">
+                    <select id="themeSelector">
+                        <option value="default">白天模式</option>
+                        <option value="dark">黑夜模式</option>
+                        <option value="blue">蓝色模式</option>
+                        <option value="cyberpunk">赛博朋克</option>
+                    </select>
+                </div>
+                <!-- 同步滚动开关 -->
+                <label class="sync-scroll-toggle" title="编辑区滚动时预览区也跟随滚动">
+                    <input type="checkbox" id="syncScrollToggle" checked>
+                    同步滚动
+                </label>
+            </div>
+        </header>
+        <main>
+            <div class="editor-container">
+                <textarea id="editor" placeholder="在此输入 Markdown 内容..."></textarea>
+            </div>
+            <div class="preview-container">
+                <div id="preview" class="markdown-body"></div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- 依赖库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- 主逻辑 -->
+    <script>
+        window.addEventListener('load', function () {
+            // --- DOM 元素获取 ---
+            const editor = document.getElementById('editor');
+            const preview = document.getElementById('preview');
+            const mainContainer = document.querySelector('main');
+            const syncScrollToggle = document.getElementById('syncScrollToggle');
+
+            // 工具栏按钮
+            const saveBtn = document.getElementById('saveBtn');
+            const importBtn = document.getElementById('importBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+            const exportPdfBtn = document.getElementById('exportPdfBtn');
+            const toggleEditorBtn = document.getElementById('toggleEditorBtn');
+            const togglePreviewBtn = document.getElementById('togglePreviewBtn');
+            const mdGuideBtn = document.getElementById('mdGuideBtn');
+            const themeSelector = document.getElementById('themeSelector');
+            const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
+            
+            // --- 状态变量 ---
+            let isShowingGuide = false;
+            let userContentBeforeGuide = '';
+
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.md,.markdown,text/markdown';
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+
+            marked.setOptions({ breaks: true, gfm: true, headerIds: true, sanitize: false });
+
+            // --- 核心功能 ---
+            function renderMarkdown(shouldSave = true) {
+                const markdownText = editor.value;
+                const htmlContent = marked.parse(markdownText);
+                preview.innerHTML = htmlContent;
+                if (shouldSave && !isShowingGuide) {
+                    localStorage.setItem('markdown-content', markdownText);
+                }
+            }
+            
+            function getFilename() {
+                const firstLine = editor.value.trim().split('\n')[0];
+                const sanitized = firstLine.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\s]/g, '').trim();
+                return sanitized && sanitized.length > 0 ? sanitized : 'markdown-export';
+            }
+
+            // --- 初始化 ---
+            const savedContent = localStorage.getItem('markdown-content');
+            if (savedContent) editor.value = savedContent;
+            renderMarkdown(false);
+
+            const initialTheme = localStorage.getItem('markdown-theme') || 'default';
+            applyTheme(initialTheme);
+            themeSelector.value = initialTheme;
+            updateViewButtonsText();
+
+            // --- 事件监听器 ---
+            editor.addEventListener('input', () => {
+                if (isShowingGuide) {
+                    isShowingGuide = false;
+                    mdGuideBtn.textContent = 'Markdown 指南';
+                }
+                renderMarkdown(true);
+            });
+
+            saveBtn.addEventListener('click', () => {
+                localStorage.setItem('markdown-content', editor.value);
+                alert('内容已手动保存到本地存储！');
+            });
+
+            importBtn.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    editor.value = e.target.result;
+                    if (isShowingGuide) {
+                        isShowingGuide = false;
+                        mdGuideBtn.textContent = '返回编辑';
+                    }
+                    renderMarkdown(true);
+                };
+                reader.readAsText(file);
+                fileInput.value = '';
+            });
+
+            exportBtn.addEventListener('click', () => {
+                const blob = new Blob([editor.value], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${getFilename()}.md`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+            
+            exportHtmlBtn.addEventListener('click', () => {
+                const filename = getFilename() + '.html';
+                // 构造完整HTML文档
+                const htmlContent = `<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"UTF-8\">\n<title>${filename}</title>\n<style>${document.querySelector('style').innerHTML}</style>\n</head>\n<body>\n<div class=\"markdown-body\">${preview.innerHTML}</div>\n</body>\n</html>`;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+
+            exportPdfBtn.addEventListener('click', async () => {
+                const btn = exportPdfBtn;
+                btn.disabled = true;
+                btn.textContent = '正在生成...';
+                try {
+                    const element = document.getElementById('preview');
+                    const opt = {
+                        margin: 15,
+                        filename: `${getFilename()}.pdf`,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    await html2pdf().from(element).set(opt).save();
+                } catch (error) {
+                    console.error("PDF导出失败:", error);
+                    alert("导出 PDF 时出错，请查看控制台获取更多信息。");
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '导出 PDF';
+                }
+            });
+
+            // --- 视图切换功能 ---
+            function updateViewButtonsText() {
+                toggleEditorBtn.textContent = mainContainer.classList.contains('editor-hidden') ? '显示编辑区' : '隐藏编辑区';
+                togglePreviewBtn.textContent = mainContainer.classList.contains('preview-hidden') ? '显示预览区' : '隐藏预览区';
+                mdGuideBtn.textContent = isShowingGuide ? '返回编辑' : 'Markdown 指南';
+            }
+
+            toggleEditorBtn.addEventListener('click', function () {
+                mainContainer.classList.remove('preview-hidden');
+                mainContainer.classList.toggle('editor-hidden');
+                updateViewButtonsText();
+            });
+            
+            togglePreviewBtn.addEventListener('click', function () {
+                mainContainer.classList.remove('editor-hidden');
+                mainContainer.classList.toggle('preview-hidden');
+                updateViewButtonsText();
+            });
+
+            const markdownGuideContent = `...`; // 指南内容太长，为保持代码清爽此处省略，实际代码会包含完整内容。
+            mdGuideBtn.addEventListener('click', () => {
+                isShowingGuide = !isShowingGuide;
+                if (isShowingGuide) {
+                    userContentBeforeGuide = editor.value;
+                    editor.value = markdownGuideContent.replace('...', `
+# Markdown 语法指南
+
+这是一个 Markdown 格式的快速参考指南，您可以随时查看这个页面来学习 Markdown 的使用方法。
+
+## 基本语法
+
+### 标题
+
+\`\`\`
+# 一级标题
+## 二级标题
+### 三级标题
+#### 四级标题
+##### 五级标题
+###### 六级标题
+\`\`\`
+
+### 强调
+
+\`\`\`
+*斜体文本* 或 _斜体文本_
+**粗体文本** 或 __粗体文本__
+***粗斜体文本*** 或 ___粗斜体文本___
+\`\`\`
+
+### 列表
+
+无序列表：
+\`\`\`
+- 项目1
+- 项目2
+  - 子项目A
+  - 子项目B
+\`\`\`
+
+有序列表：
+\`\`\`
+1. 第一项
+2. 第二项
+3. 第三项
+\`\`\`
+
+### 链接
+
+\`\`\`
+[链接文本](https://www.example.com)
+\`\`\`
+
+### 图片
+
+\`\`\`
+![替代文本](图片URL)
+\`\`\`
+
+## 高级语法
+
+### 表格
+
+\`\`\`
+| 表头1 | 表头2 | 表头3 |
+| :--- | :---: | ---: |
+| 左对齐 | 居中对齐 | 右对齐 |
+| 单元格4 | 单元格5 | 单元格6 |
+\`\`\`
+
+### 代码块
+
+行内代码使用反引号 \`code\` 包裹。
+
+代码块使用三个反引号包裹：
+\`\`\`javascript
+function greet(name) {
+  console.log("Hello, " + name + "!");
+}
+greet('World');
+\`\`\`
+
+### 引用
+
+\`\`\`
+> 这是一段引用的文字。
+>
+> > 引用可以嵌套。
+\`\`\`
+
+### 分隔线
+
+使用三个或更多的星号、破折号或下划线来创建分隔线。
+\`\`\`
+***
+---
+___
+\`\`\`
+
+### 删除线
+
+\`\`\`
+~~这段文字将被划掉。~~
+\`\`\`
+`);
+                    renderMarkdown(false);
+                } else {
+                    editor.value = userContentBeforeGuide;
+                    renderMarkdown(true);
+                }
+                updateViewButtonsText();
+            });
+            
+            // --- 主题切换 ---
+            themeSelector.addEventListener('change', (e) => {
+                applyTheme(e.target.value);
+                localStorage.setItem('markdown-theme', e.target.value);
+            });
+
+            function applyTheme(theme) {
+                document.body.className = '';
+                document.body.classList.add(`theme-${theme}`);
+            }
+
+            // --- 下拉菜单交互逻辑 ---
+            function closeAllDropdowns() {
+                document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                    menu.classList.remove('show');
+                });
+            }
+
+            dropdownToggles.forEach(toggle => {
+                toggle.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                    const currentMenu = this.nextElementSibling;
+                    const isShown = currentMenu.classList.contains('show');
+                    closeAllDropdowns(); // Close others first
+                    if (!isShown) {
+                        currentMenu.classList.add('show');
+                    }
+                });
+            });
+
+            // Click outside to close dropdowns
+            window.addEventListener('click', function(event) {
+                if (!event.target.matches('.dropdown-toggle')) {
+                    closeAllDropdowns();
+                }
+            });
+
+            // --- 同步滚动功能 ---
+            let isSyncScroll = true;
+            let isPreviewScrolling = false;
+            syncScrollToggle.addEventListener('change', function() {
+                isSyncScroll = this.checked;
+            });
+            editor.addEventListener('scroll', function() {
+                if (!isSyncScroll) return;
+                if (isPreviewScrolling) return;
+                const editorScroll = editor.scrollTop;
+                const editorHeight = editor.scrollHeight - editor.clientHeight;
+                const percent = editorHeight > 0 ? editorScroll / editorHeight : 0;
+                const previewContainer = preview.parentElement;
+                const previewHeight = previewContainer.scrollHeight - previewContainer.clientHeight;
+                isPreviewScrolling = true;
+                previewContainer.scrollTop = percent * previewHeight;
+                setTimeout(() => { isPreviewScrolling = false; }, 10);
+            });
+        });
+    </script>
+</body>
+</html>

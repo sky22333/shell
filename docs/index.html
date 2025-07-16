@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP地址命令生成器</title>
+    <link rel="icon" href="./favicon.ico">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: #10b981;
+            --secondary-hover: #059669;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --bg: #f9fafb;
+            --card-bg: #ffffff;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            font-size: 16px;
+        }
+
+        .container {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .header p {
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .input-row {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .flex-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .flex-col {
+            flex: 1;
+        }
+
+        label {
+            font-weight: 500;
+            font-size: 1rem;
+            color: var(--text);
+        }
+
+        input, textarea, select {
+            padding: 10px 12px;
+            font-size: 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+
+        #interface {
+            max-width: 120px;
+        }
+
+        #ipInput {
+            min-height: 120px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 0.95rem;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        button {
+            padding: 4px 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 36px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--secondary-hover);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .tab-container {
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-buttons {
+            display: flex;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-light);
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-button.active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+            padding-top: 16px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .result-container {
+            margin-top: 16px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .result-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .result-box {
+            background-color: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 6px;
+            min-height: 150px;
+            max-height: 300px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.95rem;
+            overflow: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .result-box::-webkit-scrollbar {
+            display: none;
+        }
+
+        .doc-section {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .doc-section h4 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .doc-section ul {
+            padding-left: 20px;
+            margin-bottom: 12px;
+        }
+
+        .doc-section ul li {
+            margin-bottom: 4px;
+        }
+
+        .doc-section code {
+            background-color: #f1f5f9;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 16px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            #interface {
+                max-width: 100%;
+            }
+
+            .flex-row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>公网IP地址添加命令生成器</h1>
+            <p>为Linux服务器生成添加公网IP的命令</p>
+        </div>
+
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="changeTab(event, 'ipv4Tab')">IPv4</button>
+                <button class="tab-button" onclick="changeTab(event, 'ipv6Tab')">IPv6</button>
+            </div>
+        </div>
+
+        <div id="ipv4Tab" class="tab-content active">
+            <div class="input-section">
+                <div class="input-row">
+                    <label for="interface">网卡名称</label>
+                    <input type="text" id="interface" value="eth0" placeholder="例如: eth0" />
+                </div>
+                
+                <div class="input-row">
+                    <label for="ipInput">公网IPv4地址列表 (每行一个)</label>
+                    <textarea id="ipInput" placeholder="例如:
+203.0.113.10
+192.0.2.100/24"></textarea>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="generateCommand('ipv4')">生成命令</button>
+                <button class="btn-danger" onclick="generateCSectionCommand()">生成C段命令</button>
+            </div>
+        </div>
+
+        <div id="ipv6Tab" class="tab-content">
+            <div class="input-section">
+                <div class="input-row">
+                    <label for="interfaceIpv6">网卡名称</label>
+                    <input type="text" id="interfaceIpv6" value="eth0" placeholder="例如: eth0" />
+                </div>
+                
+                <div class="input-row">
+                    <label for="ipv6Prefix">IPv6地址或网段前缀</label>
+                    <input type="text" id="ipv6Prefix" placeholder="例如: 2001:475:35:3f4::6/64" />
+                </div>
+
+                <div class="input-row">
+                    <div class="flex-row">
+                        <div class="flex-col">
+                            <label for="ipv6Count">生成IPv6地址数量</label>
+                            <input type="number" id="ipv6Count" value="10" min="1" max="100" />
+                        </div>
+                        <div class="flex-col">
+                            <label for="ipv6Mask">子网掩码长度</label>
+                            <input type="number" id="ipv6Mask" value="64" min="1" max="128" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="generateIPv6Command()">生成IPv6命令</button>
+            </div>
+        </div>
+
+        <div class="result-container">
+            <div class="result-header">
+                <h3>生成的命令：</h3>
+                <button class="btn-secondary" onclick="copyResult()">复制命令</button>
+            </div>
+            <div class="result-box" id="resultBox">生成的命令将显示在这里...</div>
+        </div>
+
+        <div class="doc-section">
+            <h4>Linux服务器添加公网IP说明</h4>
+            <ul>
+                <li><strong>临时添加IP</strong>: 上述命令会临时添加IP，系统重启后失效</li>
+                <li><strong>永久添加</strong>: 需要修改网络配置文件 <code>/etc/network/interfaces</code> 或 <code>/etc/sysconfig/network-scripts/</code> 下的配置</li>
+                <li><strong>验证添加</strong>: 使用 <code>ip addr show</code> 命令验证IP是否添加成功</li>
+                <li><strong>注意事项</strong>: 添加公网IP前需确认IP已分配给您的服务器，否则可能导致IP冲突</li>
+                <li><strong>IPv6注意</strong>: 添加IPv6地址前确保服务器已开启IPv6支持</li>
+            </ul>
+            <p><small>使用<code>sysctl -w net.ipv6.conf.all.forwarding=1</code>开启IPv6转发，<code>sysctl -p</code>使配置生效</small></p>
+        </div>
+    </div>
+
+    <script>
+        function changeTab(evt, tabId) {
+            const tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove("active");
+            }
+
+            const tabButtons = document.getElementsByClassName("tab-button");
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove("active");
+            }
+
+            document.getElementById(tabId).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+
+        function generateCommand(type) {
+            const interfaceName = document.getElementById(type === 'ipv6' ? 'interfaceIpv6' : 'interface').value.trim();
+            const ipInput = document.getElementById('ipInput').value.trim().split('\n');
+            let commands = '';
+
+            if (interfaceName && ipInput.length > 0) {
+                ipInput.forEach(ip => {
+                    const trimmedIp = ip.trim();
+                    if (trimmedIp) {
+                        const ipWithMask = trimmedIp.includes('/') ? trimmedIp : `${trimmedIp}/32`;
+                        commands += `sudo ip addr add ${ipWithMask} dev ${interfaceName}\n`;
+                    }
+                });
+
+                document.getElementById('resultBox').textContent = commands || "没有有效的IP地址输入";
+            } else {
+                document.getElementById('resultBox').textContent = "请填写网卡名称和IP地址";
+            }
+        }
+
+        function generateCSectionCommand() {
+            const interfaceName = document.getElementById('interface').value.trim();
+            if (!interfaceName) {
+                document.getElementById('resultBox').textContent = "请先填写网卡名称";
+                return;
+            }
+
+            // 获取第一个IP作为C段基准
+            let firstIp = document.getElementById('ipInput').value.trim().split('\n')[0] || '';
+            firstIp = firstIp.split('/')[0];
+            
+            if (!firstIp) {
+                firstIp = '198.51.100.1'; // 使用RFC 5737定义的测试网段作为默认值
+            }
+            
+            const ipParts = firstIp.split('.');
+            if (ipParts.length !== 4 || ipParts.some(part => isNaN(parseInt(part)) || parseInt(part) > 255)) {
+                document.getElementById('resultBox').textContent = "请输入有效的IP地址作为C段基准";
+                return;
+            }
+
+            let commands = '';
+            const baseIp = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
+            
+            for (let i = 1; i <= 254; i++) {
+                commands += `sudo ip addr add ${baseIp}.${i}/24 dev ${interfaceName}\n`;
+            }
+
+            document.getElementById('resultBox').textContent = commands;
+        }
+
+        function generateIPv6Command() {
+            const interfaceName = document.getElementById('interfaceIpv6').value.trim();
+            const ipv6Input = document.getElementById('ipv6Prefix').value.trim();
+            const ipv6Count = parseInt(document.getElementById('ipv6Count').value);
+            let ipv6Mask = parseInt(document.getElementById('ipv6Mask').value);
+
+            if (!interfaceName || !ipv6Input) {
+                document.getElementById('resultBox').textContent = "请填写网卡名称和IPv6前缀";
+                return;
+            }
+
+            if (isNaN(ipv6Count) || ipv6Count < 1 || ipv6Count > 1000) {
+                document.getElementById('resultBox').textContent = "IPv6一次最多生成1000个";
+                return;
+            }
+
+            if (isNaN(ipv6Mask) || ipv6Mask < 1 || ipv6Mask > 128) {
+                document.getElementById('resultBox').textContent = "IPv6子网掩码长度必须在1-128之间";
+                return;
+            }
+            let prefix = ipv6Input;
+            let inputMask = null;
+            if (ipv6Input.includes('/')) {
+                const parts = ipv6Input.split('/');
+                prefix = parts[0];
+                inputMask = parseInt(parts[1]);
+                if (!isNaN(inputMask) && inputMask >= 1 && inputMask <= 128) {
+                    ipv6Mask = inputMask;
+                    document.getElementById('ipv6Mask').value = ipv6Mask;
+                }
+            }
+
+            const prefixSegments = Math.ceil(ipv6Mask / 16);
+
+            let networkPrefix = '';
+
+            if (prefix.includes('::')) {
+                const expandedAddress = expandIPv6Address(prefix);
+                const segments = expandedAddress.split(':');
+                networkPrefix = segments.slice(0, prefixSegments).join(':');
+                if (prefixSegments < 8) {
+                    networkPrefix += ':';
+                }
+            } else {
+                const segments = prefix.split(':');
+                networkPrefix = segments.slice(0, prefixSegments).join(':');
+                if (prefixSegments < 8) {
+                    networkPrefix += ':';
+                }
+            }
+
+            let commands = '';
+            for (let i = 0; i < ipv6Count; i++) {
+                const randomAddress = generateRandomIPv6InterfaceID(networkPrefix, ipv6Mask);
+                commands += `sudo ip addr add ${randomAddress}/${ipv6Mask} dev ${interfaceName}\n`;
+            }
+
+            document.getElementById('resultBox').textContent = commands;
+        }
+        function expandIPv6Address(address) {
+            if (address.includes('/')) {
+                address = address.split('/')[0];
+            }
+
+            if (!address.includes('::')) {
+                return address;
+            }
+            const parts = address.split('::');
+            const beforeDoubleColon = parts[0] ? parts[0].split(':') : [];
+            const afterDoubleColon = parts[1] ? parts[1].split(':') : [];
+            const missingGroups = 8 - (beforeDoubleColon.length + afterDoubleColon.length);
+            let expandedAddress = '';
+            if (beforeDoubleColon.length > 0) {
+                expandedAddress += beforeDoubleColon.join(':') + ':';
+            }
+            for (let i = 0; i < missingGroups; i++) {
+                expandedAddress += '0:';
+            }
+            if (afterDoubleColon.length > 0) {
+                expandedAddress += afterDoubleColon.join(':');
+            } else {
+                expandedAddress = expandedAddress.slice(0, -1);
+            }
+            
+            return expandedAddress;
+        }
+        function generateRandomIPv6InterfaceID(networkPrefix, prefixLength) {
+            const segmentsToKeep = Math.ceil(prefixLength / 16);
+            const segmentsToGenerate = 8 - segmentsToKeep;
+            if (segmentsToGenerate <= 0) {
+                return networkPrefix;
+            }
+            const cleanPrefix = networkPrefix.endsWith(':') ? 
+                networkPrefix.slice(0, -1) : networkPrefix;
+            const existingSegments = cleanPrefix.split(':');
+            let randomSegments = [];
+            for (let i = 0; i < segmentsToGenerate; i++) {
+                randomSegments.push(generateRandomHex(4));
+            }
+            return [...existingSegments, ...randomSegments].join(':');
+        }
+
+        function generateRandomHex(length) {
+            const hexChars = '0123456789abcdef';
+            let result = '';
+            
+            for (let i = 0; i < length; i++) {
+                result += hexChars.charAt(Math.floor(Math.random() * hexChars.length));
+            }
+            
+            return result;
+        }
+
+        function copyResult() {
+            const resultBox = document.getElementById('resultBox');
+            const textToCopy = resultBox.textContent;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const copyBtn = document.querySelector('.btn-secondary');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '已复制!';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('复制失败: ', err);
+                alert('复制失败，请手动选择文本复制');
+            });
+        }
+    </script>
+</body>
+</html>
