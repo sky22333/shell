@@ -1,36 +1,3 @@
-
-
-## 🔵脚本加密-编译为可执行文件
-
-- 下载环境
-```
-sudo apt update
-sudo apt install shc gcc -yq
-```
-
-- 用法
-
-| 命令                          | 描述                                                              | 示例                                                          |
-|-------------------------------|-------------------------------------------------------------------|---------------------------------------------------------------|
-| `shc -f <script>`             | 编译指定的 Shell 脚本文件。                                        | `shc -f script.sh`                                             |
-| `shc -o <output>`             | 指定输出的可执行文件名。                                          | `shc -f script.sh -o myscript`                                 |
-| `shc -e <YYYY-MM-DD>`         | 设置脚本的过期日期，格式为 `YYYY-MM-DD`。                          | `shc -f script.sh -e 2024-12-31`                               |
-| `shc -m "<message>"`          | 设置当脚本过期时显示的消息。                                       | `shc -f script.sh -e 2024-12-31 -m "脚本已过期"` |
-| `shc -r`                      | 允许在编译后的脚本中保留运行时的环境变量。                        | `shc -r -f script.sh`                                          |
-| `shc -T`                      | 不生成中间的 C 源代码文件。                                        | `shc -f script.sh -T`                                          |
-| `shc -v`                      | 显示详细信息，帮助调试。                                           | `shc -v -f script.sh`                                          |
-| `shc -x`                      | 对脚本中的字符串进行 XOR 加密以增加安全性。                       | `shc -x -f script.sh`                                          |
-| `shc -l <lib>`                | 添加特定的库文件链接到编译的二进制文件中。                        | `shc -f script.sh -l /usr/lib/somelibrary.so`                  |
-
-- 远程执行加密脚本
-```
-curl -fsSL http://公网IP/my.sh -o my.sh && chmod +x my.sh && ./my.sh
-```
-需要系统一致
-
----
----
-
 ## 🔵ansible批量管理主机运维工具
 
 - ### ✨一键安装脚本
@@ -180,7 +147,6 @@ ansible 1,3 -a "pwd"
 ```
 > 命令结尾后面追加`-v`选项会显示被控机器详细的执行信息
 
----
 
 #### 命令解释
 > `-m` 用于指定 Ansible 模块
@@ -211,9 +177,6 @@ ansible 1,3 -a "pwd"
 
 
 
----
----
-
 #### 执行结果解释
 - **ok**: 表示在该主机上成功完成的任务数。
 - **changed**: 表示在该主机上有多少任务进行了更改（如文件被复制、脚本被执行）。
@@ -239,4 +202,37 @@ ansible_port=22
 1 ansible_host=192.168.1.101
 2 ansible_host=192.168.1.102
 3 ansible_host=192.168.1.103
+```
+
+---
+---
+
+
+## 🔵脚本编译为可执行文件
+
+- 下载环境
+```
+sudo apt update
+sudo apt install shc gcc -yq
+```
+
+**编译环境和运行环境需要系统版本一致才可运行**
+
+- 用法
+
+| 命令                          | 描述                                                              | 示例                                                          |
+|-------------------------------|-------------------------------------------------------------------|---------------------------------------------------------------|
+| `shc -f <script>`             | 编译指定的 Shell 脚本文件。                                        | `shc -f script.sh`                                             |
+| `shc -o <output>`             | 指定输出的可执行文件名。                                          | `shc -f script.sh -o myscript`                                 |
+| `shc -e <YYYY-MM-DD>`         | 设置脚本的过期日期，格式为 `YYYY-MM-DD`。                          | `shc -f script.sh -e 2024-12-31`                               |
+| `shc -m "<message>"`          | 设置当脚本过期时显示的消息。                                       | `shc -f script.sh -e 2024-12-31 -m "脚本已过期"` |
+| `shc -r`                      | 允许在编译后的脚本中保留运行时的环境变量。                        | `shc -r -f script.sh`                                          |
+| `shc -T`                      | 不生成中间的 C 源代码文件。                                        | `shc -f script.sh -T`                                          |
+| `shc -v`                      | 显示详细信息，帮助调试。                                           | `shc -v -f script.sh`                                          |
+| `shc -x`                      | 对脚本中的字符串进行 XOR 加密以增加安全性。                       | `shc -x -f script.sh`                                          |
+| `shc -l <lib>`                | 添加特定的库文件链接到编译的二进制文件中。                        | `shc -f script.sh -l /usr/lib/somelibrary.so`                  |
+
+- 远程执行加密脚本
+```
+curl -fsSL http://127.0.0.1/my.sh -o my.sh && chmod +x my.sh && ./my.sh
 ```
