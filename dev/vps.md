@@ -5,7 +5,7 @@
 
 项目地址：https://github.com/leitbogioro/Tools
 
-#### 先下载
+#### 下载脚本文件
 ```
 cd /root
 ```
