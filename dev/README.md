@@ -68,4 +68,5 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/root.sh)
 bash <(curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/dev/root.sh)
 ```
 > 部分机器修改不生效，请打开查找`/etc/ssh/sshd_config.d/xxxx.conf`类似文件
+> 
 > 打开文件查找`PasswordAuthentication no`此代码将其注释，然后重启SSH服务。
