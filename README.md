@@ -20,4 +20,4 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/mirrors.sh) --us
 ---
 
 ## Stargazers over time
-[![Stargazers over time](https://starchart.cc/sky22333/hostswitcher.svg?variant=adaptive)](https://starchart.cc/sky22333/hostswitcher)
+[![Stargazers over time](https://starchart.cc/sky22333/shell.svg?variant=adaptive)](https://starchart.cc/sky22333/shell)
