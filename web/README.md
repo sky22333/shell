@@ -1,3 +1,15 @@
+- 一键自动部署异次元发卡
+> 适用于`Debian 11+` `Ubuntu 18.04+`系统    基于`Caddy` `php` `mariadb`环境
+```
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/web/acgfaka.sh)
+```
+
+- 一键自动安装WordPress
+> 适用于`Debian 11+` `Ubuntu 18.04+`系统    基于`Caddy` `php` `mariadb`环境
+```
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/web/wp.sh)
+```
+
 ### 完全卸载删除站点及环境
 - 删除站点文件
 ```

@@ -1,6 +1,11 @@
-### 一键安装ansible
+#### 一键安装ansible
 
 见 [ansible.md](./ansible.md)
+
+
+#### 一键重装系统
+
+见 [vps.md](./vps.md)
 
 ---
 
@@ -53,3 +58,14 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/cf-tunnel.sh)
 ```
 iwr -useb https://ghproxy.net/https://raw.githubusercontent.com/sky22333/shell/main/dev/cf-setup.ps1 | iex
 ```
+
+- 一键修改root密码：
+```
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/root.sh)
+```
+使用cdn链接
+```
+bash <(curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/dev/root.sh)
+```
+> 部分机器修改不生效，请打开查找`/etc/ssh/sshd_config.d/xxxx.conf`类似文件
+> 打开文件查找`PasswordAuthentication no`此代码将其注释，然后重启SSH服务。
