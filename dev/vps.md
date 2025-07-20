@@ -3,7 +3,7 @@
 
 # Tools版本
 
-[脚本原地址](https://github.com/leitbogioro/Tools)
+项目地址：https://github.com/leitbogioro/Tools
 
 #### 先下载
 ```
@@ -74,7 +74,7 @@ bash InstallNET.sh -debian 11
 
 # reinstall版本
 
-[项目地址](https://github.com/bin456789/reinstall)
+项目地址：https://github.com/bin456789/reinstall
 
 
 国外服务器：
