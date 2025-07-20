@@ -19,6 +19,10 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/mirrors.sh)
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/mirrors.sh) --use-official-source true
 ```
+```
+bash <(curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/dev/mirrors.sh) --use-official-source true
+```
+
 
 - 一键安装Docker和配置镜像地址
 ```
@@ -63,7 +67,6 @@ iwr -useb https://ghproxy.net/https://raw.githubusercontent.com/sky22333/shell/m
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/root.sh)
 ```
-使用cdn链接
 ```
 bash <(curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/dev/root.sh)
 ```
