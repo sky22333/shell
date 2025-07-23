@@ -91,20 +91,12 @@ disabled_plugins = ["cri"]
 systemctl restart containerd
 ```
 
-### 移动配置到用户目录
-```
-rm -f $HOME/.kube/config
-mkdir -p $HOME/.kube
-cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-chown $(id -u):$(id -g) $HOME/.kube/config
-```
 
 
-### 初始化集群 (替换YOUR_IP为实际网口IP)
-查看IP
-```
-hostname -I
-```
+### 初始化集群
+
+`apiserver-advertise-address`必须要其他节点能访问到，并且必须真实存在于本机的网络接口上。
+
 ```bash
 kubeadm init \
   --pod-network-cidr=10.244.0.0/16 \
@@ -112,6 +104,15 @@ kubeadm init \
   --apiserver-advertise-address=YOUR_IP
 ```
 等待拉取镜像完成
+
+
+### 移动配置到用户目录
+```
+rm -f $HOME/.kube/config
+mkdir -p $HOME/.kube
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+chown $(id -u):$(id -g) $HOME/.kube/config
+```
 
 ## 安装网络插件 (Flannel)
 
