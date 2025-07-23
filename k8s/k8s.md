@@ -91,6 +91,15 @@ disabled_plugins = ["cri"]
 systemctl restart containerd
 ```
 
+### 移动配置到用户目录
+```
+rm -f $HOME/.kube/config
+mkdir -p $HOME/.kube
+cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+chown $(id -u):$(id -g) $HOME/.kube/config
+```
+
+
 ### 初始化集群 (替换YOUR_IP为实际网口IP)
 查看IP
 ```
