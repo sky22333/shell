@@ -4,96 +4,6 @@
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/k8s/k8s-install.sh)
 ```
-## 环境安装（以下步骤主控机和节点集群都需要执行）
-
-```bash
-cat <<'EOF' > k8s-prep.sh
-#!/bin/bash
-set -e
-
-# 禁用swap
-swapoff -a
-sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
-
-# 配置内核模块和参数
-cat <<MODULES > /etc/modules-load.d/k8s.conf
-overlay
-br_netfilter
-MODULES
-
-modprobe overlay
-modprobe br_netfilter
-
-cat <<SYSCTL > /etc/sysctl.d/k8s.conf
-net.bridge.bridge-nf-call-iptables  = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.ipv4.ip_forward                 = 1
-SYSCTL
-
-sysctl --system
-
-apt update && apt install -y curl wget lsof gnupg
-echo "系统准备完成"
-EOF
-
-chmod +x k8s-prep.sh
-sudo ./k8s-prep.sh
-```
-
-## 安装容器运行时 (containerd)
-
-```bash
-# 安装containerd
-mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
-
-apt update && apt install -y containerd.io
-
-# 配置containerd
-mkdir -p /etc/containerd
-containerd config default > /etc/containerd/config.toml
-sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
-
-systemctl restart containerd
-systemctl enable containerd
-```
-
-## 安装Kubernetes组件
-
-```bash
-# 添加K8s官方仓库
-mkdir -p -m 755 /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-
-echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /' > /etc/apt/sources.list.d/kubernetes.list
-
-# 安装K8s组件
-apt update && apt install -y kubelet kubeadm kubectl
-apt-mark hold kubelet kubeadm kubectl
-
-systemctl enable --now kubelet
-```
-
-## 启用 CRI 插件
-编辑`/etc/containerd/config.toml`文件
-
-去掉或注释这一行：
-```
-disabled_plugins = ["cri"]
-```
-
-重启containerd服务
-```
-systemctl restart containerd
-```
-
-
----
----
----
-
 
 
 
@@ -117,8 +27,6 @@ systemctl restart containerd
 kubeadm init \
   --pod-network-cidr=10.244.0.0/16 \
   --service-cidr=10.96.0.0/12 \
-  --apiserver-advertise-address=YOUR_IP
-  --apiserver-cert-extra-sans=YOUR_IP,公网IP
 ```
 等待拉取镜像完成
 
@@ -144,9 +52,6 @@ chown $(id -u):$(id -g) $HOME/.kube/config
 
 ```bash
 kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
-
-# 等待网络插件就绪
-kubectl wait --for=condition=ready pod -l app=flannel -n kube-flannel --timeout=300s
 ```
 
 ## 注意！
