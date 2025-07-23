@@ -70,7 +70,6 @@ helm install cert-manager jetstack/cert-manager \
   --set global.leaderElection.namespace=cert-manager
 
 # 验证cert-manager安装
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=cert-manager -n cert-manager --timeout=300s
 kubectl get pods -n cert-manager
 ```
 
