@@ -64,9 +64,9 @@ kubectl create namespace cert-manager
 
 # 安装cert-manager (包含CRDs)
 helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
+  --namespace cert-manager --create-namespace \
   --version v1.18.2 \
-  --set crds.enabled=true \
+  --set installCRDs=true \
   --set global.leaderElection.namespace=cert-manager
 
 # 验证cert-manager安装
