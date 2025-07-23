@@ -50,50 +50,30 @@ apt update && apt install -y helm
 helm version
 ```
 
-## 安装cert-manager
+## 安装traefik
 
-cert-manager是生产环境必需的TLS证书管理工具：
+traefik 是反向代理和证书管理工具：
 
 ```bash
-# 添加cert-manager Helm仓库
-helm repo add jetstack https://charts.jetstack.io
+# 添加 Traefik Helm 仓库
+helm repo add traefik https://traefik.github.io/charts
 helm repo update
 
-# 创建cert-manager命名空间
-kubectl create namespace cert-manager
+# 创建 traefik 命名空间
+kubectl create namespace traefik
 
-# 安装cert-manager (包含CRDs)
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager --create-namespace \
-  --version v1.18.2 \
-  --set installCRDs=true \
-  --set global.leaderElection.namespace=cert-manager
+# 安装 Traefik
+helm install traefik traefik/traefik \
+  --namespace traefik --create-namespace \
+  --set deployment.replicas=1 \
+  --set service.type=LoadBalancer \
+  --set ports.websecure.tls=true \
+  --set ingressClass.enabled=true \
+  --set ingressClass.isDefaultClass=true
 
-# 验证cert-manager安装
-kubectl get pods -n cert-manager
+# 验证 Traefik 安装
+kubectl get pods -n traefik
 ```
-
-## 配置Let's Encrypt证书颁发者
-创建生产环境ClusterIssuer
-```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: your-email@example.com  # 替换为你的邮箱
-    privateKeySecretRef:
-      name: letsencrypt-prod
-    solvers:
-    - http01:
-        ingress:
-          class: nginx
-EOF
-```
-
 
 ## 常用操作命令
 
@@ -102,10 +82,6 @@ EOF
 kubectl cluster-info
 kubectl get nodes
 kubectl get pods -A
-
-# 查看证书状态
-kubectl get certificates -A
-kubectl describe certificate <cert-name>
 
 # 查看Ingress
 kubectl get ingress -A
