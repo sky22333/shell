@@ -77,7 +77,7 @@ systemctl enable --now kubelet
 ---
 
 
-## 初始化集群（控制平面）
+## 初始化集群（控制机上执行）
 
 编辑`/etc/containerd/config.toml`文件
 
@@ -108,6 +108,7 @@ systemctl restart containerd
 --apiserver-cert-extra-sans=内网IP,公网IP
 ```
 
+运行命令
 ```bash
 kubeadm init \
   --pod-network-cidr=10.244.0.0/16 \
