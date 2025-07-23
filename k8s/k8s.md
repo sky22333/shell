@@ -1,6 +1,6 @@
-# k8s环境安装 - Debian 12
+# k8s环境安装
 
-## 快速环境准备
+## 环境安装（以下步骤主控机和node集群都需要执行）
 
 ```bash
 cat <<'EOF' > k8s-prep.sh
@@ -72,13 +72,7 @@ apt-mark hold kubelet kubeadm kubectl
 systemctl enable --now kubelet
 ```
 
----
----
----
-
-
-## 初始化集群（控制机上执行）
-
+## 启用 CRI 插件
 编辑`/etc/containerd/config.toml`文件
 
 去掉或注释这一行：
@@ -92,8 +86,14 @@ systemctl restart containerd
 ```
 
 
+---
+---
+---
 
-### 初始化集群
+
+
+
+### 初始化集群（以下步骤仅在控制机上运行）
 
 地址说明
 ```
