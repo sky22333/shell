@@ -116,8 +116,7 @@ kubectl wait --for=condition=ready pod -l app=flannel -n kube-flannel --timeout=
 curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" > /etc/apt/sources.list.d/helm-stable-debian.list
 
-apt update
-apt install -y helm
+apt update && apt install -y helm
 
 # 验证Helm安装
 helm version
@@ -148,9 +147,8 @@ kubectl get pods -n cert-manager
 ```
 
 ## 配置Let's Encrypt证书颁发者
-
+创建生产环境ClusterIssuer
 ```bash
-# 创建生产环境ClusterIssuer
 cat <<EOF | kubectl apply -f -
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
