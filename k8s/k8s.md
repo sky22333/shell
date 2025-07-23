@@ -3,7 +3,6 @@
 ## 快速环境准备
 
 ```bash
-# 一键系统准备脚本
 cat <<'EOF' > k8s-prep.sh
 #!/bin/bash
 set -e
@@ -28,6 +27,8 @@ net.ipv4.ip_forward                 = 1
 SYSCTL
 
 sysctl --system
+
+apt update && apt install -y curl wget lsof gnupg
 echo "系统准备完成"
 EOF
 
@@ -39,9 +40,6 @@ sudo ./k8s-prep.sh
 
 ```bash
 # 安装containerd
-apt update
-apt install -y ca-certificates curl gnupg lsb-release
-
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
@@ -62,17 +60,13 @@ systemctl enable containerd
 
 ```bash
 # 添加K8s官方仓库
-apt update
-apt install -y apt-transport-https ca-certificates curl gpg
-
 mkdir -p -m 755 /etc/apt/keyrings
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
 echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /' > /etc/apt/sources.list.d/kubernetes.list
 
 # 安装K8s组件
-apt update
-apt install -y kubelet kubeadm kubectl
+apt update && apt install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
 
 systemctl enable --now kubelet
@@ -85,18 +79,26 @@ systemctl enable --now kubelet
 
 ## 初始化集群（控制平面）
 
+编辑`/etc/containerd/config.toml`文件
+
+去掉或注释这一行：
+```
+disabled_plugins = ["cri"]
+```
+
+重启containerd服务
+```
+systemctl restart containerd
+```
+
+### 初始化集群 (替换YOUR_IP为实际公网IP)
 ```bash
-# 初始化集群 (替换YOUR_IP为实际IP)
 kubeadm init \
   --pod-network-cidr=10.244.0.0/16 \
   --service-cidr=10.96.0.0/12 \
   --apiserver-advertise-address=YOUR_IP
-
-# 配置kubectl
-mkdir -p $HOME/.kube
-cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-chown $(id -u):$(id -g) $HOME/.kube/config
 ```
+等待拉取镜像完成
 
 ## 安装网络插件 (Flannel)
 
