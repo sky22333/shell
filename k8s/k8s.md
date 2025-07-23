@@ -1,5 +1,9 @@
 # k8s环境安装
 
+
+```
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/k8s/k8s-instal.sh)
+```
 ## 环境安装（以下步骤主控机和节点集群都需要执行）
 
 ```bash
