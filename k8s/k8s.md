@@ -95,15 +95,36 @@ systemctl restart containerd
 
 ### 初始化集群
 
-`apiserver-advertise-address`必须要其他节点能访问到，并且必须真实存在于本机的网络接口上。
+地址说明
+```
+# 使用网卡上真实存在的内网IP
+# API Server绑定到这个地址
+--apiserver-advertise-address=内网IP
+```
+```
+# 在TLS证书中添加公网IP
+# 允许通过公网IP访问API Server
+# 同时保留内网IP访问能力
+--apiserver-cert-extra-sans=内网IP,公网IP
+```
 
 ```bash
 kubeadm init \
   --pod-network-cidr=10.244.0.0/16 \
   --service-cidr=10.96.0.0/12 \
   --apiserver-advertise-address=YOUR_IP
+  --apiserver-cert-extra-sans=YOUR_IP,公网IP
 ```
 等待拉取镜像完成
+
+
+### 如果启动失败需要重新运行（可选）
+```
+sudo kubeadm reset -f
+sudo rm -r /etc/kubernetes/ ~/.kube/ /var/lib/etcd/ /etc/cni/net.d/
+sudo systemctl restart containerd
+```
+然后重新初始化集群
 
 
 ### 移动配置到用户目录
@@ -122,6 +143,11 @@ kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/
 # 等待网络插件就绪
 kubectl wait --for=condition=ready pod -l app=flannel -n kube-flannel --timeout=300s
 ```
+
+## 注意！
+
+在输出的命令中，需要替换成公网IP，再在node节点集群中执行
+
 
 ## 安装Helm
 
