@@ -37,11 +37,6 @@ kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/
 kubectl get pods -n kube-flannel -o wide
 ```
 
-## 注意！
-
-在输出的命令中，需要替换成公网IP，再在node节点集群中执行
-
-
 ## 安装Helm
 
 ```bash
