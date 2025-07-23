@@ -232,7 +232,7 @@ show_next_steps() {
     echo
     log_info "后续步骤:"
     echo "  主控节点初始化:"
-    echo "    sudo kubeadm init --pod-network-cidr=10.244.0.0/16"
+    echo "    kubeadm init --pod-network-cidr=10.244.0.0/16 --service-cidr=10.96.0.0/12"
     echo
     echo "  工作节点加入集群:"
     echo "    sudo kubeadm join <master-ip>:6443 --token <token> --discovery-token-ca-cert-hash <hash>"
