@@ -91,7 +91,11 @@ disabled_plugins = ["cri"]
 systemctl restart containerd
 ```
 
-### 初始化集群 (替换YOUR_IP为实际公网IP)
+### 初始化集群 (替换YOUR_IP为实际网口IP)
+查看IP
+```
+hostname -I
+```
 ```bash
 kubeadm init \
   --pod-network-cidr=10.244.0.0/16 \
