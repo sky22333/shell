@@ -7,6 +7,8 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/k8s/k8s-install.sh)
 
 或者：https://docs.rke2.io/zh/install/quickstart
 
+管理面板：https://kubesphere.io/zh/
+
 ### 初始化集群（以下步骤仅在主控机上运行）
 
 运行命令
