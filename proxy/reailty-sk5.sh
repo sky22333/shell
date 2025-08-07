@@ -144,7 +144,7 @@ print_node_info() {
     echo -e " VLESS 端口: \033[32m$vless_port\033[0m UUID: \033[32m$uuid\033[0m"
     echo -e " 出站Socks: \033[32m$socks_info\033[0m"
     # 构建vless+reality+grpc链接，使用服务器公网IP作为监听地址，socks IP作为备注
-    local vless_link="vless://$uuid@$server_ip:$vless_port?encryption=none&flow=&security=reality&sni=www.tesla.com&fp=chrome&pbk=$public_key&sid=$short_id&type=grpc&serviceName=misakacloud&mode=gun#$socks_ip"
+    local vless_link="vless://$uuid@$server_ip:$vless_port?encryption=none&flow=&security=reality&sni=www.tesla.com&fp=chrome&pbk=$public_key&sid=$short_id&type=grpc&serviceName=cloud&mode=gun#$socks_ip"
     # 保存节点信息到文件，每行一个VLESS链接
     echo "$vless_link" >> "$OUTPUT_FILE"
     echo "节点信息已保存到 $OUTPUT_FILE"
@@ -194,7 +194,7 @@ export_all_nodes() {
             # 获取服务器公网IP
             local server_ip=$(get_local_ip)
             # 构建vless+reality+grpc链接，使用服务器公网IP作为监听地址，socks IP作为备注
-            local vless_link="vless://$uuid@$server_ip:$port?encryption=none&flow=&security=reality&sni=www.tesla.com&fp=chrome&pbk=$public_key&sid=$short_id&type=grpc&serviceName=misakacloud&mode=gun#$socks_server"
+            local vless_link="vless://$uuid@$server_ip:$port?encryption=none&flow=&security=reality&sni=www.tesla.com&fp=chrome&pbk=$public_key&sid=$short_id&type=grpc&serviceName=cloud&mode=gun#$socks_server"
             # 输出节点信息，每行一个VLESS链接
             echo "$vless_link" >> "$OUTPUT_FILE"
             echo -e "已导出节点: \033[32m$server_ip\033[0m VLESS端口:\033[32m$port\033[0m Socks:\033[32m$socks_info\033[0m"
@@ -340,7 +340,7 @@ EOF
             },
             "transport": {
                 "type": "grpc",
-                "service_name": "misakacloud"
+                "service_name": "cloud"
             }
         }] | .outbounds += [{
             "type": "socks",
@@ -441,7 +441,7 @@ EOF
             },
             "transport": {
                 "type": "grpc",
-                "service_name": "misakacloud"
+                "service_name": "cloud"
             }
         }] | .outbounds += [{
             "type": "socks",
@@ -540,7 +540,7 @@ modify_by_ip() {
                 # 获取服务器公网IP
                 local server_ip=$(get_local_ip)
                 # 构建vless+reality+grpc链接，使用服务器公网IP作为监听地址，socks IP作为备注
-                local vless_link="vless://$uuid@$server_ip:$vless_port?encryption=none&flow=&security=reality&sni=www.tesla.com&fp=chrome&pbk=$public_key&sid=$short_id&type=grpc&serviceName=misakacloud&mode=gun#$socks_ip"
+                local vless_link="vless://$uuid@$server_ip:$vless_port?encryption=none&flow=&security=reality&sni=www.tesla.com&fp=chrome&pbk=$public_key&sid=$short_id&type=grpc&serviceName=cloud&mode=gun#$socks_ip"
                 # 保存修改后的节点信息，每行一个VLESS链接
                 echo "$vless_link" >> "$OUTPUT_FILE"
                 echo "已修改 Socks代理: $socks_config 的VLESS(端口:$vless_port)配置"
@@ -553,6 +553,72 @@ modify_by_ip() {
         echo "节点修改完成，信息已保存到 $OUTPUT_FILE"
     else
         echo "未进行任何修改"
+    fi
+}
+
+# 删除节点功能
+delete_by_socks() {
+    local delete_file="/home/xiugai.txt"
+    
+    if [ ! -f "$delete_file" ]; then
+        echo "删除文件 $delete_file 不存在，跳过删除操作。"
+        return
+    fi
+    
+    echo "检测到删除文件，开始根据Socks代理删除节点..."
+    echo "文件格式应为: IP:端口:用户名:密码，每行一个"
+    
+    # 读取当前配置
+    local config_file="/etc/sing-box/config.json"
+    if [ ! -f "$config_file" ]; then
+        echo "sing-box配置文件不存在，请先配置sing-box。"
+        exit 1
+    fi
+    
+    local delete_success=false
+    
+    # 逐行读取删除文件中的socks配置
+    while IFS= read -r socks_config || [[ -n "$socks_config" ]]; do
+        # 跳过空行和注释行
+        [[ -z "$socks_config" || "$socks_config" =~ ^# ]] && continue
+        
+        IFS=':' read -r socks_ip socks_port socks_user socks_pass <<< "$socks_config"
+        echo "正在删除Socks代理: $socks_config"
+        
+        # 查找此socks代理对应的出站配置
+        local socks_exists=$(jq --arg ip "$socks_ip" --argjson port "$socks_port" '.outbounds[] | select(.server == $ip and .server_port == $port) | .tag' "$config_file")
+        
+        if [[ -z "$socks_exists" ]]; then
+            echo "警告: Socks代理 $socks_config 在当前配置中未找到，跳过删除。"
+            continue
+        fi
+        
+        # 找到对应的入站端口和标签
+        local outbound_tags=$(jq -r --arg ip "$socks_ip" --argjson port "$socks_port" '.outbounds[] | select(.server == $ip and .server_port == $port) | .tag' "$config_file")
+        
+        for outbound_tag in $outbound_tags; do
+            local vless_port=$(echo $outbound_tag | cut -d'-' -f2)
+            local inbound_tag="in-$vless_port"
+            
+            # 删除入站配置
+            jq --arg tag "$inbound_tag" '.inbounds = [.inbounds[] | select(.tag != $tag)]' "$config_file" > temp.json && mv temp.json "$config_file"
+            
+            # 删除出站配置
+            jq --arg tag "$outbound_tag" '.outbounds = [.outbounds[] | select(.tag != $tag)]' "$config_file" > temp.json && mv temp.json "$config_file"
+            
+            # 删除路由规则
+            jq --arg inbound_tag "$inbound_tag" --arg outbound_tag "$outbound_tag" '
+            .route.rules = [.route.rules[] | select(.inbound[0] != $inbound_tag and .outbound != $outbound_tag)]' "$config_file" > temp.json && mv temp.json "$config_file"
+            
+            echo "已删除 Socks代理: $socks_config 的VLESS(端口:$vless_port)配置"
+            delete_success=true
+        done
+    done < "$delete_file"
+    
+    if $delete_success; then
+        echo "节点删除完成"
+    else
+        echo "未删除任何节点"
     fi
 }
 
@@ -573,10 +639,11 @@ show_menu() {
     echo -e "\033[33m2. 修改节点\033[0m"
     echo -e "\033[33m3. 导出所有节点\033[0m"
     echo -e "\033[33m4. 新增节点\033[0m"
+    echo -e "\033[33m5. 删除节点\033[0m"
     echo -e "\033[33m0. 退出\033[0m"
     echo -e "\033[36m==========================\033[0m"
     
-    read -p "请输入选项 [0-4]: " choice
+    read -p "请输入选项 [0-5]: " choice
     
     case $choice in
         1)
@@ -627,6 +694,16 @@ show_menu() {
                     restart_singbox
                     echo "新节点添加完成"
                 fi
+            fi
+            ;;
+        5)
+            echo "请确保 /home/xiugai.txt 文件中包含需要删除的Socks代理配置"
+            echo "格式: IP:端口:用户名:密码，每行一个"
+            read -p "是否继续删除节点? (y/n): " confirm
+            if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+                delete_by_socks
+                restart_singbox
+                echo "节点删除完成"
             fi
             ;;
         0)
