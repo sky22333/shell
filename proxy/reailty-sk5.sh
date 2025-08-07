@@ -1,4 +1,5 @@
 #!/bin/bash
+# reailty协议入站，批量socks协议出站，链式代理一键脚本
 
 # 生成随机UUID
 generate_uuid() {
