@@ -7,7 +7,7 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/k8s/k8s-install.sh)
 
 或者脚本安装：https://docs.rke2.io/zh/install/quickstart
 
-管理面板：https://kubesphere.io/zh/
+管理面板：https://github.com/eip-work/kuboard-press
 
 ### 初始化集群（以下步骤仅在主控机上运行）
 
