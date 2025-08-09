@@ -97,7 +97,7 @@ pre_check() {
 
 select_version() {
     if [ -z "$IS_DOCKER_NEZHA" ]; then
-        info "请自行选择您的Agent安装方式（输入哪个都是一样的）："
+        info "请选择Agent安装方式（此脚本为旧版Agent，输入哪个都是一样的）："
         info "1. 安装Agent"
         info "2. 安装Agent"
         while true; do
