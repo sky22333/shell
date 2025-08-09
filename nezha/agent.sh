@@ -53,7 +53,6 @@ info() {
 geo_check() {
     api_list="https://blog.cloudflare.com/cdn-cgi/trace https://dash.cloudflare.com/cdn-cgi/trace https://developers.cloudflare.com/cdn-cgi/trace"
     ua="Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/81.0"
-    set -- "$api_list"
     for url in $api_list; do
         text="$(curl -A "$ua" -m 10 -s "$url")"
         endpoint="$(echo "$text" | sed -n 's/.*h=\([^ ]*\).*/\1/p')"
@@ -70,52 +69,19 @@ pre_check() {
     umask 077
 
     ## os_arch
-    if uname -m | grep -q 'x86_64'; then
-        os_arch="amd64"
-    elif uname -m | grep -q 'i386\|i686'; then
-        os_arch="386"
-    elif uname -m | grep -q 'aarch64\|armv8b\|armv8l'; then
-        os_arch="arm64"
-    elif uname -m | grep -q 'arm'; then
-        os_arch="arm"
-    elif uname -m | grep -q 's390x'; then
-        os_arch="s390x"
-    elif uname -m | grep -q 'riscv64'; then
-        os_arch="riscv64"
-    fi
+    case "$(uname -m)" in
+        x86_64) os_arch="amd64" ;;
+        i386|i686) os_arch="386" ;;
+        aarch64|armv8b|armv8l) os_arch="arm64" ;;
+        arm*) os_arch="arm" ;;
+        s390x) os_arch="s390x" ;;
+        riscv64) os_arch="riscv64" ;;
+    esac
 
-    ## China_IP
-    if [ -z "$CN" ]; then
-        geo_check
-        if [ -n "$isCN" ]; then
-            echo "根据geoip api提供的信息，当前IP可能在中国"
-            printf "是否选用中国镜像完成安装? [Y/n] (自定义镜像输入 3)："
-            read -r input
-            case $input in
-            [yY][eE][sS] | [yY])
-                echo "使用中国镜像"
-                CN=true
-                ;;
-
-            [nN][oO] | [nN])
-                echo "不使用中国镜像"
-                ;;
-
-            [3])
-                echo "使用自定义镜像"
-                printf "请输入自定义镜像 (例如:dn-dao-github-mirror.daocloud.io),留空为不使用："
-                read -r input
-                case $input in
-                *)
-                    CUSTOM_MIRROR=$input
-                    ;;
-                esac
-                ;;
-            *)
-                echo "不使用中国镜像"
-                ;;
-            esac
-        fi
+    ## China_IP 自动切换
+    if [ "${isCN:-false}" = true ]; then
+        GITHUB_URL="https://gh-proxy.com/https://github.com"
+        echo "检测到中国IP，已将 GITHUB_URL 修改为: $GITHUB_URL"
     fi
 }
 
