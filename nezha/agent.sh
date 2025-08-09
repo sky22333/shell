@@ -54,12 +54,6 @@ geo_check() {
     # 初始化变量
     isCN=false
     
-    # 检查是否有curl命令
-    if ! command -v curl >/dev/null 2>&1; then
-        info "curl 未安装，跳过地理位置检测，使用默认源"
-        return
-    fi
-    
     api_list="https://blog.cloudflare.com/cdn-cgi/trace https://dash.cloudflare.com/cdn-cgi/trace https://developers.cloudflare.com/cdn-cgi/trace"
     ua="Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/81.0"
     
