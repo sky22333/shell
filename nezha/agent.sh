@@ -1,5 +1,5 @@
 #!/bin/sh
-# blog.52013120.xyz
+# nezha固定版本v0.20.5的安装agent脚本
 
 NZ_BASE_PATH="/opt/nezha"
 NZ_DASHBOARD_PATH="${NZ_BASE_PATH}/dashboard"
@@ -51,16 +51,28 @@ info() {
 }
 
 geo_check() {
+    # 初始化变量
+    isCN=false
+    
+    # 检查是否有curl命令
+    if ! command -v curl >/dev/null 2>&1; then
+        info "curl 未安装，跳过地理位置检测，使用默认源"
+        return
+    fi
+    
     api_list="https://blog.cloudflare.com/cdn-cgi/trace https://dash.cloudflare.com/cdn-cgi/trace https://developers.cloudflare.com/cdn-cgi/trace"
     ua="Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/81.0"
+    
     for url in $api_list; do
-        text="$(curl -A "$ua" -m 10 -s "$url")"
-        endpoint="$(echo "$text" | sed -n 's/.*h=\([^ ]*\).*/\1/p')"
-        if echo "$text" | grep -qw 'CN'; then
-            isCN=true
-            break
-        elif echo "$url" | grep -q "$endpoint"; then
-            break
+        text="$(curl -A "$ua" -m 10 -s "$url" 2>/dev/null)"
+        if [ $? -eq 0 ] && [ -n "$text" ]; then
+            endpoint="$(echo "$text" | sed -n 's/.*h=\([^ ]*\).*/\1/p')"
+            if echo "$text" | grep -qw 'CN'; then
+                isCN=true
+                break
+            elif echo "$url" | grep -q "$endpoint"; then
+                break
+            fi
         fi
     done
 }
@@ -120,8 +132,17 @@ before_show_menu() {
 }
 
 install_base() {
-    (command -v curl >/dev/null 2>&1 && command -v wget >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1 && command -v getenforce >/dev/null 2>&1) ||
-        (install_soft curl wget unzip)
+    # 检查必要的命令是否存在，如果不存在则安装
+    missing_tools=""
+    
+    command -v curl >/dev/null 2>&1 || missing_tools="$missing_tools curl"
+    command -v wget >/dev/null 2>&1 || missing_tools="$missing_tools wget"
+    command -v unzip >/dev/null 2>&1 || missing_tools="$missing_tools unzip"
+    
+    if [ -n "$missing_tools" ]; then
+        info "正在安装必要的工具:$missing_tools"
+        install_soft $missing_tools
+    fi
 }
 
 install_arch() {
@@ -181,11 +202,7 @@ install_agent() {
     sudo mkdir -p $NZ_AGENT_PATH
 
     echo "正在下载监控端"
-    if [ -z "$CN" ]; then
-        NZ_AGENT_URL="${GITHUB_URL}/sky22333/shell/releases/download/${_version}/nezha-agent_linux_${os_arch}.zip"
-    else
-        NZ_AGENT_URL="${GITHUB_URL}/sky22333/shell/releases/download/${_version}/nezha-agent_linux_${os_arch}.zip"
-    fi
+    NZ_AGENT_URL="${GITHUB_URL}/sky22333/shell/releases/download/${_version}/nezha-agent_linux_${os_arch}.zip"
 
     _cmd="wget -t 2 -T 60 -O nezha-agent_linux_${os_arch}.zip $NZ_AGENT_URL >/dev/null 2>&1"
     if ! eval "$_cmd"; then
