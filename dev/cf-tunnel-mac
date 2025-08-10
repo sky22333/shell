@@ -137,7 +137,7 @@ if [[ "$MODE" == "1" ]]; then
 
     echo -e "${YELLOW}等待 cloudflared 输出访问域名...${NC}"
 
-    for i in {1..30}; do
+    for i in {1..60}; do
         # BSD grep 无 -P，用 -E 实现扩展正则
         DOMAIN=$(grep -Eo 'https://[A-Za-z0-9-]+\.trycloudflare\.com' "$LOGFILE" | head -n1)
         if [[ -n "$DOMAIN" ]]; then
