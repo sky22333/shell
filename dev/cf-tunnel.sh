@@ -10,7 +10,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
 NC='\033[0m' # 清除颜色
 
-CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.6.1/cloudflared-linux-amd64"
+CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.8.0/cloudflared-linux-amd64"
 CLOUDFLARED_BIN="/usr/local/bin/cloudflared"
 SERVICE_PATH="/etc/systemd/system/cloudflared-tunnel.service"
 LOG_PATH="/var/log/cloudflared.log"
