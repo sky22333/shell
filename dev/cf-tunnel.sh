@@ -66,7 +66,7 @@ if [[ "$MODE" == "1" ]]; then
 
     echo -e "${YELLOW}等待 cloudflared 输出访问域名...${NC}"
 
-    for i in {1..30}; do
+    for i in {1..60}; do
         DOMAIN=$(grep -oP 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$LOGFILE" | head -n1)
         if [[ -n "$DOMAIN" ]]; then
             echo ""
