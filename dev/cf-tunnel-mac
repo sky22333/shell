@@ -230,7 +230,7 @@ EOF
         touch "$LOG_PATH" 2>/dev/null || true
     fi
 
-    for i in {1..30}; do
+    for i in {1..60}; do
         if [[ -f "$LOG_PATH" ]]; then
             DOMAIN=$(grep -Eo 'https://[A-Za-z0-9-]+\.trycloudflare\.com' "$LOG_PATH" 2>/dev/null | head -n1)
             if [[ -n "$DOMAIN" ]]; then
