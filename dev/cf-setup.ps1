@@ -216,7 +216,7 @@ if ($mode -eq "1") {
         Write-ColorMessage "Service started successfully, waiting for log output..." Green
         
         $domain = $null
-        for ($i = 0; $i -lt 30; $i++) {
+        for ($i = 0; $i -lt 60; $i++) {
             Start-Sleep -Seconds 1
             
             if (Test-Path $logPath) {
