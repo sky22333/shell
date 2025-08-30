@@ -19,6 +19,7 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 hostnamectl set-hostname localhost
+echo "" > /etc/motd
 
 # 读取用户输入的 SSH 端口，如果未输入则使用默认值 22
 read -p "输入设置的SSH端口（默认22）：" sshport
