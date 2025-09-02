@@ -29,3 +29,8 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/duosocks.sh)
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/duovmess.sh)
 ```
+
+- singbox全家桶脚本
+```
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/singbox.sh)
+```
