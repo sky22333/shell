@@ -1,8 +1,8 @@
 #!/bin/bash
 # 自用修改版脚本，鸣谢：https://github.com/Devmiston/sing-box
-# 建议先安装curl wget jq lsof后再执行此脚本
 
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
@@ -41,6 +41,53 @@ short_ids=()
 
 # SingBox版本控制 - 留空使用最新版本，指定版本如："1.12.4"
 SINGBOX_VERSION=""
+
+# 检查必需依赖并自动安装
+function check_dependencies() {
+    local missing_deps=()
+    
+    # 检查wget
+    if ! command -v wget >/dev/null 2>&1; then
+        missing_deps+=("wget")
+    fi
+    
+    # 检查jq
+    if ! command -v jq >/dev/null 2>&1; then
+        missing_deps+=("jq")
+    fi
+    
+    if [[ ${#missing_deps[@]} -eq 0 ]]; then
+        return 0
+    fi
+    
+    echo "检测到缺少必需依赖: ${missing_deps[*]}"
+    echo "正在尝试自动安装..."
+    
+    # 检测包管理器并安装
+    if command -v apt >/dev/null 2>&1; then
+        apt update >/dev/null 2>&1
+        apt install -y "${missing_deps[@]}" >/dev/null 2>&1
+    elif command -v yum >/dev/null 2>&1; then
+        yum install -y "${missing_deps[@]}" >/dev/null 2>&1
+    elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y "${missing_deps[@]}" >/dev/null 2>&1
+    elif command -v pacman >/dev/null 2>&1; then
+        pacman -S --noconfirm "${missing_deps[@]}" >/dev/null 2>&1
+    else
+        echo -e "${RED}未检测到支持的包管理器，请手动安装: ${missing_deps[*]}${NC}"
+        exit 1
+    fi
+    
+    # 验证安装结果
+    for dep in "${missing_deps[@]}"; do
+        if ! command -v "$dep" >/dev/null 2>&1; then
+            echo -e "${RED}安装 $dep 失败，请手动安装${NC}"
+            exit 1
+        fi
+    done
+    
+    echo -e "${GREEN}依赖安装完成${NC}"
+}
 
 # 检查防火墙以及放行端口
 function check_firewall_configuration() {
@@ -6089,6 +6136,9 @@ echo "╚═══════════════════════�
             ;;
     esac
 }
+
+# 检查必需依赖
+check_dependencies
 
 if [[ $# -eq 0 ]]; then
     main_menu
