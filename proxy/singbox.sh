@@ -560,8 +560,8 @@ WantedBy=multi-user.target'
 # 配置监听端口
 function set_listen_port() {
     while true; do
-        read -p "请输入监听端口 (默认443): " new_listen_port
-        new_listen_port=${new_listen_port:-443}
+        read -p "请输入监听端口 (默认8443): " new_listen_port
+        new_listen_port=${new_listen_port:-8443}
 
         if [[ $new_listen_port =~ ^[1-9][0-9]{0,4}$ && $new_listen_port -le 65535 ]]; then
             check_result=$(netstat -tulpn | grep -E "\b${new_listen_port}\b")
@@ -740,8 +740,8 @@ function set_uuid() {
 # 配置目标端口
 function set_override_port() {
     while true; do
-        read -p "请输入目标端口 (默认443): " new_override_port
-        new_override_port=${new_override_port:-443}
+        read -p "请输入目标端口 (默认8443): " new_override_port
+        new_override_port=${new_override_port:-8443}
         
         if [[ $new_override_port =~ ^[1-9][0-9]{0,4}$ && $new_override_port -le 65535 ]]; then            
             echo "目标端口: $new_override_port"
