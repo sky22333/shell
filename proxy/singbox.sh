@@ -6137,8 +6137,10 @@ echo "╚═══════════════════════�
     esac
 }
 
-# 检查必需依赖
+# 检查依赖
 check_dependencies
+
+[[ ! -f /usr/local/bin/singbox ]] && Update_Script
 
 if [[ $# -eq 0 ]]; then
     main_menu
