@@ -1,4 +1,4 @@
-### s-ui安装
+### s-ui中文脚本安装
 ```
 bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/s-ui/install.sh)
 ```
