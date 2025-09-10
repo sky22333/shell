@@ -63,7 +63,7 @@ before_show_menu() {
 }
 
 install() {
-    bash <(curl -Ls https://raw.githubusercontent.com/alireza0/s-ui/main/install.sh)
+    bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/s-ui/install.sh)
     if [[ $? == 0 ]]; then
         if [[ $# == 0 ]]; then
             start
@@ -82,7 +82,7 @@ update() {
         fi
         return 0
     fi
-    bash <(curl -Ls https://raw.githubusercontent.com/alireza0/s-ui/main/install.sh)
+    bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/s-ui/install.sh)
     if [[ $? == 0 ]]; then
         LOGI "更新完成，面板已自动重启"
         exit 0
@@ -98,7 +98,7 @@ custom_version() {
     exit 1
     fi
 
-    download_link="https://raw.githubusercontent.com/alireza0/s-ui/master/install.sh"
+    download_link="https://raw.githubusercontent.com/sky22333/shell/main/s-ui/install.sh"
 
     install_command="bash <(curl -Ls $download_link) $panel_version"
 
@@ -210,7 +210,7 @@ start() {
         if [[ $? == 0 ]]; then
             LOGI "${1} 启动成功"
         else
-            LOGE "启动 ${1} 失败，可能是因为启动时间超过两秒，请稍后查看日志信息"
+            LOGE "启动 ${1} 失败，可能是因为启动时间超过2秒，请稍后查看日志信息"
         fi
     fi
 
@@ -231,7 +231,7 @@ stop() {
         if [[ $? == 1 ]]; then
             LOGI "${1} 停止成功"
         else
-            LOGE "停止 ${1} 失败，可能是因为停止时间超过两秒，请稍后查看日志信息"
+            LOGE "停止 ${1} 失败，可能是因为停止时间超过2秒，请稍后查看日志信息"
         fi
     fi
 
@@ -247,7 +247,7 @@ restart() {
     if [[ $? == 0 ]]; then
         LOGI "${1} 重启成功"
     else
-        LOGE "重启 ${1} 失败，可能是因为启动时间超过两秒，请稍后查看日志信息"
+        LOGE "重启 ${1} 失败，可能是因为启动时间超过2秒，请稍后查看日志信息"
     fi
     if [[ $# == 1 ]]; then
         before_show_menu
@@ -295,7 +295,7 @@ show_log() {
 }
 
 update_shell() {
-    wget -O /usr/bin/s-ui -N --no-check-certificate https://github.com/alireza0/s-ui/raw/main/s-ui.sh
+    wget -O /usr/bin/s-ui -N --no-check-certificate https://raw.githubusercontent.com/sky22333/shell/main/s-ui/s-ui.sh
     if [[ $? != 0 ]]; then
         echo ""
         LOGE "下载脚本失败，请检查机器是否能连接Github"
