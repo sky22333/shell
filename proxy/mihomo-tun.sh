@@ -82,7 +82,7 @@ install_mihomo() {
         esac
 
         # 下载地址
-        DOWNLOAD_URL="https://gh-proxy.com/https://github.com/MetaCubeX/mihomo/releases/download/v${MIHOMO_VERSION}/mihomo-${ARCH_TAG}-v${MIHOMO_VERSION}.gz"
+        DOWNLOAD_URL="https://github.com/MetaCubeX/mihomo/releases/download/v${MIHOMO_VERSION}/mihomo-${ARCH_TAG}-v${MIHOMO_VERSION}.gz"
         
         echo "正在从以下地址下载: $DOWNLOAD_URL"
         
