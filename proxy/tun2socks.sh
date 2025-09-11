@@ -58,7 +58,6 @@ check_dependencies() {
 
 # 安装 tun2socks
 install_tun2socks() {
-    # 首先检查依赖
     check_dependencies
     
     if ! command -v hev-socks5-tunnel &>/dev/null; then
@@ -126,6 +125,18 @@ EOF
 
 # 创建 systemd 服务
 create_systemd_service() {
+    MAIN_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
+    RULE_ADD_FROM_MAIN_IP=""
+    RULE_DEL_FROM_MAIN_IP=""
+
+    if [ -n "$MAIN_IP" ]; then
+        echo "检测到服务器主要IP地址: $MAIN_IP"
+        RULE_ADD_FROM_MAIN_IP="ExecStartPost=/sbin/ip rule add from $MAIN_IP lookup main pref 15"
+        RULE_DEL_FROM_MAIN_IP="ExecStop=/sbin/ip rule del from $MAIN_IP lookup main pref 15 || true"
+    else
+        echo "警告: 无法检测到主要IP地址，可能存在失联风险"
+    fi
+
     cat > "$SERVICE_FILE" <<EOF
 [Unit]
 Description=Tun2Socks Tunnel Service
@@ -139,6 +150,7 @@ ExecStartPost=/sbin/ip rule add fwmark 438 lookup main pref 10
 ExecStartPost=/sbin/ip -6 rule add fwmark 438 lookup main pref 10
 ExecStartPost=/sbin/ip route add default dev tun0 table 20
 ExecStartPost=/sbin/ip rule add lookup 20 pref 20
+${RULE_ADD_FROM_MAIN_IP}
 ExecStartPost=/sbin/ip rule add to 127.0.0.0/8 lookup main pref 16
 ExecStartPost=/sbin/ip rule add to 10.0.0.0/8 lookup main pref 16
 ExecStartPost=/sbin/ip rule add to 172.16.0.0/12 lookup main pref 16
@@ -148,12 +160,13 @@ ExecStop=/sbin/ip rule del fwmark 438 lookup main pref 10 || true
 ExecStop=/sbin/ip -6 rule del fwmark 438 lookup main pref 10 || true
 ExecStop=/sbin/ip route del default dev tun0 table 20 || true
 ExecStop=/sbin/ip rule del lookup 20 pref 20 || true
+${RULE_DEL_FROM_MAIN_IP}
 ExecStop=/sbin/ip rule del to 127.0.0.0/8 lookup main pref 16 || true
 ExecStop=/sbin/ip rule del to 10.0.0.0/8 lookup main pref 16 || true
 ExecStop=/sbin/ip rule del to 172.16.0.0/12 lookup main pref 16 || true
 ExecStop=/sbin/ip rule del to 192.168.0.0/16 lookup main pref 16 || true
 
-Restart=always
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
