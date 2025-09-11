@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# 全局环境变量 - tun2socks 版本
+TUN2SOCKS_VERSION="${TUN2SOCKS_VERSION:-v2.6.0}"
+
 CONFIG_DIR="/etc/tun2socks"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 SERVICE_FILE="/etc/systemd/system/tun2socks.service"
@@ -16,13 +19,12 @@ fi
 install_tun2socks() {
     if ! command -v tun2socks &>/dev/null; then
         echo "检测到 tun2socks 未安装，正在下载..."
-        REPO="heiher/hev-socks5-tunnel"
-
+        
         # 获取系统架构
         ARCH=$(uname -m)
         case "$ARCH" in
             x86_64)
-                ARCH_TAG="linux-x86_64"
+                ARCH_TAG="linux-amd64"
                 ;;
             aarch64 | arm64)
                 ARCH_TAG="linux-arm64"
@@ -36,16 +38,25 @@ install_tun2socks() {
                 ;;
         esac
 
-        DOWNLOAD_URL=$(curl -s https://api.github.com/repos/$REPO/releases/latest \
-            | grep "browser_download_url" | grep "$ARCH_TAG" | cut -d '"' -f 4)
-        if [ -z "$DOWNLOAD_URL" ]; then
-            echo "无法获取 tun2socks 下载链接，请手动安装"
+        # 直链下载地址
+        DOWNLOAD_URL="https://github.com/heiher/hev-socks5-tunnel/releases/download/${TUN2SOCKS_VERSION}/tun2socks-${ARCH_TAG}.zip"
+        
+        echo "正在从以下地址下载: $DOWNLOAD_URL"
+        
+        # 下载并解压
+        TEMP_FILE=$(mktemp)
+        if curl -L -o "$TEMP_FILE" "$DOWNLOAD_URL"; then
+            unzip -o "$TEMP_FILE" -d /tmp/
+            mv /tmp/tun2socks "$BINARY_PATH"
+            chmod +x "$BINARY_PATH"
+            rm -f "$TEMP_FILE"
+            rm -rf /tmp/tun2socks
+            echo "tun2socks ${TUN2SOCKS_VERSION} 安装完成 ($ARCH)"
+        else
+            echo "下载失败，请检查网络连接或版本号"
+            rm -f "$TEMP_FILE"
             exit 1
         fi
-
-        curl -L -o "$BINARY_PATH" "$DOWNLOAD_URL"
-        chmod +x "$BINARY_PATH"
-        echo "tun2socks 安装完成 ($ARCH)"
     else
         echo "tun2socks 已安装"
     fi
@@ -120,6 +131,7 @@ menu() {
     while true; do
         echo "===================================="
         echo " tun2socks 管理脚本"
+        echo " 当前版本: $TUN2SOCKS_VERSION"
         echo "===================================="
         echo "1) 安装 & 配置 tun2socks"
         echo "2) 启动服务"
