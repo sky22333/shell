@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# 全局环境变量 - tun2socks 版本
+# hev-socks5-tunnel 版本号
 TUN2SOCKS_VERSION="${TUN2SOCKS_VERSION:-2.13.0}"
 
 CONFIG_DIR="/etc/tun2socks"
