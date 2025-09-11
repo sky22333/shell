@@ -1,11 +1,5 @@
 #!/bin/bash
-# 站群多IP源进源出节点脚本 支持sk5和vless+tcp协议
-
-# 生成随机8位数的用户名和密码
-generate_random_string() {
-    local length=8
-    tr -dc A-Za-z0-9 </dev/urandom | head -c $length
-}
+# 站群多IP源进源出节点脚本 socks和vmess+ws协议
 
 # 生成随机UUID
 generate_uuid() {
@@ -17,8 +11,37 @@ get_beijing_time() {
     TZ=Asia/Shanghai date +"%Y年%m月%d日%H点%M分%S秒"
 }
 
+# 交互式输入固定的用户名和密码
+get_fixed_credentials() {
+    if [[ -z "$FIXED_USERNAME" || -z "$FIXED_PASSWORD" ]]; then
+        echo -e "\n\033[36m==== 设置固定的Socks5用户名和密码 ====\033[0m"
+        
+        while [[ -z "$FIXED_USERNAME" ]]; do
+            read -p "请输入Socks5用户名: " FIXED_USERNAME
+            if [[ -z "$FIXED_USERNAME" ]]; then
+                echo -e "\033[31m用户名不能为空，请重新输入\033[0m"
+            fi
+        done
+        
+        while [[ -z "$FIXED_PASSWORD" ]]; do
+            read -p "请输入Socks5密码: " FIXED_PASSWORD
+            if [[ -z "$FIXED_PASSWORD" ]]; then
+                echo -e "\033[31m密码不能为空，请重新输入\033[0m"
+            fi
+        done
+        
+        echo -e "\033[32m已设置固定用户名: $FIXED_USERNAME\033[0m"
+        echo -e "\033[32m已设置固定密码: $FIXED_PASSWORD\033[0m"
+        echo -e "\033[36m=====================================\033[0m\n"
+    fi
+}
+
 # 全局变量，保存当前操作使用的输出文件名
 OUTPUT_FILE=""
+
+# 全局变量，保存用户指定的固定用户名和密码
+FIXED_USERNAME=""
+FIXED_PASSWORD=""
 
 # 初始化输出文件名
 init_output_file() {
@@ -98,20 +121,21 @@ get_configured_ips() {
 print_node_info() {
     local ip=$1
     local socks_port=$2
-    local vless_port=$3
+    local vmess_port=$3
     local username=$4
     local password=$5
     local uuid=$6
     
     echo -e " IP: \033[32m$ip\033[0m"
     echo -e " Socks5 端口: \033[32m$socks_port\033[0m 用户名: \033[32m$username\033[0m 密码: \033[32m$password\033[0m"
-    echo -e " VLESS 端口: \033[32m$vless_port\033[0m UUID: \033[32m$uuid\033[0m"
+    echo -e " VMess 端口: \033[32m$vmess_port\033[0m UUID: \033[32m$uuid\033[0m"
     
-    # 构建vless链接，使用IP作为备注
-    local vless_link="vless://$uuid@$ip:$vless_port?security=none&type=tcp#$ip"
+    # 构建vmess链接，使用IP作为备注
+    local vmess_config=$(echo -n "{\"v\":\"2\",\"ps\":\"$ip\",\"add\":\"$ip\",\"port\":$vmess_port,\"id\":\"$uuid\",\"aid\":0,\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"\",\"path\":\"/\",\"tls\":\"\",\"sni\":\"\",\"alpn\":\"\"}" | base64 -w 0)
+    local vmess_link="vmess://$vmess_config"
     
     # 保存节点信息到文件
-    echo "$ip:$socks_port:$username:$password————$vless_link" >> "$OUTPUT_FILE"
+    echo "$ip:$socks_port:$username:$password————$vmess_link" >> "$OUTPUT_FILE"
     echo "节点信息已保存到 $OUTPUT_FILE"
 }
 
@@ -152,20 +176,21 @@ export_all_nodes() {
         local username=$(echo "$inbound" | jq -r '.settings.accounts[0].user')
         local password=$(echo "$inbound" | jq -r '.settings.accounts[0].pass')
         
-        # 查找相应的VLESS节点
-        local vless_port=$((port + 1))
-        local vless_tag="in-$vless_port"
+        # 查找相应的VMess节点
+        local vmess_port=$((port + 1))
+        local vmess_tag="in-$vmess_port"
         
-        # 获取VLESS的UUID
-        local uuid=$(jq -r --arg tag "$vless_tag" '.inbounds[] | select(.tag == $tag) | .settings.clients[0].id' "$config_file")
+        # 获取VMess的UUID
+        local uuid=$(jq -r --arg tag "$vmess_tag" '.inbounds[] | select(.tag == $tag) | .settings.clients[0].id' "$config_file")
         
         if [ -n "$uuid" ]; then
-            # 构建vless链接，使用IP作为备注
-            local vless_link="vless://$uuid@$ip:$vless_port?security=none&type=tcp#$ip"
+            # 构建vmess链接，使用IP作为备注
+            local vmess_config=$(echo -n "{\"v\":\"2\",\"ps\":\"$ip\",\"add\":\"$ip\",\"port\":$vmess_port,\"id\":\"$uuid\",\"aid\":0,\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"\",\"path\":\"/\",\"tls\":\"\",\"sni\":\"\",\"alpn\":\"\"}" | base64 -w 0)
+            local vmess_link="vmess://$vmess_config"
             
             # 输出节点信息
-            echo "$ip:$port:$username:$password————$vless_link" >> "$OUTPUT_FILE"
-            echo -e "已导出节点: \033[32m$ip\033[0m Socks5端口:\033[32m$port\033[0m VLESS端口:\033[32m$vless_port\033[0m"
+            echo "$ip:$port:$username:$password————$vmess_link" >> "$OUTPUT_FILE"
+            echo -e "已导出节点: \033[32m$ip\033[0m Socks5端口:\033[32m$port\033[0m VMess端口:\033[32m$vmess_port\033[0m"
         fi
     done
     
@@ -241,6 +266,9 @@ add_new_nodes() {
     
     echo "发现 ${#new_ips[@]} 个未配置的IP: ${new_ips[@]}"
     
+    # 获取固定的用户名和密码
+    get_fixed_credentials
+    
     # 初始化输出文件
     init_output_file
     
@@ -269,12 +297,12 @@ EOF
     for ip in "${new_ips[@]}"; do
         echo "正在配置 IP: $ip"
         
-        # Socks5配置 (奇数端口)
-        username=$(generate_random_string)
-        password=$(generate_random_string)
+        # Socks5配置 (奇数端口) - 使用固定用户名密码
+        username="$FIXED_USERNAME"
+        password="$FIXED_PASSWORD"
         
-        # VLESS配置 (偶数端口)
-        vless_port=$((socks_port + 1))
+        # VMess配置 (偶数端口)
+        vmess_port=$((socks_port + 1))
         uuid=$(generate_uuid)
         
         # 添加Socks5配置
@@ -305,19 +333,22 @@ EOF
             "outboundTag": "out-\($port)"
         }]' "$config_file" > temp.json && mv temp.json "$config_file"
         
-        # 添加VLESS配置
-        jq --argjson port "$vless_port" --arg ip "$ip" --arg uuid "$uuid" '.inbounds += [{
+        # 添加VMess配置
+        jq --argjson port "$vmess_port" --arg ip "$ip" --arg uuid "$uuid" '.inbounds += [{
             "port": $port,
-            "protocol": "vless",
+            "protocol": "vmess",
             "settings": {
                 "clients": [{
                     "id": $uuid,
-                    "level": 0
-                }],
-                "decryption": "none"
+                    "level": 0,
+                    "security": "auto"
+                }]
             },
             "streamSettings": {
-                "network": "tcp"
+                "network": "ws",
+                "wsSettings": {
+                    "path": "/"
+                }
             },
             "tag": ("in-\($port)")
         }] | .outbounds += [{
@@ -332,10 +363,10 @@ EOF
         }]' "$config_file" > temp.json && mv temp.json "$config_file"
         
         # 输出节点信息
-        print_node_info "$ip" "$socks_port" "$vless_port" "$username" "$password" "$uuid"
+        print_node_info "$ip" "$socks_port" "$vmess_port" "$username" "$password" "$uuid"
         
         # 增加端口号，为下一个IP准备
-        socks_port=$((vless_port + 1))
+        socks_port=$((vmess_port + 1))
     done
     
     echo "新节点配置完成，共添加了 ${#new_ips[@]} 个节点"
@@ -351,6 +382,9 @@ configure_xray() {
     fi
     
     echo "找到的公网 IPv4 地址: ${public_ips[@]}"
+    
+    # 获取固定的用户名和密码
+    get_fixed_credentials
     
     # 初始化输出文件
     init_output_file
@@ -375,12 +409,12 @@ EOF
     for ip in "${public_ips[@]}"; do
         echo "正在配置 IP: $ip"
         
-        # Socks5配置 (奇数端口)
-        username=$(generate_random_string)
-        password=$(generate_random_string)
+        # Socks5配置 (奇数端口) - 使用固定用户名密码
+        username="$FIXED_USERNAME"
+        password="$FIXED_PASSWORD"
         
-        # VLESS配置 (偶数端口)
-        vless_port=$((socks_port + 1))
+        # VMess配置 (偶数端口)
+        vmess_port=$((socks_port + 1))
         uuid=$(generate_uuid)
 
         # 添加Socks5配置
@@ -411,19 +445,22 @@ EOF
             "outboundTag": "out-\($port)"
         }]' "$config_file" > temp.json && mv temp.json "$config_file"
 
-        # 添加VLESS配置
-        jq --argjson port "$vless_port" --arg ip "$ip" --arg uuid "$uuid" '.inbounds += [{
+        # 添加VMess配置
+        jq --argjson port "$vmess_port" --arg ip "$ip" --arg uuid "$uuid" '.inbounds += [{
             "port": $port,
-            "protocol": "vless",
+            "protocol": "vmess",
             "settings": {
                 "clients": [{
                     "id": $uuid,
-                    "level": 0
-                }],
-                "decryption": "none"
+                    "level": 0,
+                    "security": "auto"
+                }]
             },
             "streamSettings": {
-                "network": "tcp"
+                "network": "ws",
+                "wsSettings": {
+                    "path": "/"
+                }
             },
             "tag": ("in-\($port)")
         }] | .outbounds += [{
@@ -438,10 +475,10 @@ EOF
         }]' "$config_file" > temp.json && mv temp.json "$config_file"
 
         # 输出节点信息
-        print_node_info "$ip" "$socks_port" "$vless_port" "$username" "$password" "$uuid"
+        print_node_info "$ip" "$socks_port" "$vmess_port" "$username" "$password" "$uuid"
 
         # 增加端口号，为下一个IP准备
-        socks_port=$((vless_port + 1))
+        socks_port=$((vmess_port + 1))
     done
 
     echo "Xray 配置完成。"
@@ -463,6 +500,9 @@ modify_by_ip() {
         echo "Xray配置文件不存在，请先配置Xray。"
         exit 1
     fi
+    
+    # 获取固定的用户名和密码
+    get_fixed_credentials
     
     # 初始化输出文件
     init_output_file
@@ -495,9 +535,9 @@ modify_by_ip() {
             local protocol=$(jq -r --arg tag "$inbound_tag" '.inbounds[] | select(.tag == $tag) | .protocol' "$config_file")
             
             if [[ "$protocol" == "socks" ]]; then
-                # 更新socks协议的用户名和密码
-                local username=$(generate_random_string)
-                local password=$(generate_random_string)
+                # 更新socks协议的用户名和密码 - 使用固定用户名密码
+                local username="$FIXED_USERNAME"
+                local password="$FIXED_PASSWORD"
                 
                 jq --arg tag "$inbound_tag" --arg username "$username" --arg password "$password" '
                 .inbounds[] |= if .tag == $tag then 
@@ -505,32 +545,33 @@ modify_by_ip() {
                     .settings.accounts[0].pass = $password 
                 else . end' "$config_file" > temp.json && mv temp.json "$config_file"
                 
-                # 找到对应的vless端口
-                local vless_port=$((port + 1))
-                local vless_tag="in-$vless_port"
+                # 找到对应的vmess端口
+                local vmess_port=$((port + 1))
+                local vmess_tag="in-$vmess_port"
                 
-                # 确认vless端口存在
-                local vless_exists=$(jq --arg tag "$vless_tag" '.inbounds[] | select(.tag == $tag) | .tag' "$config_file")
+                # 确认vmess端口存在
+                local vmess_exists=$(jq --arg tag "$vmess_tag" '.inbounds[] | select(.tag == $tag) | .tag' "$config_file")
                 
-                # 如果存在，更新vless协议的UUID
-                if [[ -n "$vless_exists" ]]; then
+                # 如果存在，更新vmess协议的UUID
+                if [[ -n "$vmess_exists" ]]; then
                     local uuid=$(generate_uuid)
                     
-                    jq --arg tag "$vless_tag" --arg uuid "$uuid" '
+                    jq --arg tag "$vmess_tag" --arg uuid "$uuid" '
                     .inbounds[] |= if .tag == $tag then 
                         .settings.clients[0].id = $uuid 
                     else . end' "$config_file" > temp.json && mv temp.json "$config_file"
                     
-                    # 构建vless链接，使用IP作为备注
-                    local vless_link="vless://$uuid@$ip:$vless_port?security=none&type=tcp#$ip"
+                    # 构建vmess链接，使用IP作为备注
+                    local vmess_config=$(echo -n "{\"v\":\"2\",\"ps\":\"$ip\",\"add\":\"$ip\",\"port\":$vmess_port,\"id\":\"$uuid\",\"aid\":0,\"scy\":\"auto\",\"net\":\"ws\",\"type\":\"none\",\"host\":\"\",\"path\":\"/\",\"tls\":\"\",\"sni\":\"\",\"alpn\":\"\"}" | base64 -w 0)
+                    local vmess_link="vmess://$vmess_config"
                     
                     # 保存修改后的节点信息
-                    echo "$ip:$port:$username:$password————$vless_link" >> "$OUTPUT_FILE"
+                    echo "$ip:$port:$username:$password————$vmess_link" >> "$OUTPUT_FILE"
                     
-                    echo "已修改 IP: $ip 的Socks5(端口:$port)和VLESS(端口:$vless_port)配置"
+                    echo "已修改 IP: $ip 的Socks5(端口:$port)和VMess(端口:$vmess_port)配置"
                     modify_success=true
                 else
-                    echo "警告: 未找到IP $ip 对应的VLESS配置"
+                    echo "警告: 未找到IP $ip 对应的VMess配置"
                 fi
             fi
         done

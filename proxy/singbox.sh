@@ -1,5 +1,5 @@
 #!/bin/bash
-# 自用修改版脚本，鸣谢：https://github.com/Devmiston/sing-box
+# 自用修改版脚本，sing-box全协议脚本，鸣谢：https://github.com/Devmiston/sing-box
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

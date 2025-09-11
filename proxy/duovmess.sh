@@ -1,5 +1,5 @@
 #!/bin/bash
-# 站群多IP源进源出节点脚本vmess+ws协议
+# 站群多IP源进源出节点脚本vmess-ws协议
 # 作者sky22333
 
 install_jq() {

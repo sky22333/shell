@@ -1,5 +1,5 @@
 #!/bin/bash
-# sing-box站群多IP源进源出节点脚本 socks和vless+tcp协议
+# 站群多IP源进源出节点脚本 socks和vless+tcp协议
 
 # 生成随机8位数的用户名和密码
 generate_random_string() {
@@ -46,38 +46,36 @@ install_jq() {
 }
 
 install_xray() {
-    if ! command -v sing-box &> /dev/null; then
-        echo "sing-box 未安装，正在安装 sing-box..."
-        VERSION="1.11.5"
-        curl -Lo sing-box.deb "https://github.com/SagerNet/sing-box/releases/download/v${VERSION}/sing-box_${VERSION}_linux_amd64.deb"
-        if ! dpkg -i sing-box.deb; then
-            echo "sing-box 安装失败，请检查dpkg输出。"
-            rm -f sing-box.deb
+    if ! command -v xray &> /dev/null; then
+        echo "Xray 未安装，正在安装 Xray..."
+        if ! bash <(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh) install --version v1.8.4; then
+            echo "Xray 安装失败，请检查网络连接或安装脚本。"
             exit 1
         fi
-        rm -f sing-box.deb
-        echo "sing-box 安装完成。"
+        echo "Xray 安装完成。"
     else
-        echo "sing-box 已安装。"
+        echo "Xray 已安装。"
     fi
 }
 
 # 检查是否已有节点配置
 check_existing_nodes() {
-    local config_file="/etc/sing-box/config.json"
+    local config_file="/usr/local/etc/xray/config.json"
     
     # 如果配置文件不存在，则没有节点配置
     if [ ! -f "$config_file" ]; then
         return 1
     fi
     
-    # 检查 route.rules 数组数量是否大于等于2
-    local rules_count=$(jq '.route.rules | length' "$config_file" 2>/dev/null)
-    # 如果jq命令失败或rules为空或小于2，则认为没有足够节点配置
-    if [ -z "$rules_count" ] || [ "$rules_count" -lt 2 ]; then
+    # 检查inbounds数量是否大于0
+    local inbounds_count=$(jq '.inbounds | length' "$config_file" 2>/dev/null)
+    
+    # 如果jq命令失败或inbounds为空，则认为没有节点配置
+    if [ -z "$inbounds_count" ] || [ "$inbounds_count" -eq 0 ]; then
         return 1
     fi
-    # 有2个及以上路由规则，视为已有节点配置
+    
+    # 有节点配置
     return 0
 }
 
@@ -87,14 +85,14 @@ get_public_ipv4() {
 
 # 获取已配置的IP列表
 get_configured_ips() {
-    local config_file="/etc/sing-box/config.json"
+    local config_file="/usr/local/etc/xray/config.json"
     
     if [ ! -f "$config_file" ]; then
         echo ""
         return
     fi
     
-    jq -r '.outbounds[] | .inet4_bind_address' "$config_file" | sort | uniq
+    jq -r '.outbounds[] | .sendThrough' "$config_file" | sort | uniq
 }
 
 print_node_info() {
@@ -108,8 +106,10 @@ print_node_info() {
     echo -e " IP: \033[32m$ip\033[0m"
     echo -e " Socks5 端口: \033[32m$socks_port\033[0m 用户名: \033[32m$username\033[0m 密码: \033[32m$password\033[0m"
     echo -e " VLESS 端口: \033[32m$vless_port\033[0m UUID: \033[32m$uuid\033[0m"
+    
     # 构建vless链接，使用IP作为备注
     local vless_link="vless://$uuid@$ip:$vless_port?security=none&type=tcp#$ip"
+    
     # 保存节点信息到文件
     echo "$ip:$socks_port:$username:$password————$vless_link" >> "$OUTPUT_FILE"
     echo "节点信息已保存到 $OUTPUT_FILE"
@@ -117,7 +117,7 @@ print_node_info() {
 
 # 导出所有节点配置
 export_all_nodes() {
-    local config_file="/etc/sing-box/config.json"
+    local config_file="/usr/local/etc/xray/config.json"
     
     if [ ! -f "$config_file" ]; then
         echo "Xray配置文件不存在，无法导出节点信息。"
@@ -130,30 +130,39 @@ export_all_nodes() {
     echo "正在导出所有节点配置到 $OUTPUT_FILE..."
     
     # 获取所有Socks5节点
-    local socks_nodes=$(jq -r '.inbounds[] | select(.type == "socks") | {port: .listen_port, tag: .tag}' "$config_file")
+    local socks_nodes=$(jq -r '.inbounds[] | select(.protocol == "socks") | {port: .port, tag: .tag}' "$config_file")
+    
     if [ -z "$socks_nodes" ]; then
         echo "未找到任何节点配置。"
         return 1
     fi
+    
     # 遍历所有Socks5节点，查找对应的信息
-    for row in $(jq -r '.inbounds[] | select(.type == "socks") | @base64' "$config_file"); do
+    for row in $(jq -r '.inbounds[] | select(.protocol == "socks") | @base64' "$config_file"); do
         inbound=$(echo $row | base64 --decode)
-        local port=$(echo "$inbound" | jq -r '.listen_port')
+        
+        local port=$(echo "$inbound" | jq -r '.port')
         local tag=$(echo "$inbound" | jq -r '.tag')
+        
         # 查找对应的outbound以获取IP
         local outbound_tag="out-$port"
-        local ip=$(jq -r --arg tag "$outbound_tag" '.outbounds[] | select(.tag == $tag) | .inet4_bind_address' "$config_file")
+        local ip=$(jq -r --arg tag "$outbound_tag" '.outbounds[] | select(.tag == $tag) | .sendThrough' "$config_file")
+        
         # 获取Socks5的用户名和密码
-        local username=$(echo "$inbound" | jq -r '.users[0].username')
-        local password=$(echo "$inbound" | jq -r '.users[0].password')
+        local username=$(echo "$inbound" | jq -r '.settings.accounts[0].user')
+        local password=$(echo "$inbound" | jq -r '.settings.accounts[0].pass')
+        
         # 查找相应的VLESS节点
         local vless_port=$((port + 1))
         local vless_tag="in-$vless_port"
+        
         # 获取VLESS的UUID
-        local uuid=$(jq -r --arg tag "$vless_tag" '.inbounds[] | select(.tag == $tag) | .users[0].uuid' "$config_file")
+        local uuid=$(jq -r --arg tag "$vless_tag" '.inbounds[] | select(.tag == $tag) | .settings.clients[0].id' "$config_file")
+        
         if [ -n "$uuid" ]; then
             # 构建vless链接，使用IP作为备注
             local vless_link="vless://$uuid@$ip:$vless_port?security=none&type=tcp#$ip"
+            
             # 输出节点信息
             echo "$ip:$port:$username:$password————$vless_link" >> "$OUTPUT_FILE"
             echo -e "已导出节点: \033[32m$ip\033[0m Socks5端口:\033[32m$port\033[0m VLESS端口:\033[32m$vless_port\033[0m"
@@ -166,7 +175,7 @@ export_all_nodes() {
 
 # 查找配置中未使用的端口号
 find_next_unused_port() {
-    local config_file="/etc/sing-box/config.json"
+    local config_file="/usr/local/etc/xray/config.json"
     
     if [ ! -f "$config_file" ]; then
         echo "10001" # 如果配置文件不存在，从10001开始
@@ -236,7 +245,7 @@ add_new_nodes() {
     init_output_file
     
     # 获取配置文件路径
-    config_file="/etc/sing-box/config.json"
+    config_file="/usr/local/etc/xray/config.json"
     
     # 如果配置文件不存在，创建基础配置
     if [ ! -f "$config_file" ]; then
@@ -244,7 +253,7 @@ add_new_nodes() {
 {
   "inbounds": [],
   "outbounds": [],
-  "route": {
+  "routing": {
     "rules": []
   }
 }
@@ -270,38 +279,56 @@ EOF
         
         # 添加Socks5配置
         jq --argjson port "$socks_port" --arg ip "$ip" --arg username "$username" --arg password "$password" '.inbounds += [{
-            "type": "socks",
-            "tag": ("in-\($port)"),
-            "listen": "0.0.0.0",
-            "listen_port": $port,
-            "users": [{
-                "username": $username,
-                "password": $password
-            }]
+            "port": $port,
+            "protocol": "socks",
+            "settings": {
+                "auth": "password",
+                "accounts": [{
+                    "user": $username,
+                    "pass": $password
+                }],
+                "udp": true,
+                "ip": "0.0.0.0"
+            },
+            "streamSettings": {
+                "network": "tcp"
+            },
+            "tag": ("in-\($port)")
         }] | .outbounds += [{
-            "type": "direct",
-            "tag": ("out-\($port)"),
-            "inet4_bind_address": $ip
-        }] | .route.rules += [{
-            "inbound": ["in-\($port)"],
-            "outbound": "out-\($port)"
+            "protocol": "freedom",
+            "settings": {},
+            "sendThrough": $ip,
+            "tag": ("out-\($port)")
+        }] | .routing.rules += [{
+            "type": "field",
+            "inboundTag": ["in-\($port)"],
+            "outboundTag": "out-\($port)"
         }]' "$config_file" > temp.json && mv temp.json "$config_file"
+        
         # 添加VLESS配置
         jq --argjson port "$vless_port" --arg ip "$ip" --arg uuid "$uuid" '.inbounds += [{
-            "type": "vless",
-            "tag": ("in-\($port)"),
-            "listen": "0.0.0.0",
-            "listen_port": $port,
-            "users": [{
-                "uuid": $uuid
-            }]
+            "port": $port,
+            "protocol": "vless",
+            "settings": {
+                "clients": [{
+                    "id": $uuid,
+                    "level": 0
+                }],
+                "decryption": "none"
+            },
+            "streamSettings": {
+                "network": "tcp"
+            },
+            "tag": ("in-\($port)")
         }] | .outbounds += [{
-            "type": "direct",
-            "tag": ("out-\($port)"),
-            "inet4_bind_address": $ip
-        }] | .route.rules += [{
-            "inbound": ["in-\($port)"],
-            "outbound": "out-\($port)"
+            "protocol": "freedom",
+            "settings": {},
+            "sendThrough": $ip,
+            "tag": ("out-\($port)")
+        }] | .routing.rules += [{
+            "type": "field",
+            "inboundTag": ["in-\($port)"],
+            "outboundTag": "out-\($port)"
         }]' "$config_file" > temp.json && mv temp.json "$config_file"
         
         # 输出节点信息
@@ -328,14 +355,14 @@ configure_xray() {
     # 初始化输出文件
     init_output_file
     
-    config_file="/etc/sing-box/config.json"
+    config_file="/usr/local/etc/xray/config.json"
     
     # 创建基础配置文件
     cat > $config_file <<EOF
 {
   "inbounds": [],
   "outbounds": [],
-  "route": {
+  "routing": {
     "rules": []
   }
 }
@@ -347,54 +374,77 @@ EOF
     # 配置 inbounds 和 outbounds
     for ip in "${public_ips[@]}"; do
         echo "正在配置 IP: $ip"
+        
         # Socks5配置 (奇数端口)
         username=$(generate_random_string)
         password=$(generate_random_string)
+        
         # VLESS配置 (偶数端口)
         vless_port=$((socks_port + 1))
         uuid=$(generate_uuid)
+
         # 添加Socks5配置
         jq --argjson port "$socks_port" --arg ip "$ip" --arg username "$username" --arg password "$password" '.inbounds += [{
-            "type": "socks",
-            "tag": ("in-\($port)"),
-            "listen": "0.0.0.0",
-            "listen_port": $port,
-            "users": [{
-                "username": $username,
-                "password": $password
-            }]
+            "port": $port,
+            "protocol": "socks",
+            "settings": {
+                "auth": "password",
+                "accounts": [{
+                    "user": $username,
+                    "pass": $password
+                }],
+                "udp": true,
+                "ip": "0.0.0.0"
+            },
+            "streamSettings": {
+                "network": "tcp"
+            },
+            "tag": ("in-\($port)")
         }] | .outbounds += [{
-            "type": "direct",
-            "tag": ("out-\($port)"),
-            "inet4_bind_address": $ip
-        }] | .route.rules += [{
-            "inbound": ["in-\($port)"],
-            "outbound": "out-\($port)"
+            "protocol": "freedom",
+            "settings": {},
+            "sendThrough": $ip,
+            "tag": ("out-\($port)")
+        }] | .routing.rules += [{
+            "type": "field",
+            "inboundTag": ["in-\($port)"],
+            "outboundTag": "out-\($port)"
         }]' "$config_file" > temp.json && mv temp.json "$config_file"
+
         # 添加VLESS配置
         jq --argjson port "$vless_port" --arg ip "$ip" --arg uuid "$uuid" '.inbounds += [{
-            "type": "vless",
-            "tag": ("in-\($port)"),
-            "listen": "0.0.0.0",
-            "listen_port": $port,
-            "users": [{
-                "uuid": $uuid
-            }]
+            "port": $port,
+            "protocol": "vless",
+            "settings": {
+                "clients": [{
+                    "id": $uuid,
+                    "level": 0
+                }],
+                "decryption": "none"
+            },
+            "streamSettings": {
+                "network": "tcp"
+            },
+            "tag": ("in-\($port)")
         }] | .outbounds += [{
-            "type": "direct",
-            "tag": ("out-\($port)"),
-            "inet4_bind_address": $ip
-        }] | .route.rules += [{
-            "inbound": ["in-\($port)"],
-            "outbound": "out-\($port)"
+            "protocol": "freedom",
+            "settings": {},
+            "sendThrough": $ip,
+            "tag": ("out-\($port)")
+        }] | .routing.rules += [{
+            "type": "field",
+            "inboundTag": ["in-\($port)"],
+            "outboundTag": "out-\($port)"
         }]' "$config_file" > temp.json && mv temp.json "$config_file"
+
         # 输出节点信息
         print_node_info "$ip" "$socks_port" "$vless_port" "$username" "$password" "$uuid"
+
         # 增加端口号，为下一个IP准备
         socks_port=$((vless_port + 1))
     done
 
-    echo "sing-box 配置完成。"
+    echo "Xray 配置完成。"
 }
 
 modify_by_ip() {
@@ -408,7 +458,7 @@ modify_by_ip() {
     echo "检测到修改文件，开始根据IP修改节点..."
     
     # 读取当前配置
-    local config_file="/etc/sing-box/config.json"
+    local config_file="/usr/local/etc/xray/config.json"
     if [ ! -f "$config_file" ]; then
         echo "Xray配置文件不存在，请先配置Xray。"
         exit 1
@@ -427,7 +477,7 @@ modify_by_ip() {
         echo "正在处理IP: $ip"
         
         # 查找此IP对应的出站配置
-        local ip_exists=$(jq --arg ip "$ip" '.outbounds[] | select(.inet4_bind_address == $ip) | .tag' "$config_file")
+        local ip_exists=$(jq --arg ip "$ip" '.outbounds[] | select(.sendThrough == $ip) | .tag' "$config_file")
         
         if [[ -z "$ip_exists" ]]; then
             echo "错误: IP $ip 在当前配置中未找到，停止脚本执行。"
@@ -435,38 +485,48 @@ modify_by_ip() {
         fi
         
         # 找到对应的入站端口和标签
-        local outbound_tags=$(jq -r --arg ip "$ip" '.outbounds[] | select(.inet4_bind_address == $ip) | .tag' "$config_file")
+        local outbound_tags=$(jq -r --arg ip "$ip" '.outbounds[] | select(.sendThrough == $ip) | .tag' "$config_file")
         
         for outbound_tag in $outbound_tags; do
             local port=$(echo $outbound_tag | cut -d'-' -f2)
             local inbound_tag="in-$port"
+            
             # 检查协议类型
-            local type=$(jq -r --arg tag "$inbound_tag" '.inbounds[] | select(.tag == $tag) | .type' "$config_file")
-            if [[ "$type" == "socks" ]]; then
+            local protocol=$(jq -r --arg tag "$inbound_tag" '.inbounds[] | select(.tag == $tag) | .protocol' "$config_file")
+            
+            if [[ "$protocol" == "socks" ]]; then
                 # 更新socks协议的用户名和密码
                 local username=$(generate_random_string)
                 local password=$(generate_random_string)
+                
                 jq --arg tag "$inbound_tag" --arg username "$username" --arg password "$password" '
                 .inbounds[] |= if .tag == $tag then 
-                    .users[0].username = $username | 
-                    .users[0].password = $password 
+                    .settings.accounts[0].user = $username | 
+                    .settings.accounts[0].pass = $password 
                 else . end' "$config_file" > temp.json && mv temp.json "$config_file"
+                
                 # 找到对应的vless端口
                 local vless_port=$((port + 1))
                 local vless_tag="in-$vless_port"
+                
                 # 确认vless端口存在
                 local vless_exists=$(jq --arg tag "$vless_tag" '.inbounds[] | select(.tag == $tag) | .tag' "$config_file")
+                
                 # 如果存在，更新vless协议的UUID
                 if [[ -n "$vless_exists" ]]; then
                     local uuid=$(generate_uuid)
+                    
                     jq --arg tag "$vless_tag" --arg uuid "$uuid" '
                     .inbounds[] |= if .tag == $tag then 
-                        .users[0].uuid = $uuid 
+                        .settings.clients[0].id = $uuid 
                     else . end' "$config_file" > temp.json && mv temp.json "$config_file"
+                    
                     # 构建vless链接，使用IP作为备注
                     local vless_link="vless://$uuid@$ip:$vless_port?security=none&type=tcp#$ip"
+                    
                     # 保存修改后的节点信息
                     echo "$ip:$port:$username:$password————$vless_link" >> "$OUTPUT_FILE"
+                    
                     echo "已修改 IP: $ip 的Socks5(端口:$port)和VLESS(端口:$vless_port)配置"
                     modify_success=true
                 else
@@ -484,13 +544,13 @@ modify_by_ip() {
 }
 
 restart_xray() {
-    echo "正在重启 sing-box 服务..."
-    if ! systemctl restart sing-box; then
-        echo "sing-box 服务重启失败，请检查配置文件。"
+    echo "正在重启 Xray 服务..."
+    if ! systemctl restart xray; then
+        echo "Xray 服务重启失败，请检查配置文件。"
         exit 1
     fi
-    systemctl enable sing-box
-    echo "sing-box 服务已重启。"
+    systemctl enable xray
+    echo "Xray 服务已重启。"
 }
 
 # 显示交互式菜单
