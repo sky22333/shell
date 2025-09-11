@@ -146,6 +146,13 @@ After=network.target
 Type=simple
 ExecStart=$BINARY_PATH $CONFIG_FILE
 ExecStartPost=/bin/sleep 1
+# 清理可能存在的旧规则
+ExecStartPost=/bin/bash -c 'ip rule del fwmark 438 lookup main pref 10 2>/dev/null || true'
+ExecStartPost=/bin/bash -c 'ip route del default dev tun0 table 20 2>/dev/null || true'
+ExecStartPost=/bin/bash -c 'ip rule del lookup 20 pref 20 2>/dev/null || true'
+# 添加 SOCKS5 服务器直连路由（避免路由循环）
+ExecStartPost=/bin/bash -c 'SOCKS5_ADDR=\$(grep "address:" $CONFIG_FILE | awk "{print \\\$2}" | tr -d "\047"); if [ "\$SOCKS5_ADDR" != "127.0.0.1" ] && [ "\$SOCKS5_ADDR" != "localhost" ]; then DEFAULT_GW=\$(ip route | grep default | awk "{print \\\$3}" | head -1); ip route add \$SOCKS5_ADDR via \$DEFAULT_GW 2>/dev/null || true; fi'
+# 设置路由规则
 ExecStartPost=/sbin/ip rule add fwmark 438 lookup main pref 10
 ExecStartPost=/sbin/ip -6 rule add fwmark 438 lookup main pref 10
 ExecStartPost=/sbin/ip route add default dev tun0 table 20
@@ -156,6 +163,7 @@ ExecStartPost=/sbin/ip rule add to 10.0.0.0/8 lookup main pref 16
 ExecStartPost=/sbin/ip rule add to 172.16.0.0/12 lookup main pref 16
 ExecStartPost=/sbin/ip rule add to 192.168.0.0/16 lookup main pref 16
 
+# 清理路由规则
 ExecStop=/sbin/ip rule del fwmark 438 lookup main pref 10 || true
 ExecStop=/sbin/ip -6 rule del fwmark 438 lookup main pref 10 || true
 ExecStop=/sbin/ip route del default dev tun0 table 20 || true
@@ -165,6 +173,8 @@ ExecStop=/sbin/ip rule del to 127.0.0.0/8 lookup main pref 16 || true
 ExecStop=/sbin/ip rule del to 10.0.0.0/8 lookup main pref 16 || true
 ExecStop=/sbin/ip rule del to 172.16.0.0/12 lookup main pref 16 || true
 ExecStop=/sbin/ip rule del to 192.168.0.0/16 lookup main pref 16 || true
+# 清理 SOCKS5 服务器直连路由
+ExecStop=/bin/bash -c 'SOCKS5_ADDR=\$(grep "address:" $CONFIG_FILE | awk "{print \\\$2}" | tr -d "\047"); if [ "\$SOCKS5_ADDR" != "127.0.0.1" ] && [ "\$SOCKS5_ADDR" != "localhost" ]; then ip route del \$SOCKS5_ADDR 2>/dev/null || true; fi'
 
 Restart=on-failure
 
