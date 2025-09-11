@@ -12,8 +12,3 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/l2tp.sh)
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/singbox.sh)
 ```
-
-- 一键配置tun2socks脚本
-```
-bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/tun2socks.sh)
-```
