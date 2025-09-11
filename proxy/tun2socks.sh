@@ -2,12 +2,12 @@
 set -e
 
 # 全局环境变量 - tun2socks 版本
-TUN2SOCKS_VERSION="${TUN2SOCKS_VERSION:-v2.6.0}"
+TUN2SOCKS_VERSION="${TUN2SOCKS_VERSION:-2.13.0}"
 
 CONFIG_DIR="/etc/tun2socks"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 SERVICE_FILE="/etc/systemd/system/tun2socks.service"
-BINARY_PATH="/usr/local/bin/tun2socks"
+BINARY_PATH="/usr/local/bin/hev-socks5-tunnel"
 
 # 检查 root
 if [ "$EUID" -ne 0 ]; then
@@ -15,22 +15,66 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# 检查并安装依赖
+check_dependencies() {
+    echo "检查系统依赖..."
+    
+    # 检查 curl
+    if ! command -v curl &>/dev/null; then
+        echo "curl 未安装，正在安装..."
+        if command -v apt-get &>/dev/null; then
+            apt-get update && apt-get install -y curl
+        elif command -v yum &>/dev/null; then
+            yum install -y curl
+        elif command -v dnf &>/dev/null; then
+            dnf install -y curl
+        elif command -v pacman &>/dev/null; then
+            pacman -S --noconfirm curl
+        else
+            echo "无法自动安装 curl，请手动安装后重试"
+            exit 1
+        fi
+    fi
+    
+    # 检查 unzip
+    if ! command -v unzip &>/dev/null; then
+        echo "unzip 未安装，正在安装..."
+        if command -v apt-get &>/dev/null; then
+            apt-get update && apt-get install -y unzip
+        elif command -v yum &>/dev/null; then
+            yum install -y unzip
+        elif command -v dnf &>/dev/null; then
+            dnf install -y unzip
+        elif command -v pacman &>/dev/null; then
+            pacman -S --noconfirm unzip
+        else
+            echo "无法自动安装 unzip，请手动安装后重试"
+            exit 1
+        fi
+    fi
+    
+    echo "依赖检查完成"
+}
+
 # 安装 tun2socks
 install_tun2socks() {
-    if ! command -v tun2socks &>/dev/null; then
-        echo "检测到 tun2socks 未安装，正在下载..."
+    # 首先检查依赖
+    check_dependencies
+    
+    if ! command -v hev-socks5-tunnel &>/dev/null; then
+        echo "检测到 hev-socks5-tunnel 未安装，正在下载..."
         
         # 获取系统架构
         ARCH=$(uname -m)
         case "$ARCH" in
             x86_64)
-                ARCH_TAG="linux-amd64"
+                ARCH_TAG="linux-x86_64"
                 ;;
             aarch64 | arm64)
                 ARCH_TAG="linux-arm64"
                 ;;
             armv7l)
-                ARCH_TAG="linux-armv7"
+                ARCH_TAG="linux-arm32v7"
                 ;;
             *)
                 echo "不支持的架构: $ARCH"
@@ -39,26 +83,20 @@ install_tun2socks() {
         esac
 
         # 直链下载地址
-        DOWNLOAD_URL="https://github.com/heiher/hev-socks5-tunnel/releases/download/${TUN2SOCKS_VERSION}/tun2socks-${ARCH_TAG}.zip"
+        DOWNLOAD_URL="https://github.com/heiher/hev-socks5-tunnel/releases/download/${TUN2SOCKS_VERSION}/hev-socks5-tunnel-${ARCH_TAG}"
         
         echo "正在从以下地址下载: $DOWNLOAD_URL"
         
-        # 下载并解压
-        TEMP_FILE=$(mktemp)
-        if curl -L -o "$TEMP_FILE" "$DOWNLOAD_URL"; then
-            unzip -o "$TEMP_FILE" -d /tmp/
-            mv /tmp/tun2socks "$BINARY_PATH"
+        # 下载二进制文件
+        if curl -L -o "$BINARY_PATH" "$DOWNLOAD_URL"; then
             chmod +x "$BINARY_PATH"
-            rm -f "$TEMP_FILE"
-            rm -rf /tmp/tun2socks
-            echo "tun2socks ${TUN2SOCKS_VERSION} 安装完成 ($ARCH)"
+            echo "hev-socks5-tunnel ${TUN2SOCKS_VERSION} 安装完成 ($ARCH)"
         else
             echo "下载失败，请检查网络连接或版本号"
-            rm -f "$TEMP_FILE"
             exit 1
         fi
     else
-        echo "tun2socks 已安装"
+        echo "hev-socks5-tunnel 已安装"
     fi
 }
 
@@ -130,10 +168,10 @@ EOF
 menu() {
     while true; do
         echo "===================================="
-        echo " tun2socks 管理脚本"
+        echo " socks5-tunnel 管理脚本"
         echo " 当前版本: $TUN2SOCKS_VERSION"
         echo "===================================="
-        echo "1) 安装 & 配置 tun2socks"
+        echo "1) 安装 & 配置 socks5-tunnel"
         echo "2) 启动服务"
         echo "3) 停止服务"
         echo "4) 重启服务"
@@ -148,7 +186,7 @@ menu() {
                 configure_tun2socks
                 create_systemd_service
                 systemctl start tun2socks.service
-                echo "tun2socks 已启动"
+                echo "hev-socks5-tunnel 已启动"
                 ;;
             2)
                 systemctl start tun2socks.service
