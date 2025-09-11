@@ -192,8 +192,8 @@ preinstall_l2tp(){
     fi
     echo
     echo "请输入IP范围:"
-    read -p "(默认范围: 192.168.18):" iprange
-    [ -z ${iprange} ] && iprange="192.168.18"
+    read -p "(默认范围: 192.168.100):" iprange
+    [ -z ${iprange} ] && iprange="192.168.100"
 
     echo "请输入PSK密钥:"
     read -p "(默认PSK: admin7890):" mypsk
@@ -347,7 +347,8 @@ COMMIT
 :PREROUTING ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
 :POSTROUTING ACCEPT [0:0]
--A POSTROUTING -s ${iprange}.0/24 -j SNAT --to-source ${IP}
+-A POSTROUTING -s ${iprange}.0/24 -o eth0 -j MASQUERADE
+-A FORWARD -d ${iprange}.0/24 -j ACCEPT
 COMMIT
 EOF
 
