@@ -12,3 +12,8 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/l2tp.sh)
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/singbox.sh)
 ```
+
+- mihomo-tun脚本
+```
+bash <(curl -sSL https://github.com/sky22333/shell/raw/main/proxy/mihomo-tun.sh)
+```
