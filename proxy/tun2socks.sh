@@ -168,10 +168,10 @@ EOF
 menu() {
     while true; do
         echo "===================================="
-        echo " socks5-tunnel 管理脚本"
+        echo " socks5-tun 管理脚本"
         echo " 当前版本: $TUN2SOCKS_VERSION"
         echo "===================================="
-        echo "1) 安装 & 配置 socks5-tunnel"
+        echo "1) 安装 & 配置 socks5-tun"
         echo "2) 启动服务"
         echo "3) 停止服务"
         echo "4) 重启服务"
@@ -206,6 +206,22 @@ menu() {
             6)
                 systemctl stop tun2socks.service || true
                 systemctl disable tun2socks.service || true
+                
+                # 清理残留的路由规则
+                echo "正在清理路由规则..."
+                ip rule del fwmark 438 lookup main pref 10 2>/dev/null || true
+                ip -6 rule del fwmark 438 lookup main pref 10 2>/dev/null || true
+                ip route del default dev tun0 table 20 2>/dev/null || true
+                ip rule del lookup 20 pref 20 2>/dev/null || true
+                ip rule del to 127.0.0.0/8 lookup main pref 16 2>/dev/null || true
+                ip rule del to 10.0.0.0/8 lookup main pref 16 2>/dev/null || true
+                ip rule del to 172.16.0.0/12 lookup main pref 16 2>/dev/null || true
+                ip rule del to 192.168.0.0/16 lookup main pref 16 2>/dev/null || true
+                
+                while ip rule del pref 15 2>/dev/null; do
+                    echo "删除了一条优先级为15的规则"
+                done
+                
                 rm -f "$SERVICE_FILE"
                 rm -rf "$CONFIG_DIR"
                 rm -f "$BINARY_PATH"
