@@ -171,6 +171,10 @@ get_char(){
     stty $SAVEDSTTY
 }
 
+function Update_Script() {
+    wget -N -O /usr/local/bin/l2tp.sh https://raw.githubusercontent.com/sky22333/shell/main/proxy/l2tp.sh && chmod +x /usr/local/bin/l2tp.sh && ln -sf /usr/local/bin/l2tp.sh /usr/local/bin/l2tp
+}
+
 preinstall_l2tp(){
 
     echo
@@ -192,8 +196,8 @@ preinstall_l2tp(){
     [ -z ${iprange} ] && iprange="192.168.18"
 
     echo "请输入PSK密钥:"
-    read -p "(默认PSK: admin123@l2tp):" mypsk
-    [ -z ${mypsk} ] && mypsk="admin123@l2tp"
+    read -p "(默认PSK: admin7890):" mypsk
+    [ -z ${mypsk} ] && mypsk="admin7890"
 
     echo "请输入用户名:"
     read -p "(默认用户名: admin123):" username
@@ -217,7 +221,9 @@ preinstall_l2tp(){
 
 # 安装依赖
 install_l2tp(){
-    mknod /dev/random c 1 9
+    [ ! -e /dev/random ] && mknod /dev/random c 1 9
+    [ ! -e /dev/ppp ] && mknod /dev/ppp c 108 0
+    [[ ! -f /usr/local/bin/l2tp ]] && Update_Script
     apt -y update
     apt -yq install curl wget ppp xl2tpd libreswan
     config_install
