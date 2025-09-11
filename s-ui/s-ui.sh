@@ -772,7 +772,7 @@ generate_self_signed_cert() {
 }
 
 show_usage() {
-    echo -e "S-UI 控制菜单使用方法"
+    echo -e "S-UI 中文脚本使用方法"
     echo -e "------------------------------------------"
     echo -e "子命令:" 
     echo -e "s-ui              - 管理脚本"
@@ -792,7 +792,7 @@ show_usage() {
 
 show_menu() {
   echo -e "
-  ${green}S-UI 管理脚本 ${plain}
+  ${green}S-UI 中文管理脚本 ${plain}
 ————————————————————————————————
   ${green}0.${plain} 退出
 ————————————————————————————————
@@ -801,12 +801,12 @@ show_menu() {
   ${green}3.${plain} 自定义版本
   ${green}4.${plain} 卸载
 ————————————————————————————————
-  ${green}5.${plain} 重置管理员凭据为默认
-  ${green}6.${plain} 设置管理员凭据
-  ${green}7.${plain} 查看管理员凭据
+  ${green}5.${plain} 重置管理员账户
+  ${green}6.${plain} 修改管理员账户
+  ${green}7.${plain} 查看管理员账户
 ————————————————————————————————
   ${green}8.${plain} 重置面板设置
-  ${green}9.${plain} 设置面板设置
+  ${green}9.${plain} 修改面板设置
   ${green}10.${plain} 查看面板设置
 ————————————————————————————————
   ${green}11.${plain} S-UI 启动
