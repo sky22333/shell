@@ -715,7 +715,7 @@ function configure_docker_ce_mirror() {
         fi
         chmod a+r $file_keyring
         ## 添加源
-        [ -d "${Dir_AptAdditionalSources}" ] || mkdir -p $Dir_AptAdditionalSources
+        [ -d "/etc/apt/sources.list.d" ] || mkdir -p /etc/apt/sources.list.d
         echo "deb [arch=${SOURCE_ARCH} signed-by=${file_keyring}] https://${SOURCE}/linux/${SOURCE_BRANCH} ${SYSTEM_VERSION_CODENAME} stable" | tee $Dir_DebianExtendSource/docker.list >/dev/null 2>&1
         apt-get update
         ;;
