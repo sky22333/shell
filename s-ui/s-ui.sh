@@ -121,6 +121,7 @@ uninstall() {
     systemctl reset-failed
     rm /etc/s-ui/ -rf
     rm /usr/local/s-ui/ -rf
+    rm /usr/bin/s-ui -rf
 
     echo ""
     echo -e "卸载成功，如果您想删除此脚本，请在退出脚本后运行 ${green}rm /usr/local/s-ui -f${plain} 来删除它。"
