@@ -124,7 +124,9 @@ uninstall() {
     rm /usr/bin/s-ui -rf
 
     echo ""
-    echo -e "卸载成功，如果您想删除此脚本，请在退出脚本后运行 ${green}rm /usr/local/s-ui -f${plain} 来删除它。"
+    echo -e "卸载成功。\n"
+    echo "如果您需要再次安装此面板，可以使用以下命令:"
+    echo -e "${green}bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/s-ui/install.sh)${plain}"
     echo ""
 
     if [[ $# == 0 ]]; then
