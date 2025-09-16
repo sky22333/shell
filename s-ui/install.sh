@@ -10,6 +10,10 @@ cur_dir=$(pwd)
 # check root
 [[ $EUID -ne 0 ]] && echo -e "${red}致命错误: ${plain} 请使用root权限运行此脚本 \n " && exit 1
 
+if ! ip addr show lo | grep -q '127.0.0.1'; then
+    sudo ip addr add 127.0.0.1/8 dev lo
+fi
+
 # Check OS and set release variable
 if [[ -f /etc/os-release ]]; then
     source /etc/os-release
