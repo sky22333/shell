@@ -20,3 +20,5 @@ PACKAGES="$PACKAGES luci-i18n-filemanager-zh-cn"
 # PACKAGES="$PACKAGES luci-i18n-dockerman-zh-cn"
 
 make image PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE="512"
+
+# 通常需要传入路由器型号，例如：PROFILE=nanopi-r2s
