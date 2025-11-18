@@ -8,7 +8,7 @@
 
 - 镜像版本修改：`docker-run.sh`，选择符合自己设备的系统架构。
 
-### 安装istore商店（只支持 x86_64 和 arm64）
+### 安装istore商店（只支持 x86_64 和 arm64 架构）
 ```
 curl -sSL -O https://gh-proxy.com/https://raw.githubusercontent.com/sky22333/shell/main/openwrt/sh/istore.sh && chmod +x istore.sh && ./istore.sh
 ```
