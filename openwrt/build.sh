@@ -11,7 +11,7 @@ PACKAGES="$PACKAGES luci-i18n-ttyd-zh-cn"
 PACKAGES="$PACKAGES luci-i18n-diskman-zh-cn"
 PACKAGES="$PACKAGES luci-i18n-filemanager-zh-cn"
 
-# docker(需要1G以上空间)
+# Docker需要1G以上空间，下载汉化包即可自动安装对应软件和依赖
 # PACKAGES="$PACKAGES luci-i18n-dockerman-zh-cn"
 
 make image PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE="512"
