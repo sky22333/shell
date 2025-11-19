@@ -5,9 +5,6 @@ exec >/tmp/setup.log 2>&1
 #                  自 定 义 配 置 区 域
 ###########################################################
 
-### LuCI 默认主题（需要固件中已下载该主题）
-luci_theme="argon"
-
 ### 系统后台密码（为空则不修改）
 root_password="root"
 
@@ -106,13 +103,6 @@ if [ -n "$pppoe_username" ] && [ -n "$pppoe_password" ]; then
   uci set network.wan.username="$pppoe_username"
   uci set network.wan.password="$pppoe_password"
   uci commit network
-fi
-
-# ------------ LuCI 主题设置 ------------
-if [ -n "$luci_theme" ]; then
-  # 设置默认主题
-  uci set luci.main.mediaurlbase="/luci-static/$luci_theme"
-  uci commit luci
 fi
 
 echo "All done!"
