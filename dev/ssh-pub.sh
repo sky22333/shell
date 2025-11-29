@@ -9,7 +9,7 @@ SSH_PUB_URL=""
 DISABLE_PASS=0
 
 usage() {
-    echo "用法: $0 -pub \"公钥内容\" [-url 公钥URL] [-port 端口] [-disable-pass]"
+    echo "用法: $0 -pub \"公钥内容\" [-url 公钥URL] [-port 端口] [-off]"
     echo "示例:"
     echo "  $0 -pub \"ssh-ed25519 AAAAC3N...\" -port 2222"
     echo "  $0 -url \"https://example.com/id_ed25519.pub\""
@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
             SSH_PORT="$2"
             shift 2
             ;;
-        -disable-pass)
+        -off)
             DISABLE_PASS=1
             shift 1
             ;;
