@@ -69,10 +69,11 @@ bash <(curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/dev/root.sh)
 > 打开文件查找`PasswordAuthentication no`此代码将其注释，然后重启SSH服务。
 
 #### SSH公钥批量下发脚本
-> -url "公钥链接"
-> -pub "公钥内容"
-> -port "端口"
-> -off 关闭密码认证
+> `-url "公钥链接"`
+> `-pub "公钥内容"`
+> `-port "端口"`
+> `-off` 关闭密码认证
 ```
 bash <(curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/dev/ssh-pub.sh) -url "https://example.com/id_ed25519.pub"
 ```
+
