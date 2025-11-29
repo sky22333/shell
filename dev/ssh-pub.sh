@@ -125,40 +125,23 @@ setup_ssh_key() {
 }
 
 restart_ssh() {
-
-    for svc in sshd ssh; do
-        if command -v systemctl >/dev/null 2>&1; then
-            if systemctl list-unit-files | grep -q "^${svc}.service"; then
-                if systemctl restart "$svc" 2>/dev/null; then
-                    echo "SSH 服务已重启 (systemctl)"
-                    return 0
-                fi
-            fi
-        fi
-    done
-
-    for cmd in "service ssh restart" "service sshd restart"; do
-        if $cmd 2>/dev/null; then
-            echo "SSH 服务已重启 (service)"
+    # systemd (Rocky, Ubuntu, Debian, CentOS 等)
+    if command -v systemctl >/dev/null 2>&1; then
+        if systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null; then
+            echo "SSH 服务已重启 (systemd)"
             return 0
         fi
-    done
-
-    for cmd in "/etc/init.d/ssh restart" "/etc/init.d/sshd restart"; do
-        if $cmd 2>/dev/null; then
-            echo "SSH 服务已重启 (init.d)"
-            return 0
-        fi
-    done
-
+    fi
+    
+    # OpenRC (Alpine Linux)
     if command -v rc-service >/dev/null 2>&1; then
-        if rc-service sshd restart 2>/dev/null; then
+        if rc-service sshd restart 2>/dev/null || rc-service ssh restart 2>/dev/null; then
             echo "SSH 服务已重启 (OpenRC)"
             return 0
         fi
     fi
-
-    echo "警告: 无法自动重启 SSH，请手动重启"
+    
+    echo "警告: 无法自动重启 SSH 服务，请手动重启。"
     return 1
 }
 
