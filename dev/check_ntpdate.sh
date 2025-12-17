@@ -3,7 +3,7 @@
 # 封装脚本过期函数
 check_ntpdate() {
     # 设置过期时间
-    local expire_date="2025-04-10 12:00:00"
+    local expire_date="2025-10-10 12:00:00"
 
     # date -d "$(curl -sI https://www.bing.com | grep -i '^date:' | cut -d' ' -f2-)" +'%Y-%m-%d %H:%M:%S UTC+8'
     # 获取时间戳（从 https://www.cloudflare.com/cdn-cgi/trace 获取）
