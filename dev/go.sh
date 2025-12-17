@@ -18,7 +18,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-DEFAULT_VERSION="1.24.0"
+DEFAULT_VERSION="1.25.5"
 
 read -p "请输入要安装的 Go 版本 [默认: ${DEFAULT_VERSION}]: " GO_VERSION
 GO_VERSION=${GO_VERSION:-$DEFAULT_VERSION}
