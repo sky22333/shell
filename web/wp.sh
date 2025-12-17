@@ -17,7 +17,6 @@ while true; do
     echo -e "\033[33m为防止输错，请核对域名是否正确 (yes/no？直接回车代表正确): \033[0m"
     read CONFIRM
     
-    # 如果用户按回车，则默认为确认
     if [[ -z "${CONFIRM// }" ]]; then
         CONFIRM="yes"
     fi
@@ -48,7 +47,6 @@ y
 y
 EOF
 
-# 项目地址https://github.com/sky22333/shell
 # 创建WordPress数据库和用户
 DB_NAME="wordpress"
 DB_USER="wpuser"
@@ -109,7 +107,7 @@ if systemctl is-active --quiet apache2; then
     sudo systemctl disable apache2
     sudo apt remove --purge apache2 -y
 else
-    echo -e "当前环境是正常状态。"
+    echo -e "清理apache2成功"
 fi
 
 sudo bash -c "cat > /etc/caddy/Caddyfile" <<EOF

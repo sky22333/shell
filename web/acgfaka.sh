@@ -17,7 +17,6 @@ while true; do
     echo -e "\033[33m请确认这个域名是否正确 (yes/no, 默认回车确认): \033[0m"
     read CONFIRM
     
-    # 如果用户按回车，则默认为确认
     if [[ -z "${CONFIRM// }" ]]; then
         CONFIRM="yes"
     fi
@@ -30,20 +29,16 @@ while true; do
     fi
 done
 
-# 安装必要的软件包
 echo -e "\033[32m安装必要的软件包...首次安装可能较慢...请耐心等待。。。\033[0m"
 
-# 创建 sources.list.d 目录（如果不存在的话）
 if [ ! -d /etc/apt/sources.list.d/ ]; then
     mkdir -p /etc/apt/sources.list.d/
 fi
 
-# 添加 Caddy 源和密钥
 sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
 sudo apt update -q
-# 检查操作系统
 if grep -Eqi "debian" /etc/issue || grep -Eqi "debian" /proc/version; then
     OS="debian"
     # Debian 系统设置 PHP 仓库
@@ -60,29 +55,23 @@ else
     exit 1
 fi
 
-# 项目地址https://github.com/sky22333/shell
-# 更新源列表
 sudo apt update -q
 
-# 安装必要的软件包
 sudo apt install -yq mariadb-server php8.1 php8.1-mysql php8.1-fpm php8.1-curl php8.1-cgi php8.1-mbstring php8.1-xml php8.1-gd php8.1-xmlrpc php8.1-soap php8.1-intl php8.1-opcache php8.1-zip wget unzip socat curl caddy
 
 PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
 PHP_INI_FILE="/etc/php/${PHP_VERSION}/fpm/php.ini"
 OPCACHE_FILE_CACHE_DIR="/var/cache/opcache"
 
-# 确保缓存目录存在并设置权限
 if [ ! -d "$OPCACHE_FILE_CACHE_DIR" ]; then
     echo -e "\033[32m创建 OPcache 缓存目录...\033[0m"
     sudo mkdir -p "$OPCACHE_FILE_CACHE_DIR"
     sudo chown -R www-data:www-data "$OPCACHE_FILE_CACHE_DIR"
 fi
 
-# 确保 OPcache 配置存在
 if ! grep -q "^opcache.enable=1" "$PHP_INI_FILE"; then
     echo -e "\033[32m启用 OPcache 扩展...请稍等...\033[0m"
     
-    # 写入 OPcache 配置
     sudo tee -a "$PHP_INI_FILE" > /dev/null <<EOL
 [opcache]
 opcache.enable=1
@@ -98,7 +87,6 @@ opcache.file_cache_consistency_checks=1
 EOL
 fi
 
-# 设置时区
 TIMEZONE="Asia/Shanghai"
 
 # 检查并设置 date.timezone
@@ -116,7 +104,6 @@ date.timezone = $TIMEZONE
 EOL
 fi
 
-# 重启 PHP-FPM 服务
 sudo systemctl restart php${PHP_VERSION}-fpm
 
 if systemctl is-active --quiet apache2; then
@@ -124,9 +111,9 @@ if systemctl is-active --quiet apache2; then
     sudo systemctl disable apache2
     sudo apt remove --purge apache2 -y
 else
-    echo -e "环境检查通过。"
+    echo -e "清理apache2成功"
 fi
-# 启动并启用 Caddy 服务
+
 sudo systemctl start caddy
 sudo systemctl enable caddy
 
@@ -153,7 +140,6 @@ sudo mysql -u root -e "CREATE USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_
 sudo mysql -u root -e "GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'localhost';"
 sudo mysql -u root -e "FLUSH PRIVILEGES;"
 
-# 下载并配置acgfaka
 mkdir -p /var/www/html
 cd /var/www/html
 wget https://github.com/lizhipay/acg-faka/archive/refs/heads/main.zip
@@ -181,7 +167,6 @@ $DOMAIN {
 }
 EOL
 
-# 重新加载 Caddy 配置
 sudo systemctl reload caddy
 
 echo -e "\033[32m============================================================\033[0m"
