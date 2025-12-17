@@ -1,281 +1,188 @@
-#!/usr/bin/env bash
-PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
-export PATH
-#=======================================================================#
-#   系统支持:  Debian 10 + / Ubuntu 18.04 +                             #
-#   描述: L2TP VPN 自动安装脚本                                          #
-#   基于Teddysun版本修改                                                 #
-#=======================================================================#
-cur_dir=`pwd`
+#!/bin/bash
 
-rootness(){
-    if [[ $EUID -ne 0 ]]; then
-       echo "错误: 此脚本必须以root身份运行!" 1>&2
-       exit 1
+Red="\033[31m" # 红色
+Green="\033[32m" # 绿色
+Yellow="\033[33m" # 黄色
+Blue="\033[34m" # 蓝色
+Nc="\033[0m" # 重置颜色
+Red_globa="\033[41;37m" # 红底白字
+Green_globa="\033[42;37m" # 绿底白字
+Yellow_globa="\033[43;37m" # 黄底白字
+Blue_globa="\033[44;37m" # 蓝底白字
+Info="${Green}[信息]${Nc}"
+Error="${Red}[错误]${Nc}"
+Tip="${Yellow}[提示]${Nc}"
+
+# 检查是否为root用户
+check_root(){
+    if [ -d "/proc/vz" ]; then
+        echo -e "${Error} 警告: 你的VPS基于OpenVZ，内核可能不支持IPSec。"
+        echo -e "${Tip} L2TP安装已取消。"
+        exit 1
     fi
-}
-
-tunavailable(){
-    if [[ ! -e /dev/net/tun ]]; then
-        echo "错误: TUN/TAP 不可用!" 1>&2
+    
+    if [ "$(id -u)" != "0" ]; then
+        echo -e "${Error} 当前非ROOT账号(或没有ROOT权限)，无法继续操作，请更换ROOT账号或使用 ${Green_globa}sudo -i${Nc} 命令获取临时ROOT权限（执行后可能会提示输入当前账号的密码）。"
         exit 1
     fi
 }
 
-disable_selinux(){
-if [ -s /etc/selinux/config ] && grep 'SELINUX=enforcing' /etc/selinux/config; then
-    sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
-    setenforce 0
-fi
-}
-
-get_opsy(){
-    [ -f /etc/os-release ] && awk -F'[= "]' '/PRETTY_NAME/{print $3,$4,$5}' /etc/os-release && return
-    [ -f /etc/lsb-release ] && awk -F'[="]+' '/DESCRIPTION/{print $2}' /etc/lsb-release && return
-}
-
-get_os_info(){
-    IP=$( ip addr | egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | egrep -v "^192\.168|^172\.1[6-9]\.|^172\.2[0-9]\.|^172\.3[0-2]\.|^10\.|^127\.|^255\.|^0\." | head -n 1 )
-    [ -z ${IP} ] && IP=$( wget -qO- -t1 -T2 ipinfo.io/ip )
-    if [ -z ${IP} ]; then
-        IP=$( wget -qO- -t1 -T2 ifconfig.me )
+check_release(){
+    if [[ -e /etc/os-release ]]; then
+        . /etc/os-release
+        release=$ID
+    elif [[ -e /usr/lib/os-release ]]; then
+        . /usr/lib/os-release
+        release=$ID
     fi
+    os_version=$(echo $VERSION_ID | cut -d. -f1,2)
 
-    local cname=$( awk -F: '/model name/ {name=$2} END {print name}' /proc/cpuinfo | sed 's/^[ \t]*//;s/[ \t]*$//' )
-    local cores=$( awk -F: '/model name/ {core++} END {print core}' /proc/cpuinfo )
-    local freq=$( awk -F: '/cpu MHz/ {freq=$2} END {print freq}' /proc/cpuinfo | sed 's/^[ \t]*//;s/[ \t]*$//' )
-    local tram=$( free -m | awk '/Mem/ {print $2}' )
-    local swap=$( free -m | awk '/Swap/ {print $2}' )
-    local up=$( awk '{a=$1/86400;b=($1%86400)/3600;c=($1%3600)/60;d=$1%60} {printf("%d天 %d:%d:%d\n",a,b,c,d)}' /proc/uptime )
-    local load=$( w | head -1 | awk -F'load average:' '{print $2}' | sed 's/^[ \t]*//;s/[ \t]*$//' )
-    local opsy=$( get_opsy )
-    local arch=$( uname -m )
-    local lbit=$( getconf LONG_BIT )
-    local host=$( hostname )
-    local kern=$( uname -r )
-
-    echo "########## 系统信息 ##########"
-    echo 
-    echo "CPU型号             : ${cname}"
-    echo "CPU核心数           : ${cores}"
-    echo "CPU频率             : ${freq} MHz"
-    echo "总内存大小          : ${tram} MB"
-    echo "总交换分区大小      : ${swap} MB"
-    echo "系统运行时间        : ${up}"
-    echo "平均负载            : ${load}"
-    echo "操作系统            : ${opsy}"
-    echo "系统架构            : ${arch} (${lbit} Bit)"
-    echo "内核版本            : ${kern}"
-    echo "主机名              : ${host}"
-    echo "IPv4地址            : ${IP}"
-    echo 
-    echo "##################################"
+    if [[ "${release}" == "ol" ]]; then
+        release=oracle
+    elif [[ ! "${release}" =~ ^(kali|centos|ubuntu|fedora|debian|almalinux|rocky|alpine)$ ]]; then
+        echo -e "${Error} 抱歉，此脚本不支持您的操作系统。"
+        echo -e "${Info} 请确保您使用的是以下支持的操作系统之一："
+        echo -e "-${Red} Ubuntu ${Nc}"
+        echo -e "-${Red} Debian ${Nc}"
+        echo -e "-${Red} CentOS ${Nc}"
+        echo -e "-${Red} Fedora ${Nc}"
+        echo -e "-${Red} Kali ${Nc}"
+        echo -e "-${Red} AlmaLinux ${Nc}"
+        echo -e "-${Red} Rocky Linux ${Nc}"
+        echo -e "-${Red} Oracle Linux ${Nc}"
+        echo -e "-${Red} Alpine Linux ${Nc}"
+        exit 1
+    fi
 }
 
-check_sys(){
-    local checkType=$1
-    local value=$2
+check_pmc(){
+    check_release
+    if [[ "$release" == "debian" || "$release" == "ubuntu" || "$release" == "kali" ]]; then
+        updates="apt update -y"
+        installs="apt install -y"
+        apps=("curl" "xl2tpd" "strongswan" "pptpd" "nftables")
+    elif [[ "$release" == "alpine" ]]; then
+        updates="apk update -f"
+        installs="apk add -f"
+        apps=("curl" "xl2tpd" "strongswan" "pptpd" "nftables")
+    elif [[ "$release" == "almalinux" || "$release" == "rocky" || "$release" == "oracle" ]]; then
+        updates="dnf update -y"
+        installs="dnf install -y"
+        check_install="dnf list installed"
+        apps=("curl" "xl2tpd" "strongswan" "pptpd" "nftables")
+    elif [[ "$release" == "centos" ]]; then
+        updates="yum update -y"
+        installs="yum install -y"
+        apps=("curl" "xl2tpd" "strongswan" "pptpd" "nftables")
+    elif [[ "$release" == "fedora" ]]; then
+        updates="dnf update -y"
+        installs="dnf install -y"
+        apps=("curl" "xl2tpd" "strongswan" "pptpd" "nftables")
+    fi
+}
 
-    local release=''
-    local systemPackage=''
-
-    if cat /etc/issue | grep -Eqi "debian"; then
-        release="debian"
-        systemPackage="apt"
-    elif cat /etc/issue | grep -Eqi "ubuntu"; then
-        release="ubuntu"
-        systemPackage="apt"
-    elif cat /proc/version | grep -Eqi "debian"; then
-        release="debian"
-        systemPackage="apt"
-    elif cat /proc/version | grep -Eqi "ubuntu"; then
-        release="ubuntu"
-        systemPackage="apt"
+install_base(){
+    check_pmc
+    cmds=("curl" "xl2tpd" "ipsec" "pptpd" "nft")
+    echo -e "${Info} 你的系统是${Red} $release $os_version ${Nc}"
+    echo
+    
+    for i in "${!cmds[@]}"; do
+        if ! which "${cmds[i]}" &>/dev/null; then
+            APPS+=("${apps[i]}")
+        fi
+    done
+    
+    if [ ${#APPS[@]} -gt 0 ]; then
+        echo -e "${Tip} 安装依赖列表：${Green}${APPS[*]}${Nc} 请稍后..."
+        $updates &>/dev/null
+        $installs "${APPS[@]}" &>/dev/null
+        $installs ppp &>/dev/null
     else
-        echo "错误: 不支持的系统，请使用Debian或Ubuntu系统！"
-        exit 1
-    fi
-
-    if [[ ${checkType} == "sysRelease" ]]; then
-        if [ "$value" == "$release" ];then
-            return 0
-        else
-            return 1
-        fi
-    elif [[ ${checkType} == "packageManager" ]]; then
-        if [ "$value" == "$systemPackage" ];then
-            return 0
-        else
-            return 1
-        fi
+        echo -e "${Info} 所有依赖已存在，不需要额外安装。"
     fi
 }
 
 rand(){
-    index=0
-    str=""
-    for i in {a..z}; do arr[index]=${i}; index=`expr ${index} + 1`; done
-    for i in {A..Z}; do arr[index]=${i}; index=`expr ${index} + 1`; done
-    for i in {0..9}; do arr[index]=${i}; index=`expr ${index} + 1`; done
-    for i in {1..10}; do str="$str${arr[$RANDOM%$index]}"; done
-    echo ${str}
+    local length=${1:-10}
+    local chars=({a..z} {A..Z} {0..9})
+    local str=""
+    
+    for i in $(seq 1 $length); do
+        str+="${chars[$RANDOM%62]}"
+    done
+    echo "$str"
 }
 
-is_64bit(){
-    if [ `getconf WORD_BIT` = '32' ] && [ `getconf LONG_BIT` = '64' ] ; then
-        return 0
-    else
-        return 1
-    fi
+get_public_ip(){
+    InFaces=($(ls /sys/class/net | grep -E '^(eth|ens|eno|esp|enp|vif)'))
+    IP_API=(
+        "api64.ipify.org"
+        "4.ipw.cn"
+        "ip.sb"
+        "checkip.amazonaws.com"
+        "icanhazip.com"
+        "ipinfo.io/ip"
+    )
+
+    for iface in "${InFaces[@]}"; do
+        for ip_api in "${IP_API[@]}"; do
+            IPv4=$(curl -s4 --max-time 2 --interface "$iface" "$ip_api")
+
+            if [[ -n "$IPv4" ]]; then
+                inface="$iface"
+                break 2
+            fi
+        done
+    done
 }
 
-versionget(){
-    if [ -f /etc/os-release ];then
-        grep -oE  "[0-9.]+" /etc/os-release | head -1
-    else
-        grep -oE  "[0-9.]+" /etc/issue
-    fi
-}
-
-debianversion(){
-    if check_sys sysRelease debian;then
-        local version=$( get_opsy )
-        local code=${1}
-        local main_ver=$( echo ${version} | sed 's/[^0-9]//g')
-        if [ "${main_ver}" == "${code}" ];then
-            return 0
-        else
-            return 1
-        fi
-    else
-        return 1
-    fi
-}
-
-version_check(){
-    if check_sys packageManager apt; then
-        if debianversion 5; then
-            echo "错误: Debian 5 不支持，请重新安装OS并重试。"
-            exit 1
-        fi
-    fi
-}
-
-get_char(){
-    SAVEDSTTY=`stty -g`
-    stty -echo
-    stty cbreak
-    dd if=/dev/tty bs=1 count=1 2> /dev/null
-    stty -raw
-    stty echo
-    stty $SAVEDSTTY
-}
-
-function Update_Script() {
-    wget -N -O /usr/local/bin/l2tp.sh https://raw.githubusercontent.com/sky22333/shell/main/proxy/l2tp.sh && chmod +x /usr/local/bin/l2tp.sh && ln -sf /usr/local/bin/l2tp.sh /usr/local/bin/l2tp
-}
-
-preinstall_l2tp(){
-
-    echo
-    if [ -d "/proc/vz" ]; then
-        echo -e "\033[41;37m 警告: \033[0m 您的VPS基于OpenVZ，内核可能不支持IPSec。"
-        echo "是否继续安装? (y/n)"
-        read -p "(默认: n)" agree
-        [ -z ${agree} ] && agree="n"
-        if [ "${agree}" == "n" ]; then
-            echo
-            echo "L2TP安装已取消。"
-            echo
-            exit 0
-        fi
-    fi
-    echo
-    echo "请输入IP范围:"
-    read -p "(默认范围: 192.168.100):" iprange
-    [ -z ${iprange} ] && iprange="192.168.100"
-
-    echo "请输入PSK密钥:"
-    read -p "(默认PSK: admin7890):" mypsk
-    [ -z ${mypsk} ] && mypsk="admin7890"
-
-    echo "请输入用户名:"
-    read -p "(默认用户名: admin123):" username
-    [ -z ${username} ] && username="admin123"
-
-    password=`rand`
-    echo "请输入 ${username} 的密码:"
-    read -p "(默认密码: ${password}):" tmppassword
-    [ ! -z ${tmppassword} ] && password=${tmppassword}
-
-    echo
-    echo "服务器IP: ${IP}"
-    echo "服务器本地IP: ${iprange}.1"
-    echo "客户端远程IP范围: ${iprange}.2-${iprange}.254"
-    echo "PSK密钥: ${mypsk}"
-    echo
-    echo "按任意键开始安装...或按Ctrl+C取消。"
-    char=`get_char`
-
-}
-
-# 安装依赖
-install_l2tp(){
-    [ ! -e /dev/random ] && mknod /dev/random c 1 9
-    [ ! -e /dev/ppp ] && mknod /dev/ppp c 108 0
-    [[ ! -f /usr/local/bin/l2tp ]] && Update_Script
-    apt -y update
-    apt -yq install curl wget ppp xl2tpd libreswan
-    config_install
-}
-
-config_install(){
-
+install_vpn(){
+    get_public_ip
+    set_conf
     cat > /etc/ipsec.conf<<EOF
-version 2.0
-
 config setup
-    protostack=netkey
-    nhelpers=0
+    charondebug="ike 2, knl 2, cfg 2"
     uniqueids=no
-    interfaces=%defaultroute
-    virtual_private=%v4:10.0.0.0/8,%v4:192.168.0.0/16,%v4:172.16.0.0/12,%v4:!${iprange}.0/24
 
-conn l2tp-psk
-    rightsubnet=vhost:%priv
-    also=l2tp-psk-nonat
-
-conn l2tp-psk-nonat
+conn %default
+    keyexchange=ikev1
     authby=secret
-    pfs=no
-    auto=add
+    ike=aes256-sha1-modp1024,aes128-sha1-modp1024,3des-sha1-modp1024!
+    esp=aes256-sha1,aes128-sha1,3des-sha1!
     keyingtries=3
-    rekey=no
     ikelifetime=8h
-    keylife=1h
-    type=transport
-    left=%defaultroute
-    leftid=${IP}
-    leftprotoport=17/1701
+    lifetime=1h
+    dpdaction=clear
+    dpddelay=30s
+    dpdtimeout=120s
+    rekey=no
+    forceencaps=yes
+    fragmentation=yes
+
+conn L2TP-PSK
+    left=%any
+    leftid=${IPv4}
+    leftfirewall=yes
+    leftprotoport=17/${l2tpport}
     right=%any
     rightprotoport=17/%any
-    dpddelay=40
-    dpdtimeout=130
-    dpdaction=clear
-    sha2-truncbug=yes
-EOF
+    type=transport
+    auto=add
+    also=%default
 
+EOF
     cat > /etc/ipsec.secrets<<EOF
-%any %any : PSK "${mypsk}"
-EOF
+%any %any : PSK "${l2tppsk}"
 
+EOF
     cat > /etc/xl2tpd/xl2tpd.conf<<EOF
 [global]
-port = 1701
+port = ${l2tpport}
 
 [lns default]
-ip range = ${iprange}.2-${iprange}.254
-local ip = ${iprange}.1
+ip range = ${l2tplocip}.11-${l2tplocip}.255
+local ip = ${l2tplocip}.1
 require chap = yes
 refuse pap = yes
 require authentication = yes
@@ -283,14 +190,14 @@ name = l2tpd
 ppp debug = yes
 pppoptfile = /etc/ppp/options.xl2tpd
 length bit = yes
-EOF
 
+EOF
     cat > /etc/ppp/options.xl2tpd<<EOF
 ipcp-accept-local
 ipcp-accept-remote
 require-mschap-v2
 ms-dns 8.8.8.8
-ms-dns 8.8.4.4
+ms-dns 114.114.114.114
 noccp
 auth
 hide-password
@@ -301,271 +208,243 @@ nodefaultroute
 debug
 proxyarp
 connect-delay 5000
+
 EOF
 
-    rm -f /etc/ppp/chap-secrets
-    cat > /etc/ppp/chap-secrets<<EOF
+    cat > /etc/pptpd.conf<<EOF
+option /etc/ppp/pptpd-options
+debug
+localip ${pptplocip}.1
+remoteip ${pptplocip}.11-255
+
+EOF
+
+    cat > /etc/ppp/pptpd-options<<EOF
+name pptpd
+refuse-pap
+refuse-chap
+refuse-mschap
+require-mschap-v2
+require-mppe-128
+ms-dns 8.8.8.8
+ms-dns 114.114.114.114
+proxyarp
+lock
+nobsdcomp
+novj
+novjccomp
+nologfd
+
+EOF
+
+    cat > /etc/ppp/chap-secrets <<EOF
 # Secrets for authentication using CHAP
 # client    server    secret    IP addresses
-${username}    l2tpd    ${password}       *
 EOF
 
-    cp -pf /etc/sysctl.conf /etc/sysctl.conf.bak
-
-    sed -i 's/net.ipv4.ip_forward = 0/net.ipv4.ip_forward = 1/g' /etc/sysctl.conf
-
-    for each in `ls /proc/sys/net/ipv4/conf/`; do
-        echo "net.ipv4.conf.${each}.accept_source_route=0" >> /etc/sysctl.conf
-        echo "net.ipv4.conf.${each}.accept_redirects=0" >> /etc/sysctl.conf
-        echo "net.ipv4.conf.${each}.send_redirects=0" >> /etc/sysctl.conf
-        echo "net.ipv4.conf.${each}.rp_filter=0" >> /etc/sysctl.conf
+    for num in $(seq 11 255); do
+        echo "${l2tpuser}${num}    l2tpd    ${l2tppass}${num}    ${l2tplocip}.${num}" >> /etc/ppp/chap-secrets
     done
-    sysctl -p
+    for num in $(seq 11 255); do
+        echo "${pptpuser}${num}    pptpd    ${pptppass}${num}    ${pptplocip}.${num}" >> /etc/ppp/chap-secrets
+    done
 
-    [ -f /etc/iptables.rules ] && cp -pf /etc/iptables.rules /etc/iptables.rules.old.`date +%Y%m%d`
+    set_icmp
+    set_nftables
+}
 
-    # 确保IP变量已正确获取
-    if [ -z "${IP}" ]; then
-        IP=$(wget -qO- ipinfo.io/ip)
-    fi
+set_icmp(){
+    seticmp1="net.ipv4.ip_forward=1"
+    seticmp2="net.ipv4.conf.all.send_redirects=0"
+    seticmp3="net.ipv4.conf.default.send_redirects=0"
+    seticmp4="net.ipv4.conf.all.accept_redirects=0"
+    seticmp5="net.ipv4.conf.default.accept_redirects=0"
 
-    cat > /etc/iptables.rules <<EOF
-# Added by L2TP VPN script
-*filter
-:INPUT ACCEPT [0:0]
-:FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
--A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
--A INPUT -p icmp -j ACCEPT
--A INPUT -i lo -j ACCEPT
--A INPUT -p tcp --dport 22 -j ACCEPT
--A INPUT -p udp -m multiport --dports 500,4500,1701 -j ACCEPT
--A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
--A FORWARD -s ${iprange}.0/24 -j ACCEPT
-COMMIT
-*nat
-:PREROUTING ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
-:POSTROUTING ACCEPT [0:0]
--A POSTROUTING -s ${iprange}.0/24 -o eth0 -j MASQUERADE
--A FORWARD -d ${iprange}.0/24 -j ACCEPT
-COMMIT
+    for seticmp in "$seticmp1" "$seticmp2" "$seticmp3" "$seticmp4" "$seticmp5"; do
+        if grep -qE "^\s*${seticmp%=*}\s*=" /etc/sysctl.conf; then
+            sed -i "s|^\s*${seticmp%=*}\s*=.*|${seticmp}|g" /etc/sysctl.conf
+        else
+            echo "$seticmp" >> /etc/sysctl.conf
+        fi
+    done
+
+    sysctl -p &> /dev/null
+}
+
+set_nftables(){
+    [ -f /etc/nftables.conf ] && cp -pf /etc/nftables.conf /etc/nftables.conf.old.`date +%Y%m%d`
+    cat > /etc/nftables.conf <<EOF
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0;
+        ct state established,related accept
+        ip protocol icmp accept
+        iif lo accept
+        udp dport {500,4500,${l2tpport},${pptpport}} accept
+        accept
+    }
+    chain forward {
+        type filter hook forward priority 0;
+        ct state established,related accept
+        ip saddr ${l2tplocip}.0/24 accept
+        ip saddr ${pptplocip}.0/24 accept
+        accept
+    }
+    chain output {
+        type filter hook output priority 0;
+        accept
+    }
+}
+
+table ip nat {
+    chain prerouting {
+        type nat hook prerouting priority 0;
+        accept
+    }
+    chain postrouting {
+        type nat hook postrouting priority 100;
+        oif "${inface}" masquerade
+    }
+    chain output {
+        type nat hook output priority 0;
+        accept
+    }
+}
 EOF
+    systemctl daemon-reload
+    systemctl enable nftables
+    systemctl restart nftables
+}
 
-    # 创建rc.local文件（如果不存在）
-    if [ ! -f /etc/rc.local ]; then
-        cat > /etc/rc.local <<EOF
-#!/bin/sh -e
-#
-# rc.local
-#
-# This script is executed at the end of each multiuser runlevel.
-# Make sure that the script will "exit 0" on success or any other
-# value on error.
-#
-# In order to enable or disable this script just change the execution
-# bits.
-#
-# By default this script does nothing.
-
-echo 1 > /proc/sys/net/ipv4/ip_forward
-/usr/sbin/service ipsec start
-/usr/sbin/service xl2tpd start
-/sbin/iptables-restore < /etc/iptables.rules
-
-exit 0
-EOF
-        chmod +x /etc/rc.local
-    else
-        # 如果已存在rc.local，则追加内容
-        sed -i '/^exit 0/d' /etc/rc.local
-        cat >> /etc/rc.local <<EOF
-
-# Added by L2TP VPN script
-echo 1 > /proc/sys/net/ipv4/ip_forward
-/usr/sbin/service ipsec start
-/usr/sbin/service xl2tpd start
-/sbin/iptables-restore < /etc/iptables.rules
-
-exit 0
-EOF
-    fi
-
-    cat > /etc/network/if-up.d/iptables <<EOF
-#!/bin/sh
-/sbin/iptables-restore < /etc/iptables.rules
-EOF
-    chmod +x /etc/network/if-up.d/iptables
-
-    if [ ! -f /etc/ipsec.d/cert9.db ]; then
-       echo > /var/tmp/libreswan-nss-pwd
-       certutil -N -f /var/tmp/libreswan-nss-pwd -d /etc/ipsec.d
-       rm -f /var/tmp/libreswan-nss-pwd
-    fi
-
-    update-rc.d -f xl2tpd defaults
-
-    # 启用并启动服务
+vpn_start(){
+    systemctl daemon-reload 
     systemctl enable ipsec
     systemctl enable xl2tpd
+    systemctl enable pptpd
 
     echo 1 > /proc/sys/net/ipv4/ip_forward
-    /sbin/iptables-restore < /etc/iptables.rules
     systemctl restart ipsec
     systemctl restart xl2tpd
+    systemctl restart pptpd
+}
+
+set_conf(){
+    echo
+    # L2tp
+    echo -e "${Tip} 请输入L2tpIP范围:"
+    read -p "(默认范围: 10.10.10):" l2tplocip
+    [ -z "${l2tplocip}" ] && l2tplocip="10.10.10"
+
+    echo -e "${Tip} 请输入L2tp端口:"
+    read -p "(默认端口: 1701):" l2tpport
+    [ -z "${l2tpport}" ] && l2tpport=1701
+
+    # 端口范围检查
+    while ! [[ "$l2tpport" =~ ^[0-9]+$ ]] || [ "$l2tpport" -lt 1000 ] || [ "$l2tpport" -gt 65535 ]; do
+        echo -e "${Error} 端口必须为1000-65535之间的数字"
+        read -p "请重新输入端口 (1000-65535):" l2tpport
+        [ -z "${l2tpport}" ] && l2tpport=1701
+    done
+
+    l2tpuser=$(rand 5)
+    echo -e "${Tip} 请输入L2tp用户名:"
+    read -p "(默认用户名: ${l2tpuser}):" tmpl2tpuser
+    [ -n "${tmpl2tpuser}" ] && l2tpuser="${tmpl2tpuser}"
+
+    l2tppass=$(rand 7)
+    echo -e "${Tip} 请输入 ${l2tpuser} 的密码:"
+    read -p "(默认密码: ${l2tppass}):" tmpl2tppass
+    [ -n "${tmpl2tppass}" ] && l2tppass="${tmpl2tppass}"
+
+    l2tppsk=$(rand 20)
+    echo -e "${Tip} 请输入L2tp PSK密钥:"
+    read -p "(默认PSK: ${l2tppsk}):" tmppsk
+    [ -n "${tmppsk}" ] && l2tppsk="${tmppsk}"
+    
+    # Pptp
+    echo -e "${Tip} 请输入Pptp IP范围:"
+    read -p "(默认范围: 192.168.30):" pptplocip
+    [ -z "${pptplocip}" ] && pptplocip="192.168.30"
+
+    echo -e "${Tip} 请输入Pptp端口:"
+    read -p "(默认端口: 1723):" pptpport
+    [ -z "${pptpport}" ] && pptpport=1723
+
+    # 端口范围检查
+    while ! [[ "$pptpport" =~ ^[0-9]+$ ]] || [ "$pptpport" -lt 1000 ] || [ "$pptpport" -gt 65535 ]; do
+        echo -e "${Error} 端口必须为1000-65535之间的数字"
+        read -p "请重新输入端口 (1000-65535):" l2tpport
+        [ -z "${pptpport}" ] && pptpport=1723
+    done
+
+    pptpuser=$(rand 5)
+    echo -e "${Tip} 请输入Pptp用户名:"
+    read -p "(默认用户名: ${pptpuser}):" tmppptpuser
+    [ -n "${tmppptpuser}" ] && pptpuser="${tmppptpuser}"
+
+    pptppass=$(rand 7)
+    echo -e "${Tip} 请输入 ${pptpuser} 的密码:"
+    read -p "(默认密码: ${pptppass}):" tmppptppass
+    [ -n "${tmppptppass}" ] && pptppass="${tmppptppass}"
+
+    echo
+    echo -e "${Info} L2tp服务器本地IP: ${Green}${l2tplocip}.1${Nc}"
+    echo -e "${Info} L2tp客户端IP范围: ${Green}${l2tplocip}.11-${l2tplocip}.255${Nc}"
+    echo -e "${Info} L2tp端口    : ${Green}${l2tpport}${Nc}"
+    echo -e "${Info} L2tp用户名  : ${Green}${l2tpuser}${Nc}"
+    echo -e "${Info} L2tp密码    : ${Green}${l2tppass}${Nc}"
+    echo -e "${Info} L2tpPSK密钥 : ${Green}${l2tppsk}${Nc}"
+    echo
+    echo -e "${Info} Pptp服务器本地IP: ${Green}${pptplocip}.1${Nc}"
+    echo -e "${Info} Pptp客户端IP范围: ${Green}${pptplocip}.11-${pptplocip}.255${Nc}"
+    echo -e "${Info} Pttp端口    : ${Green}${pptpport}${Nc}"
+    echo -e "${Info} Pttp用户名  : ${Green}${pptpuser}${Nc}"
+    echo -e "${Info} Pttp密码    : ${Green}${pptppass}${Nc}"
+    echo
 }
 
 finally(){
-    cp -f ${cur_dir}/l2tp.sh /usr/bin/l2tp 2>/dev/null || true
     echo "请稍候..."
     sleep 3
-    ipsec verify
+    vpn_start
     echo
     echo "###############################################################"
-    echo "# L2TP 安装脚本                                               #"
+    echo "# VPN 安装脚本                                                #"
     echo "###############################################################"
     echo
-    echo "默认用户名和密码如下:"
+    echo -e "${Info} 默认用户名和密码如下:"
     echo
-    echo "服务器IP: ${IP}"
-    echo "PSK密钥 : ${mypsk}"
-    echo "用户名  : ${username}"
-    echo "密码    : ${password}"
+    echo -e "${Info} 服务器IP: ${Green}${IPv4}${Nc}"
     echo
-    echo "如果您想修改用户设置，请使用以下命令:"
-    echo "-a (添加用户)"
-    echo "-d (删除用户)"
-    echo "-l (列出所有用户)"
-    echo "-m (修改用户密码)"
+    echo -e "${Info} L2tp端口    : ${Green}${l2tpport}${Nc}"
+    echo -e "${Info} L2tp用户名  : ${Green}${l2tpuser}${Nc}"
+    echo -e "${Info} L2tp密码    : ${Green}${l2tppass}${Nc}"
+    echo -e "${Info} L2tpPSK密钥 : ${Green}${l2tppsk}${Nc}"
+    echo
+    echo -e "${Info} Pttp端口    : ${Green}${pptpport}${Nc}"
+    echo -e "${Info} Pttp用户名  : ${Green}${pptpuser}${Nc}"
+    echo -e "${Info} Pttp密码    : ${Green}${pptppass}${Nc}"
+    echo
+    echo -e "${Info} 完整的用户配置请查看 ${Green}/etc/ppp/chap-secrets${Nc} 文件"
     echo
 }
 
 
-l2tp(){
+vpn(){
     clear
     echo
     echo "###############################################################"
-    echo "# L2TP 安装脚本                                               #"
+    echo "# VPN 安装脚本                                                #"
     echo "###############################################################"
     echo
-    rootness
-    tunavailable
-    disable_selinux
-    version_check
-    get_os_info
-    preinstall_l2tp
-    install_l2tp
+    check_root
+    install_base
+    install_vpn
     finally
 }
 
-list_users(){
-    if [ ! -f /etc/ppp/chap-secrets ];then
-        echo "错误: /etc/ppp/chap-secrets 文件未找到."
-        exit 1
-    fi
-    local line="+-------------------------------------------+\n"
-    local string=%20s
-    printf "${line}|${string} |${string} |\n${line}" 用户名 密码
-    grep -v "^#" /etc/ppp/chap-secrets | awk '{printf "|'${string}' |'${string}' |\n", $1,$3}'
-    printf ${line}
-}
-
-add_user(){
-    while :
-    do
-        read -p "请输入用户名:" user
-        if [ -z ${user} ]; then
-            echo "用户名不能为空"
-        else
-            grep -w "${user}" /etc/ppp/chap-secrets > /dev/null 2>&1
-            if [ $? -eq 0 ];then
-                echo "用户名 (${user}) 已存在。请重新输入用户名。"
-            else
-                break
-            fi
-        fi
-    done
-    pass=`rand`
-    echo "请输入 ${user} 的密码:"
-    read -p "(默认密码: ${pass}):" tmppass
-    [ ! -z ${tmppass} ] && pass=${tmppass}
-    echo "${user}    l2tpd    ${pass}       *" >> /etc/ppp/chap-secrets
-    echo "用户 (${user}) 添加完成。"
-}
-
-del_user(){
-    while :
-    do
-        read -p "请输入要删除的用户名:" user
-        if [ -z ${user} ]; then
-            echo "用户名不能为空"
-        else
-            grep -w "${user}" /etc/ppp/chap-secrets >/dev/null 2>&1
-            if [ $? -eq 0 ];then
-                break
-            else
-                echo "用户名 (${user}) 不存在。请重新输入用户名。"
-            fi
-        fi
-    done
-    sed -i "/^\<${user}\>/d" /etc/ppp/chap-secrets
-    echo "用户 (${user}) 删除完成。"
-}
-
-mod_user(){
-    while :
-    do
-        read -p "请输入要修改密码的用户名:" user
-        if [ -z ${user} ]; then
-            echo "用户名不能为空"
-        else
-            grep -w "${user}" /etc/ppp/chap-secrets >/dev/null 2>&1
-            if [ $? -eq 0 ];then
-                break
-            else
-                echo "用户名 (${user}) 不存在。请重新输入用户名。"
-            fi
-        fi
-    done
-    pass=`rand`
-    echo "请输入 ${user} 的新密码:"
-    read -p "(默认密码: ${pass}):" tmppass
-    [ ! -z ${tmppass} ] && pass=${tmppass}
-    sed -i "/^\<${user}\>/d" /etc/ppp/chap-secrets
-    echo "${user}    l2tpd    ${pass}       *" >> /etc/ppp/chap-secrets
-    echo "用户 ${user} 的密码已更改。"
-}
-
-# 主程序
-action=$1
-if [ -z ${action} ] && [ "`basename $0`" != "l2tp" ]; then
-    action=install
-fi
-
-case ${action} in
-    install)
-        l2tp 2>&1 | tee ${cur_dir}/l2tp.log
-        ;;
-    -l|--list)
-        list_users
-        ;;
-    -a|--add)
-        add_user
-        ;;
-    -d|--del)
-        del_user
-        ;;
-    -m|--mod)
-        mod_user
-        ;;
-    -h|--help)
-        echo "用法:  -l,--list   列出所有用户"
-        echo "       -a,--add    添加用户"
-        echo "       -d,--del    删除用户"
-        echo "       -m,--mod    修改用户密码"
-        echo "       -h,--help   打印此帮助信息"
-        ;;
-    *)
-        echo "用法: [-l,--查看用户|-a,--添加用户|-d,--删除用户|-m,--修改密码|-h,--帮助信息]" && exit
-        ;;
-esac
+vpn
