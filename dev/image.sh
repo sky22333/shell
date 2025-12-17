@@ -9,7 +9,6 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# 检查 root 权限
 check_root() {
     if [ "$(id -u)" -ne 0 ]; then
         echo -e "${RED}错误：必须使用 root 权限运行此脚本${NC}"
@@ -88,7 +87,6 @@ confirm_operation() {
     echo -e "\n${YELLOW}当前内核：${NC}$(uname -r)"
     echo -e "${YELLOW}虚拟化：${NC}$(systemd-detect-virt 2>/dev/null || echo '未知')"
     
-    # 显示将要删除的 Cloud 内核
     local cloud_pkgs=$(dpkg -l 2>/dev/null | awk '/linux-(image|headers)-[0-9].*cloud/ {print $2}')
     if [ -n "$cloud_pkgs" ]; then
         echo -e "\n${YELLOW}将要卸载的 Cloud 内核：${NC}"
@@ -111,7 +109,6 @@ check_cloud_kernel() {
     if ! uname -r | grep -q 'cloud'; then
         echo -e "${GREEN}提示：系统已在标准内核运行 ($(uname -r))${NC}"
         
-        # 检查是否还有 Cloud 内核包
         local cloud_pkgs=$(dpkg -l 2>/dev/null | awk '/linux-(image|headers)-[0-9].*cloud/ {print $2}')
         if [ -n "$cloud_pkgs" ]; then
             echo -e "${YELLOW}但系统中仍有 Cloud 内核包：${NC}"
@@ -175,20 +172,16 @@ remove_cloud_kernels() {
     echo -e "正在卸载以下包："
     echo "$cloud_pkgs" | sed 's/^/  /'
     
-    # 解锁所有 Cloud 内核
     apt-mark unhold $cloud_pkgs > /dev/null 2>&1
     
-    # 彻底卸载
     DEBIAN_FRONTEND=noninteractive apt purge -y $cloud_pkgs 2>&1 | grep -E "正在|Removing|移除|卸载"
     
     if [ ${PIPESTATUS[0]} -ne 0 ]; then
         echo -e "${YELLOW}警告：部分包卸载失败，继续执行...${NC}"
     fi
     
-    # 清理残留
     apt autoremove -y --purge > /dev/null 2>&1
     
-    # 验证是否清理干净
     local remaining=$(dpkg -l 2>/dev/null | awk '/linux-(image|headers|modules)-[0-9].*cloud/ {print $2}')
     if [ -n "$remaining" ]; then
         echo -e "${YELLOW}警告：以下包未能完全卸载：${NC}"
@@ -205,7 +198,6 @@ configure_grub() {
     mkdir -p /root/grub_backup
     cp /etc/default/grub /root/grub_backup/grub.default.$(date +%s) 2>/dev/null
     
-    # 使用简单的 GRUB_DEFAULT=0
     cat > /etc/default/grub <<'EOF'
 GRUB_DEFAULT=0
 GRUB_TIMEOUT=5
@@ -227,7 +219,6 @@ update_grub_config() {
     echo -e "重新生成 GRUB 配置..."
     update-grub 2>&1 | grep -E "Found|Generating|生成|找到"
     
-    # 明确设置默认启动项为 0
     grub-set-default 0
     
     if [ -d /sys/firmware/efi ]; then
@@ -265,7 +256,6 @@ verify_configuration() {
     echo -e "${GREEN}✓ 验证完成${NC}"
 }
 
-# 主函数
 main() {
     echo -e "\n${GREEN}Debian/Ubuntu 内核切换脚本${NC}\n"
     
