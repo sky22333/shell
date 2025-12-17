@@ -24,7 +24,7 @@ read -p "请输入要安装的 Go 版本 [默认: ${DEFAULT_VERSION}]: " GO_VERS
 GO_VERSION=${GO_VERSION:-$DEFAULT_VERSION}
 
 if ! [[ "$GO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo -e "${RED}错误：版本号格式不正确，版本号可在 https://golang.org/dl 查看${NC}"
+    echo -e "${RED}错误：版本号格式不正确，版本号可在 https://go.dev/dl 查看${NC}"
     exit 1
 fi
 
@@ -59,7 +59,7 @@ echo -e "${GREEN}开始下载 Go ${GO_VERSION} 安装包...${NC}"
 wget --progress=bar:force "${GO_URL}"
 if [ $? -ne 0 ]; then
     echo -e "${RED}下载失败，请检查网络连接和版本号是否正确${NC}"
-    echo "可用的Go版本可在 https://golang.org/dl/ 查看"
+    echo "可用的Go版本可在 https://go.dev/dl 查看"
     exit 1
 fi
 
