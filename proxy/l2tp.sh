@@ -29,7 +29,7 @@ check_root(){
     if [ ! -c "/dev/ppp" ]; then
         echo -e "${Error} 警告: 当前内核不支持PPP，无法安装L2TP。"
         echo -e "${Tip} 当前内核版本: $(uname -r)"
-        echo -e "${Tip} 请更换为支持PPP的标准Linux内核。"
+        echo -e "${Tip} 请更换支持PPP的标准Linux内核。"
         exit 1
     fi
 }
