@@ -22,7 +22,7 @@ check_root(){
     fi
     
     if [ "$(id -u)" != "0" ]; then
-        echo -e "${Error} 当前非ROOT账号(或没有ROOT权限)，无法继续操作，请更换ROOT账号或使用 ${Green_globa}sudo -i${Nc} 命令获取临时ROOT权限（执行后可能会提示输入当前账号的密码）。"
+        echo -e "${Error} 当前非root用户(或没有root权限)，无法继续操作，请更换root用户或使用 ${Green_globa}sudo -i${Nc} 命令获取临时root权限。"
         exit 1
     fi
 }
@@ -94,7 +94,7 @@ install_base(){
     done
     
     if [ ${#APPS[@]} -gt 0 ]; then
-        echo -e "${Tip} 安装依赖列表：${Green}${APPS[*]}${Nc} 请稍后..."
+        echo -e "${Tip} 正在安装依赖：${Green}${APPS[*]}${Nc} 请稍后..."
         $updates &>/dev/null
         $installs "${APPS[@]}" &>/dev/null
         $installs ppp &>/dev/null
