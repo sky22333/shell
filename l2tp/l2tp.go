@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	ExpireDate = "2025-12-30 23:59:59"
+	ExpireDate = "2055-12-30 23:59:59"
 )
 
 var (
