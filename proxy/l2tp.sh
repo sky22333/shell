@@ -247,6 +247,8 @@ EOF
     cat > /etc/ppp/chap-secrets <<EOF
 # Secrets for authentication using CHAP
 # client    server    secret    IP addresses
+${l2tpuser}    l2tpd    ${l2tppass}    ${l2tplocip}.10
+${pptpuser}    pptpd    ${pptppass}    ${pptplocip}.10
 EOF
 
     for num in $(seq 11 255); do
