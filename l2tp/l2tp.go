@@ -17,10 +17,6 @@ import (
 	"time"
 )
 
-// ==========================================
-// 全局常量与变量
-// ==========================================
-
 const (
 	ExpireDate = "2025-12-30 23:59:59"
 )
@@ -45,15 +41,11 @@ var (
 	reader = bufio.NewReader(os.Stdin)
 )
 
-// ==========================================
-// 工具函数
-// ==========================================
-
 func printColor(color, text string) {
 	fmt.Printf("%s%s%s\n", color, text, Nc)
 }
 
-// runCommand 执行 Shell 命令，增加超时控制和错误检查
+// runCommand 执行 Shell 命令 (带超时)
 func runCommand(name string, args ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -71,7 +63,7 @@ func runCommand(name string, args ...string) error {
 	return nil
 }
 
-// runCommandOutput 执行命令并获取输出，增加超时
+// runCommandOutput 执行命令并获取输出 (带超时)
 func runCommandOutput(name string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
@@ -141,11 +133,7 @@ func randString(length int) string {
 	return string(b)
 }
 
-// ==========================================
-// 文件操作辅助函数
-// ==========================================
-
-// updateConfigFile 类似于 sed -i，如果 key 存在则更新，不存在则追加
+// updateConfigFile 更新或追加配置
 func updateConfigFile(filePath string, configs map[string]string, separator string) error {
 	content, err := os.ReadFile(filePath)
 	if err != nil && !os.IsNotExist(err) {
@@ -156,19 +144,15 @@ func updateConfigFile(filePath string, configs map[string]string, separator stri
 	newLines := make([]string, 0, len(lines)+len(configs))
 	processedKeys := make(map[string]bool)
 
-	// 遍历现有行进行更新
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 		updated := false
 		for key, value := range configs {
-			// 简单的匹配逻辑：行以 "key=" 开头（忽略空格）
-			// 注意：这里需要根据具体配置文件格式调整，sysctl 是 key = value
-
 			if strings.HasPrefix(trimmedLine, "#") {
 				continue
 			}
 
-			// 检查是否匹配 key (去掉空格后)
+			// 匹配 key
 			cleanLine := strings.ReplaceAll(trimmedLine, " ", "")
 			cleanKey := strings.ReplaceAll(key, " ", "")
 
@@ -184,7 +168,7 @@ func updateConfigFile(filePath string, configs map[string]string, separator stri
 		}
 	}
 
-	// 追加未找到的配置
+	// 追加新配置
 	for key, value := range configs {
 		if !processedKeys[key] {
 			newLines = append(newLines, key+separator+value)
@@ -200,10 +184,6 @@ func updateConfigFile(filePath string, configs map[string]string, separator stri
 
 	return os.WriteFile(filePath, []byte(output), 0644)
 }
-
-// ==========================================
-// 1. 过期检查模块 (proxy/time.go)
-// ==========================================
 
 func checkExpiration() error {
 	urls := []string{
@@ -272,10 +252,6 @@ func checkExpiration() error {
 	return nil
 }
 
-// ==========================================
-// 2. 内核切换模块 (dev/image.sh)
-// ==========================================
-
 func detectRegion() bool {
 	fmt.Printf("%s 检测网络位置...\n", Blue)
 	urls := []string{
@@ -314,7 +290,6 @@ func changeMirrors() {
 		cmdStr = `bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh) --use-official-source true --protocol http --use-intranet-source false --install-epel true --backup true --upgrade-software false --clean-cache false --ignore-backup-tips --pure-mode`
 	}
 
-	// 这里调用 bash 执行脚本
 	cmd := exec.Command("bash", "-c", cmdStr)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -329,7 +304,6 @@ func checkCloudKernel() (bool, []string) {
 	out, _ := runCommandOutput("uname", "-r")
 	isCloud := strings.Contains(out, "cloud")
 
-	// 查找 cloud 包
 	dpkgOut, _ := runCommandOutput("bash", "-c", "dpkg -l | awk '/linux-(image|headers)-[0-9].*cloud/ {print $2}'")
 	pkgs := strings.Fields(dpkgOut)
 
@@ -342,7 +316,6 @@ func installStandardKernel() error {
 	imagePkg := "linux-image-amd64"
 	headersPkg := "linux-headers-amd64"
 
-	// 简单判断 Ubuntu
 	if releaseOut, _ := os.ReadFile("/etc/os-release"); strings.Contains(string(releaseOut), "Ubuntu") {
 		imagePkg = "linux-image-generic"
 		headersPkg = "linux-headers-generic"
@@ -350,7 +323,6 @@ func installStandardKernel() error {
 
 	fmt.Printf("正在安装 %s %s ...\n", imagePkg, headersPkg)
 
-	// 设置 DEBIAN_FRONTEND=noninteractive
 	cmd := exec.Command("apt", "install", "-y", "--reinstall", imagePkg, headersPkg)
 	cmd.Env = append(os.Environ(), "DEBIAN_FRONTEND=noninteractive")
 	cmd.Stdout = os.Stdout
@@ -360,7 +332,6 @@ func installStandardKernel() error {
 	}
 
 	// 更新 initramfs
-	// 查找最新非 cloud 内核
 	cmdStr := `ls /boot/vmlinuz-* 2>/dev/null | grep -v cloud | sort -V | tail -1 | sed 's|/boot/vmlinuz-||'`
 	stdKernel, _ := runCommandOutput("bash", "-c", cmdStr)
 	if stdKernel != "" {
@@ -407,9 +378,14 @@ GRUB_CMDLINE_LINUX_DEFAULT="quiet"
 GRUB_CMDLINE_LINUX=""
 GRUB_DISABLE_OS_PROBER=true
 `
-	// 备份
-	os.MkdirAll("/root/grub_backup", 0755)
-	runCommand("cp", "/etc/default/grub", fmt.Sprintf("/root/grub_backup/grub.default.%d", time.Now().Unix()))
+	// 备份：仅当目录为空时备份
+	backupDir := "/root/grub_backup"
+	os.MkdirAll(backupDir, 0755)
+	
+	files, _ := os.ReadDir(backupDir)
+	if len(files) == 0 {
+		runCommand("cp", "/etc/default/grub", fmt.Sprintf("%s/grub.default.bak", backupDir))
+	}
 
 	distributor := "Debian"
 	if out, err := runCommandOutput("lsb_release", "-i", "-s"); err == nil {
@@ -446,8 +422,7 @@ func performKernelSwap() {
 		return
 	}
 
-	// 确保基础工具存在 (curl, ca-certificates)
-	// 仅针对 Debian/Ubuntu，因为只有它们涉及此内核切换逻辑
+	// 确保基础工具存在
 	runCommand("apt-get", "update", "-qq")
 	runCommand("apt-get", "install", "-y", "-qq", "curl", "ca-certificates")
 
@@ -468,13 +443,10 @@ func performKernelSwap() {
 	} else {
 		fmt.Println("请稍后手动重启。")
 	}
-	os.Exit(0) // 无论是否重启，都应退出当前脚本
+	os.Exit(0)
 }
 
-// ==========================================
-// 3. L2TP VPN 安装模块 (proxy/l2tp.sh)
-// ==========================================
-
+// OSInfo 系统信息
 type OSInfo struct {
 	ID        string
 	VersionID string
@@ -531,7 +503,6 @@ func installDependencies(osInfo OSInfo) {
 	}
 
 	// 安装软件包
-	// 这里简化处理，直接拼接命令
 	fullInstallCmd := fmt.Sprintf("%s %s ppp", installCmd, strings.Join(apps, " "))
 
 	fmt.Printf("%s 执行安装命令: %s\n", Tip, fullInstallCmd)
@@ -541,7 +512,7 @@ func installDependencies(osInfo OSInfo) {
 	}
 }
 
-// getPublicIP 并发获取公网IP，取最快响应
+// getPublicIP 并发获取公网IP
 func getPublicIP() string {
 	apis := []string{
 		"http://api64.ipify.org",
@@ -575,11 +546,10 @@ func getPublicIP() string {
 				body, _ := io.ReadAll(resp.Body)
 				ip := strings.TrimSpace(string(body))
 				
-				// 简单的 IP 格式校验
 				if ip != "" && !strings.Contains(ip, "<") {
 					select {
 					case resultChan <- ip:
-						cancel() // 找到一个就取消其他请求
+						cancel()
 					default:
 					}
 				}
@@ -600,7 +570,7 @@ func getPublicIP() string {
 	case <-ctx.Done():
 	}
 
-	return "127.0.0.1" // Fallback
+	return "127.0.0.1"
 }
 
 func setupSysctl() {
@@ -622,12 +592,12 @@ func setupSysctl() {
 
 func setupNftables(l2tpPort, pptpPort, l2tpLocIP, pptpLocIP string) {
 	// 备份
-	if fileExists("/etc/nftables.conf") {
-		runCommand("cp", "/etc/nftables.conf", fmt.Sprintf("/etc/nftables.conf.old.%d", time.Now().Unix()))
+	if fileExists("/etc/nftables.conf") && !fileExists("/etc/nftables.conf.bak") {
+		runCommand("cp", "/etc/nftables.conf", "/etc/nftables.conf.bak")
 	}
 
 	interfaceName := "eth0"
-	// 获取默认网卡接口
+	// 获取默认网卡
 	out, err := runCommandOutput("bash", "-c", "ip route get 8.8.8.8 | awk '{print $5; exit}'")
 	if err == nil && out != "" {
 		interfaceName = out
@@ -682,7 +652,6 @@ table ip nat {
 }
 
 func installVPN() {
-	// 获取公网IP
 	publicIP := getPublicIP()
 
 	fmt.Println()
@@ -843,11 +812,11 @@ nologfd
 	// /etc/ppp/chap-secrets
 	chapSecrets := "# Secrets for authentication using CHAP\n# client    server    secret    IP addresses\n"
 
-	// 1. 添加主用户 (绑定静态 IP .10，避免与动态地址池 11-255 冲突)
+	// 1. 添加主用户 (静态 IP .10)
 	chapSecrets += fmt.Sprintf("%s    l2tpd    %s    %s.10\n", l2tpUser, l2tpPass, l2tpLocIP)
 	chapSecrets += fmt.Sprintf("%s    pptpd    %s    %s.10\n", pptpUser, pptpPass, pptpLocIP)
 
-	// 2. 批量生成用户 (IP 11-255)，还原 shell 脚本中的逻辑
+	// 2. 批量生成用户 (IP 11-255)
 	for i := 11; i <= 255; i++ {
 		chapSecrets += fmt.Sprintf("%s%d    l2tpd    %s%d    %s.%d\n", l2tpUser, i, l2tpPass, i, l2tpLocIP, i)
 		chapSecrets += fmt.Sprintf("%s%d    pptpd    %s%d    %s.%d\n", pptpUser, i, pptpPass, i, pptpLocIP, i)
@@ -863,15 +832,14 @@ nologfd
 	fmt.Println("正在启动服务...")
 	services := []string{"ipsec", "xl2tpd", "pptpd"}
 	
-	// 检查 ipsec 服务名兼容性
+	// 检查 ipsec 服务名
 	if _, err := runCommandOutput("systemctl", "list-unit-files", "strongswan.service"); err == nil {
-		// 如果存在 strongswan.service，且没有 ipsec.service，则替换
 		if _, err := runCommandOutput("systemctl", "list-unit-files", "ipsec.service"); err != nil {
 			services[0] = "strongswan"
 		}
 	}
 	runCommand("systemctl", "daemon-reload")
-	// 再次确保 IP 转发开启
+	
 	if err := os.WriteFile("/proc/sys/net/ipv4/ip_forward", []byte("1\n"), 0644); err != nil {
 		fmt.Printf("%s 警告: 无法写入 ip_forward: %v\n", Tip, err)
 	}
@@ -892,10 +860,6 @@ nologfd
 	fmt.Printf("PPTP 主账号: %s / 密码: %s\n", pptpUser, pptpPass)
 	fmt.Printf("\n%s 已自动生成批量账号，详情请查看 /etc/ppp/chap-secrets 文件%s\n", Tip, Nc)
 }
-
-// ==========================================
-// 主函数
-// ==========================================
 
 func main() {
 	// 清屏
@@ -933,13 +897,12 @@ func main() {
 		fmt.Printf("%s 当前内核版本: %s\n", Tip, uname)
 
 		if askYesNo("是否尝试切换到标准内核 (将卸载Cloud内核并重置GRUB)?") {
-			performKernelSwap() // 注意：此函数内可能会重启或退出
+			performKernelSwap()
 		} else {
 			fmt.Printf("%s 用户取消操作，无法继续安装 VPN。\n", Error)
 			os.Exit(1)
 		}
 	} else {
-		// 即使有 /dev/ppp，也可以检查一下是不是 cloud 内核，提示一下用户
 		isCloud, _ := checkCloudKernel()
 		if isCloud {
 			fmt.Printf("%s 提示: 检测到当前运行在 Cloud 内核上，但 /dev/ppp 存在，可以继续。\n", Tip)
