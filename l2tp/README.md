@@ -35,6 +35,8 @@ ps aux | egrep 'xl2tpd|strongswan|pptpd' | grep -v grep
 
 使用s-ui的`TProxy`入站 透明代理来自L2TP的流量，入站选择`TProxy`，端口`12345`为例，路由规则选择`源IP`，`source_ip_cidr`的IP配置为L2TP的内网来源IP，例如`10.10.10.11`，然后选择对应的出站。
 
+3x-ui则使用`tunnel`入站，打开`Follow Redirect`，打开`Sockopt`中的`TProxy`，然后同样的使用源IP路由到指定出站。
+
 **然后使用`iptables`在系统层面拦截`10.10.10.0/24`网段访问公网的流量，交给 Sing-box 处理，按照以下步骤配置**
 
 1：配置 Linux 内核策略路由，将打标流量重定向到本地。
