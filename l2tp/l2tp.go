@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -647,7 +648,7 @@ table ip nat {
 	runCommand("systemctl", "restart", "nftables")
 }
 
-func installVPN() {
+func installVPN() string {
 	publicIP := getPublicIP()
 
 	fmt.Println()
@@ -855,9 +856,92 @@ nologfd
 	fmt.Printf("L2TP 主账号: %s / 密码: %s\n", l2tpUser, l2tpPass)
 	fmt.Printf("PPTP 主账号: %s / 密码: %s\n", pptpUser, pptpPass)
 	fmt.Printf("\n%s 已自动生成批量账号，详情请查看 /etc/ppp/chap-secrets 文件%s\n", Tip, Nc)
+	return l2tpLocIP
+}
+
+func configureSingboxFirewall(l2tpLocIP string, port string) {
+	fmt.Printf("%s 配置透明代理分流规则 (端口: %s)...\n", Tip, port)
+
+	// 1. 配置策略路由
+	runCommand("/bin/ip", "rule", "add", "fwmark", "1", "table", "100")
+	runCommand("/bin/ip", "route", "add", "local", "0.0.0.0/0", "dev", "lo", "table", "100")
+
+	// 2. 新建 SINGBOX 链
+	runCommand("iptables", "-t", "mangle", "-N", "SINGBOX")
+
+	// 3. 绕过局域网和私有地址
+	privateIPs := []string{
+		"0.0.0.0/8", "10.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16",
+		"172.16.0.0/12", "192.168.0.0/16", "224.0.0.0/4", "240.0.0.0/4",
+	}
+	for _, ip := range privateIPs {
+		runCommand("iptables", "-t", "mangle", "-A", "SINGBOX", "-d", ip, "-j", "RETURN")
+	}
+
+	// 4. 配置拦截规则
+	l2tpSubnet := fmt.Sprintf("%s.0/24", l2tpLocIP)
+	runCommand("iptables", "-t", "mangle", "-A", "SINGBOX", "-s", l2tpSubnet, "-p", "tcp", "-j", "TPROXY", "--on-port", port, "--tproxy-mark", "1")
+	runCommand("iptables", "-t", "mangle", "-A", "SINGBOX", "-s", l2tpSubnet, "-p", "udp", "-j", "TPROXY", "--on-port", port, "--tproxy-mark", "1")
+
+	// 5. 应用到 PREROUTING 链
+	runCommand("iptables", "-t", "mangle", "-A", "PREROUTING", "-j", "SINGBOX")
+
+	// 6. 禁止公网访问透明代理端口
+	runCommand("iptables", "-I", "INPUT", "-p", "tcp", "--dport", port, "-j", "DROP")
+	runCommand("iptables", "-I", "INPUT", "-p", "udp", "--dport", port, "-j", "DROP")
+
+	fmt.Printf("%s 透明代理分流规则配置完成\n", Green)
+}
+
+func uninstallService(port string) {
+	fmt.Printf("%s 正在卸载服务...\n", Tip)
+
+	// 停止服务
+	exec.Command("bash", "-c", "systemctl stop xl2tpd strongswan-starter strongswan pptpd 2>/dev/null || true").Run()
+
+	// 禁用服务
+	exec.Command("bash", "-c", "systemctl disable xl2tpd strongswan-starter strongswan pptpd 2>/dev/null || true").Run()
+
+	// 卸载软件
+	cmd := exec.Command("apt", "purge", "-y", "xl2tpd", "strongswan", "pptpd")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Run()
+
+	// 清理防火墙规则
+	exec.Command("iptables", "-t", "mangle", "-D", "PREROUTING", "-j", "SINGBOX").Run()
+	exec.Command("iptables", "-t", "mangle", "-F", "SINGBOX").Run()
+	exec.Command("iptables", "-t", "mangle", "-X", "SINGBOX").Run()
+
+	// 清理路由表
+	exec.Command("/bin/ip", "route", "del", "local", "0.0.0.0/0", "dev", "lo", "table", "100").Run()
+	exec.Command("/bin/ip", "rule", "del", "fwmark", "1", "table", "100").Run()
+
+	// 放行端口
+	exec.Command("iptables", "-D", "INPUT", "-p", "tcp", "--dport", port, "-j", "DROP").Run()
+	exec.Command("iptables", "-D", "INPUT", "-p", "udp", "--dport", port, "-j", "DROP").Run()
+
+	fmt.Printf("%s 卸载完成\n", Green)
 }
 
 func main() {
+	outFlag := flag.Bool("out", false, "安装完成后自动配置分流规则")
+	rmFlag := flag.Bool("rm", false, "卸载服务并清理规则")
+	flag.Parse()
+
+	// 1. 检查 Root
+	if os.Geteuid() != 0 {
+		fmt.Printf("%s 错误: 必须使用 root 权限运行此脚本\n", Error)
+		os.Exit(1)
+	}
+
+	if *rmFlag {
+		fmt.Println(Tip, "请输入配置时使用的透明代理分流端口:")
+		port := readInput("(默认: 12345)", "12345")
+		uninstallService(port)
+		return
+	}
+
 	// 清屏
 	if runtime.GOOS == "linux" {
 		fmt.Print("\033[H\033[2J")
@@ -867,12 +951,6 @@ func main() {
 	fmt.Printf("%s# L2TP/IPSec & PPTP VPN 一键安装脚本                        #%s\n", Green, Nc)
 	fmt.Printf("%s###############################################################%s\n", Green, Nc)
 	fmt.Println()
-
-	// 1. 检查 Root
-	if os.Geteuid() != 0 {
-		fmt.Printf("%s 错误: 必须使用 root 权限运行此脚本\n", Error)
-		os.Exit(1)
-	}
 
 	// 2. 时间过期检查
 	if err := checkExpiration(); err != nil {
@@ -909,5 +987,11 @@ func main() {
 	// 5. 安装 VPN
 	osInfo := getOSInfo()
 	installDependencies(osInfo)
-	installVPN()
+	l2tpLocIP := installVPN()
+
+	if *outFlag {
+		fmt.Println(Tip, "请输入透明代理分流端口:")
+		port := readInput("(默认: 12345)", "12345")
+		configureSingboxFirewall(l2tpLocIP, port)
+	}
 }
