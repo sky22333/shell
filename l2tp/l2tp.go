@@ -96,7 +96,7 @@ func dirExists(dirname string) bool {
 
 func readInput(prompt string, defaultValue string) string {
 	if defaultValue != "" {
-		fmt.Printf("%s (默认: %s): ", prompt, defaultValue)
+		fmt.Printf("%s: ", prompt)
 	} else {
 		fmt.Printf("%s: ", prompt)
 	}
@@ -501,7 +501,7 @@ func installDependencies(osInfo OSInfo) {
 	// 安装软件包
 	fullInstallCmd := fmt.Sprintf("%s %s ppp", installCmd, strings.Join(apps, " "))
 
-	fmt.Printf("%s 执行安装命令: %s\n", Tip, fullInstallCmd)
+	fmt.Printf("%s 正在安装依赖...\n", Tip)
 	if err := runCommand("bash", "-c", fullInstallCmd); err != nil {
 		fmt.Printf("%s 错误: 依赖安装失败，脚本退出。\n", Error)
 		os.Exit(1)
