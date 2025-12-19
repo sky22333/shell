@@ -45,7 +45,7 @@ func printColor(color, text string) {
 	fmt.Printf("%s%s%s\n", color, text, Nc)
 }
 
-// runCommand 执行 Shell 命令 (带超时)
+// runCommand 执行 Shell 命令
 func runCommand(name string, args ...string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -63,7 +63,7 @@ func runCommand(name string, args ...string) error {
 	return nil
 }
 
-// runCommandOutput 执行命令并获取输出 (带超时)
+// runCommandOutput 执行命令并获取输出
 func runCommandOutput(name string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
@@ -283,7 +283,7 @@ func changeMirrors() {
 
 	var cmdStr string
 	if isCN {
-		fmt.Println("使用阿里云镜像...")
+		fmt.Println("使用阿里源...")
 		cmdStr = `bash <(curl -sSL https://gitee.com/SuperManito/LinuxMirrors/raw/main/ChangeMirrors.sh) --source mirrors.aliyun.com --protocol http --use-intranet-source false --install-epel true --backup true --upgrade-software false --clean-cache false --ignore-backup-tips --pure-mode`
 	} else {
 		fmt.Println("使用官方源...")
@@ -369,7 +369,7 @@ func removeCloudKernels(pkgs []string) {
 }
 
 func updateGrub() {
-	fmt.Printf("%s [3/5] 配置与更新 GRUB\n", Yellow)
+	fmt.Printf("%s [3/5] 配置 GRUB\n", Yellow)
 
 	grubConfig := `GRUB_DEFAULT=0
 GRUB_TIMEOUT=5
@@ -416,7 +416,7 @@ func performKernelSwap() {
 	}
 
 	fmt.Printf("\n%s⚠️  高危操作警告 ⚠️%s\n", Red, Nc)
-	fmt.Println("即将执行：更换软件源 -> 安装标准内核 -> 卸载 Cloud 内核 -> 更新引导")
+	fmt.Println("更换内核有可能会失败导致系统无法启动，请务必提前备份重要数据")
 	if !askYesNo("确认继续？") {
 		fmt.Println("操作已取消")
 		return
