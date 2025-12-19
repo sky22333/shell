@@ -1,9 +1,13 @@
 ### L2TP自动安装脚本
 ```
-curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/l2tp/l2tp -o /usr/local/bin/l2tp && chmod +x /usr/local/bin/l2tp
-```
-```
+# 自动安装
 l2tp
+
+# 自动安装以及配置透明代理分流规则
+l2tp -out
+
+# 卸载服务
+l2tp -rm
 ```
 
 ### linux编译
