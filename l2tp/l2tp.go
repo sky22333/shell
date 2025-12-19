@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -196,9 +195,6 @@ func checkExpiration() error {
 
 	client := &http.Client{
 		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
 	}
 
 	var beijingTime time.Time
@@ -480,17 +476,17 @@ func installDependencies(osInfo OSInfo) {
 
 	switch osInfo.ID {
 	case "debian", "ubuntu", "kali":
-		updateCmd = "apt update -y"
-		installCmd = "apt install -y"
+		updateCmd = "apt update -y -q"
+		installCmd = "apt install -y -q"
 	case "alpine":
-		updateCmd = "apk update -f"
-		installCmd = "apk add -f"
+		updateCmd = "apk update -f -q"
+		installCmd = "apk add -f -q"
 	case "centos", "almalinux", "rocky", "oracle", "fedora":
-		updateCmd = "dnf update -y"
-		installCmd = "dnf install -y"
+		updateCmd = "dnf update -y -q"
+		installCmd = "dnf install -y -q"
 		if osInfo.ID == "centos" {
-			updateCmd = "yum update -y"
-			installCmd = "yum install -y"
+			updateCmd = "yum update -y -q"
+			installCmd = "yum install -y -q"
 		}
 	default:
 		fmt.Printf("%s 不支持的操作系统: %s\n", Error, osInfo.ID)
