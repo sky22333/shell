@@ -74,6 +74,12 @@ iptables -t mangle -A SINGBOX -s 10.10.10.0/24 -p udp -j TPROXY --on-port 12345 
 iptables -t mangle -A PREROUTING -j SINGBOX
 ```
 
+6：不允许公网访问透明代理端口
+```
+iptables -I INPUT -p tcp --dport 12345 -j DROP
+iptables -I INPUT -p udp --dport 12345 -j DROP
+```
+
 #### 清理流量规则（按顺序执行）
 ```
 # 清理 iptables 规则
@@ -85,4 +91,9 @@ iptables -t mangle -X SINGBOX
 # 清理策略路由和路由表
 /bin/ip route del local 0.0.0.0/0 dev lo table 100
 /bin/ip rule del fwmark 1 table 100
+```
+```
+# 放行透明代理端口
+iptables -D INPUT -p tcp --dport 12345 -j DROP
+iptables -D INPUT -p udp --dport 12345 -j DROP
 ```
