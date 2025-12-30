@@ -17,9 +17,9 @@ ARCH=$(uname -m)
 if [[ "$OS_TYPE" == "Darwin" ]]; then
     # macOS 配置
     if [[ "$ARCH" == "arm64" ]]; then
-        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.8.0/cloudflared-darwin-arm64.tgz"
+        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-darwin-arm64.tgz"
     else
-        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.8.0/cloudflared-darwin-amd64.tgz"
+        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-darwin-amd64.tgz"
     fi
     CLOUDFLARED_BIN="/usr/local/bin/cloudflared"
     SERVICE_PATH="$HOME/Library/LaunchAgents/com.cloudflare.cloudflared.plist"
@@ -28,9 +28,9 @@ if [[ "$OS_TYPE" == "Darwin" ]]; then
 else
     # Linux 配置
     if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
-        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.8.0/cloudflared-linux-arm64"
+        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-linux-arm64"
     else
-        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.8.0/cloudflared-linux-amd64"
+        CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-linux-amd64"
     fi
     CLOUDFLARED_BIN="/usr/local/bin/cloudflared"
     SERVICE_PATH="/etc/systemd/system/cloudflared-tunnel.service"

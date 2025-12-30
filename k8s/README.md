@@ -52,31 +52,6 @@ apt update && apt install -y helm
 helm version
 ```
 
-## 安装traefik
-
-traefik 是反向代理和证书管理工具：
-
-```bash
-# 添加 Traefik Helm 仓库
-helm repo add traefik https://traefik.github.io/charts
-helm repo update
-
-# 创建 traefik 命名空间
-kubectl create namespace traefik
-
-# 安装 Traefik
-helm install traefik traefik/traefik \
-  --namespace traefik --create-namespace \
-  --set deployment.replicas=1 \
-  --set service.type=LoadBalancer \
-  --set ports.websecure.tls=true \
-  --set ingressClass.enabled=true \
-  --set ingressClass.isDefaultClass=true
-
-# 验证 Traefik 安装
-kubectl get pods -n traefik
-```
-
 ## 常用操作命令
 
 ```bash

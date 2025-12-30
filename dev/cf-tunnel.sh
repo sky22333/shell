@@ -11,9 +11,9 @@ NC='\033[0m' # 清除颜色
 LOC=$(curl -s https://www.cloudflare.com/cdn-cgi/trace | grep 'loc=' | cut -d= -f2)
 
 if [[ "$LOC" == "CN" ]]; then
-    CLOUDFLARED_URL="https://gh-proxy.com/https://github.com/cloudflare/cloudflared/releases/download/2025.9.1/cloudflared-linux-amd64"
+    CLOUDFLARED_URL="https://gh-proxy.com/https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-linux-amd64"
 else
-    CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.9.1/cloudflared-linux-amd64"
+    CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-linux-amd64"
 fi
 
 CLOUDFLARED_BIN="/usr/local/bin/cloudflared"

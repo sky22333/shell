@@ -74,7 +74,7 @@ function Test-AdminRights {
 Write-Host "====== CloudFlared Tunnel Setup Tool ======" -ForegroundColor Cyan
 Write-Host "Initializing..." -ForegroundColor Yellow
 
-$cloudflaredUrl = "https://github.com/cloudflare/cloudflared/releases/download/2025.8.0/cloudflared-windows-amd64.exe"
+$cloudflaredUrl = "https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-windows-amd64.exe"
 $installDir = "$env:ProgramData\cloudflared"
 $cloudflaredBin = Join-Path $installDir "cloudflared.exe"
 $logPath = Join-Path $installDir "cloudflared.log"

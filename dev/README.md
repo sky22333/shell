@@ -59,10 +59,10 @@ iwr -useb https://ghproxy.net/https://raw.githubusercontent.com/sky22333/shell/m
 
 #### 一键修改root密码：
 ```
-bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/root.sh)
+bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/dev/root.sh)
 ```
 ```
-bash <(curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/dev/root.sh)
+bash <(curl -sSL https://cdn.jsdmirror.com/gh/sky22333/shell@main/dev/root.sh)
 ```
 > 部分机器修改不生效，请打开查找`/etc/ssh/sshd_config.d/xxxx.conf`类似文件
 > 
