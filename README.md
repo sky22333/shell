@@ -16,7 +16,6 @@ bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/mirrors.sh) --us
 
 - 更多脚本查看子目录
 
-
 ---
 
 ## Stargazers over time
