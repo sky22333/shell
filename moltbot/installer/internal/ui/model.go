@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"moltbot-installer/internal/style"
@@ -464,8 +465,28 @@ func (m Model) View() string {
 // Commands
 
 func checkEnvCmd() tea.Msg {
-	nodeVer, nodeOk := sys.CheckNode()
-	moltbotVer, moltbotInstalled := sys.CheckMoltbot()
+	var (
+		nodeVer          string
+		nodeOk           bool
+		moltbotVer       string
+		moltbotInstalled bool
+		wg               sync.WaitGroup
+	)
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		nodeVer, nodeOk = sys.CheckNode()
+	}()
+
+	go func() {
+		defer wg.Done()
+		moltbotVer, moltbotInstalled = sys.CheckMoltbot()
+	}()
+
+	wg.Wait()
+
 	return checkMsg{
 		nodeVer:          nodeVer,
 		nodeOk:           nodeOk,

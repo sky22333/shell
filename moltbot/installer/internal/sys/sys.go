@@ -11,6 +11,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
+)
+
+var (
+	cachedNpmPrefix string
+	cachedNodePath  string
+	prefixOnce      sync.Once
+	nodePathOnce    sync.Once
 )
 
 // Config Structures
@@ -105,17 +113,10 @@ func GetMoltbotPath() (string, error) {
 		return path, nil
 	}
 
-	npmPath, err := getNpmPath()
+	npmPrefix, err := getNpmPrefix()
 	if err != nil {
-		return "", fmt.Errorf("无法定位 npm: %v", err)
+		return "", err
 	}
-
-	cmd := exec.Command(npmPath, "config", "get", "prefix")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("无法获取 npm prefix: %v", err)
-	}
-	npmPrefix := strings.TrimSpace(string(out))
 
 	// 检查 clawdbot.cmd
 	possibleClawd := filepath.Join(npmPrefix, "clawdbot.cmd")
@@ -134,12 +135,24 @@ func GetMoltbotPath() (string, error) {
 
 // GetNodePath 获取 Node.js 可执行文件的绝对路径
 func GetNodePath() (string, error) {
-	if path, err := exec.LookPath("node"); err == nil {
-		return path, nil
+	var err error
+	nodePathOnce.Do(func() {
+		if path, e := exec.LookPath("node"); e == nil {
+			cachedNodePath = path
+			return
+		}
+		defaultPath := `C:\Program Files\nodejs\node.exe`
+		if _, e := os.Stat(defaultPath); e == nil {
+			cachedNodePath = defaultPath
+			return
+		}
+		err = fmt.Errorf("未找到 Node.js")
+	})
+	if err != nil {
+		return "", err
 	}
-	defaultPath := `C:\Program Files\nodejs\node.exe`
-	if _, err := os.Stat(defaultPath); err == nil {
-		return defaultPath, nil
+	if cachedNodePath != "" {
+		return cachedNodePath, nil
 	}
 	return "", fmt.Errorf("未找到 Node.js")
 }
@@ -162,14 +175,9 @@ func SetupNodeEnv() error {
 	newPath := nodeDir + string(os.PathListSeparator) + pathEnv
 
 	// 同时确保 npm prefix 在 PATH 中
-	npmPath, err := getNpmPath()
-	if err == nil {
-		cmd := exec.Command(npmPath, "config", "get", "prefix")
-		if out, err := cmd.Output(); err == nil {
-			npmPrefix := strings.TrimSpace(string(out))
-			if !strings.Contains(strings.ToLower(newPath), strings.ToLower(npmPrefix)) {
-				newPath = npmPrefix + string(os.PathListSeparator) + newPath
-			}
+	if npmPrefix, err := getNpmPrefix(); err == nil {
+		if !strings.Contains(strings.ToLower(newPath), strings.ToLower(npmPrefix)) {
+			newPath = npmPrefix + string(os.PathListSeparator) + newPath
 		}
 	}
 
@@ -240,6 +248,28 @@ func getNpmPath() (string, error) {
 		return defaultPath, nil
 	}
 	return "", fmt.Errorf("未找到 npm，请确认 Node.js 安装成功")
+}
+
+func getNpmPrefix() (string, error) {
+	var err error
+	prefixOnce.Do(func() {
+		npmPath, e := getNpmPath()
+		if e != nil {
+			err = fmt.Errorf("无法定位 npm: %v", e)
+			return
+		}
+		cmd := exec.Command(npmPath, "config", "get", "prefix")
+		out, e := cmd.Output()
+		if e != nil {
+			err = fmt.Errorf("无法获取 npm prefix: %v", e)
+			return
+		}
+		cachedNpmPrefix = strings.TrimSpace(string(out))
+	})
+	if err != nil {
+		return "", err
+	}
+	return cachedNpmPrefix, nil
 }
 
 // ConfigureNpmMirror 设置 npm 淘宝镜像
@@ -341,18 +371,10 @@ func EnsureOnPath() (bool, error) {
 		return false, nil // 已存在
 	}
 
-	npmPath, err := getNpmPath()
+	npmPrefix, err := getNpmPrefix()
 	if err != nil {
 		return false, err
 	}
-
-	// 获取 npm prefix
-	cmd := exec.Command(npmPath, "config", "get", "prefix")
-	out, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	npmPrefix := strings.TrimSpace(string(out))
 	npmBin := filepath.Join(npmPrefix, "bin")
 
 	// 查找 clawdbot.cmd 或 moltbot.cmd
