@@ -283,9 +283,7 @@ install() {
     echo -e "${GREEN}=============================================${PLAIN}"
     echo -e "${GREEN} Moltbot 安装配置完成！${PLAIN}"
     echo -e "${GREEN}=============================================${PLAIN}"
-    echo -e "请在 Telegram 中向您的 Bot 发送任意消息以开始配对。"
-    echo -e "获取配对码后，请在菜单中选择 '6. 手动执行命令' -> 输入配对命令，"
-    echo -e "或者直接在终端运行: clawdbot pairing approve telegram <配对码>"
+    echo -e "请在 Telegram 中向您的 Bot 发送任意消息以开始使用。"
     echo -e "${GREEN}=============================================${PLAIN}"
 }
 
