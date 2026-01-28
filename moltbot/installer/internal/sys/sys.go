@@ -461,21 +461,28 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 		},
 		Tools: ToolsConfig{
 			Elevated: ElevatedConfig{
-				Enabled: true,
-				AllowFrom: map[string][]string{
-					"telegram": {opts.AdminID},
-				},
+				Enabled:   true,
+				AllowFrom: map[string][]string{},
 			},
 			Allow: []string{"exec", "process", "read", "write", "edit", "web_search", "web_fetch", "cron"},
 		},
 		Channels: ChannelsConfig{
 			Telegram: TelegramConfig{
-				Enabled:   true,
-				BotToken:  opts.BotToken,
+				Enabled:   false,
 				DMPolicy:  "pairing",
-				AllowFrom: []string{opts.AdminID},
+				AllowFrom: []string{},
 			},
 		},
+	}
+
+	// Configure Telegram if token provided
+	if opts.BotToken != "" {
+		config.Channels.Telegram.Enabled = true
+		config.Channels.Telegram.BotToken = opts.BotToken
+		if opts.AdminID != "" {
+			config.Channels.Telegram.AllowFrom = []string{opts.AdminID}
+			config.Tools.Elevated.AllowFrom["telegram"] = []string{opts.AdminID}
+		}
 	}
 
 	if opts.ApiType == "anthropic" {
@@ -486,6 +493,16 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 			Defaults: AgentDefaults{
 				Model: ModelRef{
 					Primary: "anthropic/claude-opus-4-5",
+				},
+			},
+		}
+	} else if opts.ApiType == "skip" {
+		// Minimal config for Web UI setup
+		config.Channels.Telegram.Enabled = false
+		config.Agents = AgentsConfig{
+			Defaults: AgentDefaults{
+				Model: ModelRef{
+					Primary: "anthropic/claude-opus-4-5", // Default placeholder
 				},
 			},
 		}

@@ -159,14 +159,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.configOpts.ApiType = "anthropic"
 				m.state = StateConfigInput
 				m.configStep = 0
-				m.input.Placeholder = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-				m.input.EchoMode = textinput.EchoNormal
+				m.input.Placeholder = "sk-ant-api03-..."
+				m.input.EchoMode = textinput.EchoPassword
 				m.input.SetValue("")
 			case "2":
 				m.configOpts.ApiType = "openai"
 				m.state = StateConfigInput
 				m.configStep = 0
-				m.input.Placeholder = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+				m.input.Placeholder = "https://api.openai.com/v1"
 				m.input.EchoMode = textinput.EchoNormal
 				m.input.SetValue("")
 			case "q", "esc":
@@ -180,46 +180,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				val := m.input.Value()
-				// Save current step value
-				switch m.configStep {
-				case 0: // Bot Token
-					m.configOpts.BotToken = val
-					m.configStep++
-					m.input.Placeholder = "123456789"
-					m.input.SetValue("")
-				case 1: // Admin ID
-					m.configOpts.AdminID = val
-					m.configStep++
-					if m.configOpts.ApiType == "anthropic" {
-						m.input.Placeholder = "sk-ant-api03-..."
-						m.input.EchoMode = textinput.EchoPassword
-					} else {
-						m.input.Placeholder = "https://api.openai.com/v1"
-						m.input.EchoMode = textinput.EchoNormal
-					}
-					m.input.SetValue("")
-				case 2: // Key (Anthropic) OR BaseURL (OpenAI)
-					if m.configOpts.ApiType == "anthropic" {
+				// Step logic:
+				// Anthropic: 0(Key) -> 1(TG Token) -> 2(TG ID) -> Finish
+				// OpenAI: 0(BaseURL) -> 1(Key) -> 2(Model) -> 3(TG Token) -> 4(TG ID) -> Finish
+
+				if m.configOpts.ApiType == "anthropic" {
+					switch m.configStep {
+					case 0: // API Key
 						m.configOpts.AnthropicKey = val
-						// Finish Anthropic
+						m.configStep++
+						m.input.Placeholder = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+						m.input.EchoMode = textinput.EchoNormal
+						m.input.SetValue("")
+					case 1: // TG Token
+						m.configOpts.BotToken = val
+						m.configStep++
+						m.input.Placeholder = "123456789"
+						m.input.SetValue("")
+					case 2: // TG Admin ID
+						m.configOpts.AdminID = val
 						return m, saveConfigCmd(m.configOpts)
-					} else {
+					}
+				} else {
+					// OpenAI
+					switch m.configStep {
+					case 0: // BaseURL
 						m.configOpts.OpenAIBaseURL = val
 						m.configStep++
 						m.input.Placeholder = "sk-..."
 						m.input.EchoMode = textinput.EchoPassword
 						m.input.SetValue("")
+					case 1: // Key
+						m.configOpts.OpenAIKey = val
+						m.configStep++
+						m.input.Placeholder = "gpt-4o / claude-3-5-sonnet"
+						m.input.EchoMode = textinput.EchoNormal
+						m.input.SetValue("")
+					case 2: // Model
+						m.configOpts.OpenAIModel = val
+						m.configStep++
+						m.input.Placeholder = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
+						m.input.EchoMode = textinput.EchoNormal
+						m.input.SetValue("")
+					case 3: // TG Token
+						m.configOpts.BotToken = val
+						m.configStep++
+						m.input.Placeholder = "123456789"
+						m.input.SetValue("")
+					case 4: // TG Admin ID
+						m.configOpts.AdminID = val
+						return m, saveConfigCmd(m.configOpts)
 					}
-				case 3: // Key (OpenAI)
-					m.configOpts.OpenAIKey = val
-					m.configStep++
-					m.input.Placeholder = "gpt-4o / claude-3-5-sonnet"
-					m.input.EchoMode = textinput.EchoNormal
-					m.input.SetValue("")
-				case 4: // Model (OpenAI)
-					m.configOpts.OpenAIModel = val
-					// Finish OpenAI
-					return m, saveConfigCmd(m.configOpts)
 				}
 				return m, nil
 			}
@@ -430,7 +441,7 @@ func (m Model) View() string {
 
 	case StateConfigApiSelect:
 		s += style.HeaderStyle.Render("配置向导 - 选择 API 类型") + "\n\n"
-		s += "1. Anthropic 官方 API\n"
+		s += "1. Anthropic 官方 API (推荐)\n"
 		s += "2. OpenAI 兼容 API (中转站/其他模型)\n\n"
 		s += style.SubtleStyle.Render("按 1 或 2 选择，Esc 返回") + "\n"
 
@@ -438,25 +449,36 @@ func (m Model) View() string {
 		s += style.HeaderStyle.Render("配置向导") + "\n\n"
 
 		label := ""
-		switch m.configStep {
-		case 0:
-			label = "Telegram Bot Token:"
-		case 1:
-			label = "Telegram User ID (管理员):"
-		case 2:
-			if m.configOpts.ApiType == "anthropic" {
+		if m.configOpts.ApiType == "anthropic" {
+			switch m.configStep {
+			case 0:
 				label = "Anthropic API Key (sk-ant-...):"
-			} else {
-				label = "API Base URL (例如 https://api.example.com/v1):"
+			case 1:
+				label = "Telegram Bot Token (选填, 回车跳过):"
+			case 2:
+				label = "Telegram User ID (管理员) (选填, 回车跳过):"
 			}
-		case 3:
-			label = "API Key:"
-		case 4:
-			label = "模型名称 (例如 gpt-4o):"
+		} else {
+			// OpenAI
+			switch m.configStep {
+			case 0:
+				label = "API Base URL (例如 https://api.example.com/v1):"
+			case 1:
+				label = "API Key:"
+			case 2:
+				label = "模型名称 (例如 gpt-4o):"
+			case 3:
+				label = "Telegram Bot Token (选填, 回车跳过):"
+			case 4:
+				label = "Telegram User ID (管理员) (选填, 回车跳过):"
+			}
 		}
 
 		s += fmt.Sprintf("%s\n\n%s\n\n", label, m.input.View())
 		s += style.SubtleStyle.Render("按 Enter 确认") + "\n"
+		if (m.configOpts.ApiType == "anthropic" && m.configStep >= 1) || (m.configOpts.ApiType == "openai" && m.configStep >= 3) {
+			s += style.SubtleStyle.Render("跳过后可通过 http://127.0.0.1:18789/ Web UI 交互") + "\n"
+		}
 	}
 
 	return style.AppStyle.Render(s)
