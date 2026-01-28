@@ -72,12 +72,9 @@ install_nodejs() {
         fi
     fi
 
-    log_info "正在安装基础依赖 (curl, nano)..."
-    apt-get update
-    apt-get install -y curl nano
-    
+    log_info "正在安装Node.js"
+    apt-get install -y curl
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-    
     apt-get install -y nodejs
     
     if command -v node >/dev/null 2>&1; then
@@ -103,7 +100,6 @@ install_moltbot_core() {
         fi
     fi
     
-    # 强制使用 clawdbot 包，因为更稳定
     npm install -g clawdbot@latest
     
     if command -v clawdbot >/dev/null 2>&1; then
