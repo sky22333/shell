@@ -93,9 +93,9 @@ install_nodejs() {
 install_moltbot_core() {
     log_info "正在安装 Moltbot..."
     
-    if command -v moltbot >/dev/null 2>&1; then
-        CURRENT_VERSION=$(moltbot --version)
-        log_warn "Moltbot 已安装 (版本: ${CURRENT_VERSION})"
+    if command -v clawdbot >/dev/null 2>&1; then
+        CURRENT_VERSION=$(clawdbot --version)
+        log_warn "ClawdBot (Moltbot) 已安装 (版本: ${CURRENT_VERSION})"
         read -p "是否强制重新安装/更新？[y/n]: " force_install
         if [ "$force_install" != "y" ]; then
             log_info "跳过安装步骤。"
@@ -103,13 +103,14 @@ install_moltbot_core() {
         fi
     fi
     
-    npm install -g moltbot@latest
+    # 强制使用 clawdbot 包，因为更稳定
+    npm install -g clawdbot@latest
     
-    if command -v moltbot >/dev/null 2>&1; then
-        VERSION=$(moltbot --version)
-        log_info "Moltbot 安装成功，版本: ${VERSION}"
+    if command -v clawdbot >/dev/null 2>&1; then
+        VERSION=$(clawdbot --version)
+        log_info "ClawdBot 安装成功，版本: ${VERSION}"
     else
-        log_error "Moltbot 安装失败，请检查 npm 权限或网络！"
+        log_error "ClawdBot 安装失败，请检查 npm 权限或网络！"
         exit 1
     fi
 }
@@ -258,7 +259,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=$(command -v moltbot) gateway --verbose
+ExecStart=$(command -v clawdbot) gateway --verbose
 Restart=always
 RestartSec=5
 Environment=HOME=/root
@@ -288,7 +289,7 @@ install() {
     echo -e "${GREEN}=============================================${PLAIN}"
     echo -e "请在 Telegram 中向您的 Bot 发送任意消息以开始配对。"
     echo -e "获取配对码后，请在菜单中选择 '6. 手动执行命令' -> 输入配对命令，"
-    echo -e "或者直接在终端运行: moltbot pairing approve telegram <配对码>"
+    echo -e "或者直接在终端运行: clawdbot pairing approve telegram <配对码>"
     echo -e "${GREEN}=============================================${PLAIN}"
 }
 
@@ -305,10 +306,11 @@ uninstall() {
     rm -f "${SERVICE_FILE}"
     systemctl daemon-reload
     
-    npm uninstall -g moltbot
+    npm uninstall -g clawdbot
+    npm uninstall -g moltbot # 尝试卸载旧包
     rm -rf "${CONFIG_DIR}"
     
-    log_info "Moltbot 已卸载。"
+    log_info "Moltbot (ClawdBot) 已卸载。"
 }
 
 # 菜单
@@ -338,7 +340,7 @@ show_menu() {
         6) journalctl -u moltbot -f ;;
         7) nano "${CONFIG_FILE}" && systemctl restart moltbot && log_info "配置已更新并重启服务" ;;
         8) uninstall ;;
-        9) moltbot doctor ;;
+        9) clawdbot doctor ;;
         0) exit 0 ;;
         *) echo -e "${RED}无效选项，请重新输入${PLAIN}" ;;
     esac
