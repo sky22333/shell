@@ -1,9 +1,12 @@
 package sys
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -12,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 )
 
 var (
@@ -550,18 +555,65 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 	return os.WriteFile(configFile, data, 0644)
 }
 
-// StartGateway 在新窗口启动网关
+// StartGateway 在后台启动网关 (隐藏窗口)
 func StartGateway() error {
 	cmdName, err := GetMoltbotPath()
 	if err != nil {
-		// Fallback if not found (though unlikely if installed)
 		cmdName = "moltbot"
 	}
 
-	// 使用 start 命令在新窗口运行
-	// Windows start command: start "Title" "Executable" args...
-	cmd := exec.Command("cmd", "/c", "start", "Moltbot Gateway", cmdName, "gateway", "--verbose")
+	// 使用 SysProcAttr 隐藏窗口
+	cmd := exec.Command(cmdName, "gateway", "--verbose")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	}
+
+	// 不等待，让其在后台运行
 	return cmd.Start()
+}
+
+// IsGatewayRunning 检查端口 18789 是否被占用
+func IsGatewayRunning() bool {
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:18789", 500*time.Millisecond)
+	if err == nil {
+		conn.Close()
+		return true
+	}
+	return false
+}
+
+// KillGateway 查找占用 18789 端口的进程并强制结束
+func KillGateway() error {
+	// 1. netstat -ano 查找 PID
+	cmd := exec.Command("netstat", "-ano")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	out, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	var pid string
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, ":18789") && strings.Contains(line, "LISTENING") {
+			fields := strings.Fields(line)
+			if len(fields) > 0 {
+				pid = fields[len(fields)-1]
+				break
+			}
+		}
+	}
+
+	if pid == "" {
+		return nil // 未找到，可能已停止
+	}
+
+	// 2. taskkill /F /PID <pid>
+	killCmd := exec.Command("taskkill", "/F", "/PID", pid)
+	killCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return killCmd.Run()
 }
 
 // UninstallMoltbot 卸载 Moltbot/Clawdbot 并清理配置

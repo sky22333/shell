@@ -22,4 +22,7 @@ func main() {
 			fmt.Println("Web Console: http://127.0.0.1:18789/")
 		}
 	}
+
+	fmt.Println("\n按 Enter 键退出...")
+	fmt.Scanln()
 }

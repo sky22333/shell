@@ -28,6 +28,7 @@ const (
 	StateMenu
 	StateConfigApiSelect
 	StateConfigInput
+	StateGatewayRunning
 	StateUninstallConfirm
 	StateUninstalling
 	StateError
@@ -49,6 +50,9 @@ type Model struct {
 	configStep int
 	menuIndex  int
 
+	nextState AppState
+	nextCmd   tea.Cmd
+
 	DidStartGateway bool
 }
 
@@ -58,6 +62,7 @@ type checkMsg struct {
 	needsNode        bool
 	moltbotVer       string
 	moltbotInstalled bool
+	gatewayRunning   bool
 }
 
 type installNodeMsg struct{ err error }
@@ -124,9 +129,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				switch m.menuIndex {
 				case 0: // Start
-					sys.StartGateway()
-					m.DidStartGateway = true
-					return m, tea.Quit
+					if sys.IsGatewayRunning() {
+						m.state = StateGatewayRunning
+					} else {
+						sys.StartGateway()
+						m.DidStartGateway = true
+						return m, tea.Quit
+					}
 				case 1: // Configure
 					m.state = StateConfigApiSelect
 					m.configOpts = sys.ConfigOptions{}
@@ -238,6 +247,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		// Gateway Running Conflict State
+		if m.state == StateGatewayRunning {
+			proceed := false
+			switch msg.String() {
+			case "y", "Y":
+				sys.KillGateway()
+				time.Sleep(1 * time.Second)
+				sys.StartGateway()
+				proceed = true
+			case "n", "N", "esc", "enter":
+				proceed = true
+			}
+
+			if proceed {
+				m.state = m.nextState
+				if m.nextState == StateInstallingNode {
+					m.logs = append(m.logs, style.RenderStep("➜", "正在安装 Node.js (可能需要管理员权限)...", "running"))
+					return m, m.nextCmd
+				} else if m.nextState == StateConfiguringNpm {
+					m.logs = append(m.logs, style.RenderStep("➜", "正在配置 npm 淘宝镜像...", "running"))
+					return m, m.nextCmd
+				}
+				return m, nil
+			}
+			return m, nil
+		}
+
 		// Confirm Install State
 		if m.state == StateConfirmInstall {
 			switch msg.String() {
@@ -288,21 +324,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// Determine Next Step
+		var nextState AppState
+		var nextCmd tea.Cmd
+
 		if msg.moltbotInstalled {
 			m.logs = append(m.logs, style.RenderStep("!", fmt.Sprintf("检测到 Moltbot 已安装 (%s)", msg.moltbotVer), "warning"))
-			m.state = StateConfirmInstall
+			nextState = StateConfirmInstall
+			nextCmd = nil
+		} else if !msg.nodeOk {
+			nextState = StateInstallingNode
+			nextCmd = installNodeCmd
+		} else {
+			nextState = StateConfiguringNpm
+			nextCmd = configNpmCmd
+		}
+
+		m.nextState = nextState
+		m.nextCmd = nextCmd
+
+		// Check Gateway Conflict
+		if msg.gatewayRunning {
+			m.state = StateGatewayRunning
 			return m, nil
 		}
 
-		if !msg.nodeOk {
-			m.state = StateInstallingNode
+		// Proceed immediately if no conflict
+		m.state = nextState
+		if nextState == StateInstallingNode {
 			m.logs = append(m.logs, style.RenderStep("➜", "正在安装 Node.js (可能需要管理员权限)...", "running"))
-			return m, installNodeCmd
+			return m, nextCmd
+		} else if nextState == StateConfiguringNpm {
+			m.logs = append(m.logs, style.RenderStep("➜", "正在配置 npm 淘宝镜像...", "running"))
+			return m, nextCmd
 		}
-
-		m.state = StateConfiguringNpm
-		m.logs = append(m.logs, style.RenderStep("➜", "正在配置 npm 淘宝镜像...", "running"))
-		return m, configNpmCmd
+		return m, nil
 
 	case installNodeMsg:
 		if msg.err != nil {
@@ -407,6 +463,10 @@ func (m Model) View() string {
 	case StateConfirmInstall:
 		s += fmt.Sprintf("\n%s\n", style.SubtleStyle.Render("是否强制重新安装/更新？[y/N]"))
 
+	case StateGatewayRunning:
+		s += fmt.Sprintf("\n%s\n", style.SubtleStyle.Render("检测到 Moltbot 网关已在运行 (端口 18789 被占用)"))
+		s += fmt.Sprintf("\n%s\n", style.SubtleStyle.Render("是否停止旧进程并重新启动？[y/N]"))
+
 	case StateUninstallConfirm:
 		s += fmt.Sprintf("\n%s\n", style.SubtleStyle.Render("确定要卸载 Moltbot 吗？(这将删除配置文件) [y/N]"))
 
@@ -492,10 +552,11 @@ func checkEnvCmd() tea.Msg {
 		nodeOk           bool
 		moltbotVer       string
 		moltbotInstalled bool
+		gatewayRunning   bool
 		wg               sync.WaitGroup
 	)
 
-	wg.Add(2)
+	wg.Add(3)
 
 	go func() {
 		defer wg.Done()
@@ -507,6 +568,11 @@ func checkEnvCmd() tea.Msg {
 		moltbotVer, moltbotInstalled = sys.CheckMoltbot()
 	}()
 
+	go func() {
+		defer wg.Done()
+		gatewayRunning = sys.IsGatewayRunning()
+	}()
+
 	wg.Wait()
 
 	return checkMsg{
@@ -515,6 +581,7 @@ func checkEnvCmd() tea.Msg {
 		needsNode:        !nodeOk,
 		moltbotVer:       moltbotVer,
 		moltbotInstalled: moltbotInstalled,
+		gatewayRunning:   gatewayRunning,
 	}
 }
 
