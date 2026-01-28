@@ -14,14 +14,13 @@ PLAIN='\033[0m'
 
 # 配置文件路径
 # Moltbot 依然使用 .clawdbot 目录以保持兼容性
-CONFIG_DIR="/root/.clawdbot"
-CONFIG_FILE="${CONFIG_DIR}/moltbot.json"
+CONFIG_DIR="${HOME}/.clawdbot"
+CONFIG_FILE="${CONFIG_DIR}/clawdbot.json"
 SERVICE_FILE="/etc/systemd/system/moltbot.service"
 
 check_root() {
     if [ $EUID -ne 0 ]; then
         echo -e "${RED}错误: 请使用 root 用户运行此脚本！${PLAIN}"
-        echo -e "${YELLOW}提示: 请尝试使用 'sudo bash $0' 运行${PLAIN}"
         exit 1
     fi
 }
@@ -258,7 +257,7 @@ User=root
 ExecStart=$(command -v clawdbot) gateway --verbose
 Restart=always
 RestartSec=5
-Environment=HOME=/root
+Environment=HOME=${HOME}
 
 [Install]
 WantedBy=multi-user.target
