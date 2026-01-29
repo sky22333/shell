@@ -6,24 +6,24 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Colors Palette - Modern & Professional
+// 配色方案
 var (
-	ColorPrimary   = lipgloss.Color("#7D56F4") // Purple
-	ColorSecondary = lipgloss.Color("#04B575") // Green
-	ColorError     = lipgloss.Color("#FF3B30") // Red
-	ColorWarning   = lipgloss.Color("#FFCC00") // Yellow
-	ColorSubtle    = lipgloss.Color("#666666") // Grey
-	ColorText      = lipgloss.Color("#E0E0E0") // White-ish
-	ColorHighlight = lipgloss.Color("#2A2A2A") // Dark Grey
-	ColorPanel     = lipgloss.Color("#1E1E1E") // Panel BG
-	ColorBorder    = lipgloss.Color("#333333") // Border
+	ColorPrimary   = lipgloss.Color("#7D56F4") // 紫色
+	ColorSecondary = lipgloss.Color("#04B575") // 绿色
+	ColorError     = lipgloss.Color("#FF3B30") // 红色
+	ColorWarning   = lipgloss.Color("#FFCC00") // 黄色
+	ColorSubtle    = lipgloss.Color("#666666") // 灰色
+	ColorText      = lipgloss.Color("#E0E0E0") // 白字
+	ColorHighlight = lipgloss.Color("#2A2A2A") // 深灰
+	ColorPanel     = lipgloss.Color("#1E1E1E") // 面板底色
+	ColorBorder    = lipgloss.Color("#333333") // 边框
 )
 
-// Base App Style
+// 基础样式
 var AppStyle = lipgloss.NewStyle().
 	Padding(1, 2)
 
-// Headers
+// 标题样式
 var HeaderStyle = lipgloss.NewStyle().
 	Foreground(ColorPrimary).
 	Bold(true).
@@ -41,13 +41,13 @@ var TitleStyle = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder()).
 	BorderForeground(ColorPrimary)
 
-// Status Colors
+// 状态样式
 var SuccessStyle = lipgloss.NewStyle().Foreground(ColorSecondary).Bold(true)
 var ErrorStyle = lipgloss.NewStyle().Foreground(ColorError).Bold(true)
 var WarningStyle = lipgloss.NewStyle().Foreground(ColorWarning)
 var SubtleStyle = lipgloss.NewStyle().Foreground(ColorSubtle)
 
-// Panels
+// 面板样式
 var PanelStyle = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder()).
 	BorderForeground(ColorBorder).
@@ -64,7 +64,7 @@ var WizardPanelStyle = lipgloss.NewStyle().
 	Padding(1, 4).
 	Width(80)
 
-// Menu Styles
+// 菜单样式
 var MenuNormalStyle = lipgloss.NewStyle().
 	Foreground(ColorText).
 	PaddingLeft(2)
@@ -77,7 +77,7 @@ var MenuSelectedStyle = lipgloss.NewStyle().
 	Border(lipgloss.NormalBorder(), false, false, false, true).
 	BorderForeground(ColorSecondary)
 
-// Input & Form Styles
+// 输入框样式
 var KeyStyle = lipgloss.NewStyle().
 	Foreground(ColorPrimary).
 	Bold(true)

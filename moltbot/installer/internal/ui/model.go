@@ -14,7 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// SessionState defines the high-level mode of the application
+// 会话状态
 type SessionState int
 
 const (
@@ -23,7 +23,7 @@ const (
 	StateAction
 )
 
-// Sub-states for specific flows
+// 向导子状态
 type WizardStep int
 
 const (
@@ -42,47 +42,51 @@ const (
 	ActionKillGateway
 )
 
-// Model is the main application state
+// 主程序模型
 type Model struct {
-	// Global State
+	// 全局状态
 	state  SessionState
 	width  int
 	height int
 	
-	// Flag to signal main.go (legacy/compatibility)
+	// 启动标志
 	DidStartGateway bool
 
-	// Dashboard State
+	// 仪表盘状态
 	menuIndex int
 
-	// Wizard State
+	// 向导状态
 	wizardStep WizardStep
 	configOpts sys.ConfigOptions
 	input      textinput.Model
-	inputStep  int // For multi-field steps like API Input
+	inputStep  int // 当前输入步骤
 
-	// Action/Progress State
+	// 动作/进度状态
 	actionType  ActionType
 	spinner     spinner.Model
 	progressMsg string
 	actionErr   error
 	actionDone  bool
 
-	// System Status Cache
+	// 系统状态缓存
 	nodeVer    string
 	nodeOk     bool
 	moltbotVer string
 	moltbotOk  bool
+	gitVer     string
+	gitOk      bool
 	gatewayOk  bool
 	checkDone  bool
 }
 
-// Messages
+// 消息定义
 type checkMsg struct {
 	nodeVer          string
 	nodeOk           bool
 	moltbotVer       string
 	moltbotInstalled bool
+	gitVer           string
+	gitOk            bool
 	gatewayRunning   bool
 }
 
@@ -129,15 +133,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		// Global Back handler for Wizard
+		// 向导模式返回
 		if m.state == StateWizard && msg.String() == "esc" {
 			m.state = StateDashboard
 			return m, nil
 		}
-		// Global Back handler for Action Result
+		// 动作结果确认返回
 		if m.state == StateAction && m.actionDone && (msg.String() == "enter" || msg.String() == "esc") {
 			m.state = StateDashboard
-			// Refresh env after action
+			// 刷新环境
 			return m, checkEnvCmd
 		}
 
@@ -154,10 +158,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.nodeOk = msg.nodeOk
 		m.moltbotVer = msg.moltbotVer
 		m.moltbotOk = msg.moltbotInstalled
+		m.gitVer = msg.gitVer
+		m.gitOk = msg.gitOk
 		m.gatewayOk = msg.gatewayRunning
 		m.checkDone = true
 
-		// If we are in Action mode checking env, this might be a refresh
+		// 如果在动作模式下检查环境，可能需要切回主菜单
 		if m.state == StateAction && m.actionType == ActionCheckEnv {
 			m.state = StateDashboard
 		}
@@ -188,14 +194,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// State-specific updates
+	// 状态更新
 	switch m.state {
 	case StateDashboard:
 		return m.updateDashboard(msg)
 	case StateWizard:
 		return m.updateWizard(msg)
 	case StateAction:
-		// In action state, mostly waiting for msgs, but maybe handle quit
+		// 动作模式下主要等待消息
 		return m, nil
 	}
 
@@ -211,7 +217,7 @@ func (m Model) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.menuIndex--
 			}
 		case "down", "j":
-			if m.menuIndex < 4 { // 5 items (0-4)
+			if m.menuIndex < 4 { // 5个选项 (0-4)
 				m.menuIndex++
 			}
 		case "enter":
@@ -225,7 +231,7 @@ func (m Model) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleMenuSelect() (tea.Model, tea.Cmd) {
 	switch m.menuIndex {
-	case 0: // Start/Restart Gateway
+	case 0: // 启动/重启网关
 		m.state = StateAction
 		m.actionDone = false
 		m.actionErr = nil
@@ -238,26 +244,26 @@ func (m Model) handleMenuSelect() (tea.Model, tea.Cmd) {
 			m.progressMsg = "正在启动网关..."
 			return m, runStartGatewayCmd
 		}
-	case 1: // Configure
+	case 1: // 配置
 		m.state = StateWizard
 		m.wizardStep = StepApiSelect
 		m.configOpts = sys.ConfigOptions{}
 		return m, nil
-	case 2: // Install/Update
+	case 2: // 安装/更新
 		m.state = StateAction
 		m.actionType = ActionInstall
 		m.actionDone = false
 		m.actionErr = nil
 		m.progressMsg = "准备安装..."
 		return m, runInstallFlowCmd
-	case 3: // Uninstall
+	case 3: // 卸载
 		m.state = StateAction
 		m.actionType = ActionUninstall
 		m.actionDone = false
 		m.actionErr = nil
 		m.progressMsg = "正在卸载..."
 		return m, runUninstallCmd
-	case 4: // Exit
+	case 4: // 退出
 		return m, tea.Quit
 	}
 	return m, nil
@@ -292,7 +298,7 @@ func (m Model) updateWizard(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyMsg:
 			if k.String() == "enter" {
 				val := m.input.Value()
-				// Logic handles both Anthropic and OpenAI flows
+				// 处理 Anthropic 或 OpenAI 流程
 				isAnthropic := m.configOpts.ApiType == "anthropic"
 
 				if isAnthropic {
@@ -350,7 +356,7 @@ func (m Model) updateWizard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StepConfirm:
 		if k, ok := msg.(tea.KeyMsg); ok {
 			if k.String() == "enter" {
-				// Run Save Action
+				// 执行保存
 				m.state = StateAction
 				m.actionDone = false
 				m.actionErr = nil
@@ -362,11 +368,10 @@ func (m Model) updateWizard(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// VIEW RENDERING
-
+// 视图渲染
 func (m Model) View() string {
 	if m.width == 0 {
-		return "Loading..."
+		return "加载中..."
 	}
 
 	switch m.state {
@@ -381,10 +386,10 @@ func (m Model) View() string {
 }
 
 func (m Model) renderDashboard() string {
-	// 1. Header
+	// 1. 标题
 	header := style.HeaderStyle.Render("Moltbot Installer")
 
-	// 2. Status Bar
+	// 2. 状态栏
 	nodeStatus := style.Badge("检测中...", "info")
 	if m.checkDone {
 		if m.nodeOk {
@@ -407,6 +412,18 @@ func (m Model) renderDashboard() string {
 		}
 	}
 
+	gitStatus := style.Badge("检测中...", "info")
+	if m.checkDone {
+		if m.gitOk {
+			ver := m.gitVer
+			// 清理版本字符串 "git version 2.x.y..."
+			ver = strings.Replace(ver, "git version ", "", 1)
+			gitStatus = style.Badge(ver, "success")
+		} else {
+			gitStatus = style.Badge("缺失", "warning")
+		}
+	}
+
 	gwStatus := style.Badge("...", "info")
 	if m.checkDone {
 		if m.gatewayOk {
@@ -419,11 +436,12 @@ func (m Model) renderDashboard() string {
 	statusPanel := style.PanelStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
 		style.SubHeaderStyle.Render("系统状态"),
 		fmt.Sprintf("Node.js 环境:  %s", nodeStatus),
+		fmt.Sprintf("Git 环境:      %s", gitStatus),
 		fmt.Sprintf("Moltbot 核心:  %s", moltStatus),
 		fmt.Sprintf("网关进程:      %s", gwStatus),
 	))
 
-	// 3. Menu
+	// 3. 菜单
 	menuItems := []struct{ title, desc string }{
 		{"启动/重启服务", "管理后台网关进程"},
 		{"配置向导", "设置 API 密钥与机器人参数"},
@@ -432,7 +450,7 @@ func (m Model) renderDashboard() string {
 		{"退出", "关闭控制台"},
 	}
 
-	// Dynamic text for toggle
+	// 动态切换文本
 	if m.gatewayOk {
 		menuItems[0].title = "重启服务"
 		menuItems[0].desc = "停止当前进程并重新启动"
@@ -457,9 +475,9 @@ func (m Model) renderDashboard() string {
 		style.SubtleStyle.Render("使用 ↑/↓ 选择，Enter 确认"),
 	))
 
-	// Layout
+	// 4. 布局
 	if m.width > 100 {
-		// Side by Side
+		// 并排
 		return style.AppStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
 			header,
 			"",
@@ -467,7 +485,7 @@ func (m Model) renderDashboard() string {
 		))
 	}
 
-	// Vertical Stack
+	// 垂直堆叠
 	return style.AppStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		"",
@@ -581,24 +599,27 @@ func (m Model) renderAction() string {
 	return style.AppStyle.Render(style.PanelStyle.Render(content))
 }
 
-// COMMANDS
+// 指令处理
 
 func checkEnvCmd() tea.Msg {
 	nodeVer, nodeOk := sys.CheckNode()
 	moltVer, moltOk := sys.CheckMoltbot()
+	gitVer, gitOk := sys.CheckGit()
 	gwRun := sys.IsGatewayRunning()
 	return checkMsg{
 		nodeVer:          nodeVer,
 		nodeOk:           nodeOk,
 		moltbotVer:       moltVer,
 		moltbotInstalled: moltOk,
+		gitVer:           gitVer,
+		gitOk:            gitOk,
 		gatewayRunning:   gwRun,
 	}
 }
 
 func runStartGatewayCmd() tea.Msg {
 	sys.StartGateway()
-	time.Sleep(1 * time.Second) // Wait for startup
+	time.Sleep(1 * time.Second) // 等待启动
 	return actionResultMsg{err: nil}
 }
 
@@ -609,11 +630,11 @@ func runKillGatewayCmd() tea.Msg {
 }
 
 func runUninstallCmd() tea.Msg {
-	// 1. Try to stop gateway if running
+	// 1. 尝试停止网关
 	_ = sys.KillGateway()
 	time.Sleep(1 * time.Second)
 
-	// 2. Uninstall files
+	// 2. 卸载文件
 	err := sys.UninstallMoltbot()
 	return actionResultMsg{err: err}
 }
@@ -626,14 +647,17 @@ func runSaveConfigCmd(opts sys.ConfigOptions) tea.Cmd {
 }
 
 func runInstallFlowCmd() tea.Msg {
-	// Linear flow: Check Node -> Install Node -> Config NPM -> Install Moltbot -> Config System
-	// Simplified to a blocking chain for "Action" state simplicity,
-	// or we can use tea.Sequence if we want granular updates.
-	// For now, we do a blocking sequence in a goroutine wrapper.
+	// 线性流程: 检查Node -> 安装Node -> 检查Git -> 安装Git -> 配置NPM -> 安装Moltbot -> 配置系统
+	// 为简化状态，使用阻塞执行
 
 	err := sys.InstallNode()
 	if err != nil {
 		return actionResultMsg{err: fmt.Errorf("node.js 安装失败: %v", err)}
+	}
+
+	err = sys.InstallGit()
+	if err != nil {
+		return actionResultMsg{err: fmt.Errorf("git 安装失败: %v", err)}
 	}
 
 	err = sys.ConfigureNpmMirror()
@@ -648,7 +672,7 @@ func runInstallFlowCmd() tea.Msg {
 
 	_, err = sys.EnsureOnPath()
 	if err != nil {
-		// Non-fatal
+		// 非致命错误
 	}
 
 	sys.RunDoctor()

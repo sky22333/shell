@@ -22,12 +22,13 @@ import (
 var (
 	cachedNpmPrefix string
 	cachedNodePath  string
+	cachedGitPath   string
 	prefixOnce      sync.Once
 	nodePathOnce    sync.Once
+	gitPathOnce     sync.Once
 )
 
-// Config Structures
-
+// MoltbotConfig 配置结构
 type MoltbotConfig struct {
 	Gateway  GatewayConfig     `json:"gateway"`
 	Env      map[string]string `json:"env,omitempty"`
@@ -108,9 +109,8 @@ type TelegramConfig struct {
 	AllowFrom []string `json:"allowFrom"`
 }
 
-// GetMoltbotPath 尝试解析 moltbot 或 clawdbot 的绝对路径
+// GetMoltbotPath 获取执行路径
 func GetMoltbotPath() (string, error) {
-	// 优先检查 clawdbot
 	if path, err := exec.LookPath("clawdbot"); err == nil {
 		return path, nil
 	}
@@ -123,13 +123,11 @@ func GetMoltbotPath() (string, error) {
 		return "", err
 	}
 
-	// 检查 clawdbot.cmd
 	possibleClawd := filepath.Join(npmPrefix, "clawdbot.cmd")
 	if _, err := os.Stat(possibleClawd); err == nil {
 		return possibleClawd, nil
 	}
 
-	// 检查 moltbot.cmd
 	possibleMolt := filepath.Join(npmPrefix, "moltbot.cmd")
 	if _, err := os.Stat(possibleMolt); err == nil {
 		return possibleMolt, nil
@@ -138,7 +136,7 @@ func GetMoltbotPath() (string, error) {
 	return "", fmt.Errorf("未找到 moltbot 或 clawdbot 可执行文件")
 }
 
-// GetNodePath 获取 Node.js 可执行文件的绝对路径
+// GetNodePath 获取 Node 路径
 func GetNodePath() (string, error) {
 	var err error
 	nodePathOnce.Do(func() {
@@ -162,8 +160,36 @@ func GetNodePath() (string, error) {
 	return "", fmt.Errorf("未找到 Node.js")
 }
 
-// SetupNodeEnv 将 Node.js 所在目录添加到当前进程的 PATH 环境变量
-// 这对于刚安装完 Node.js 但未重启终端的情况非常重要
+// GetGitPath 获取 Git 路径
+func GetGitPath() (string, error) {
+	var err error
+	gitPathOnce.Do(func() {
+		if path, e := exec.LookPath("git"); e == nil {
+			cachedGitPath = path
+			return
+		}
+		defaultPaths := []string{
+			`C:\Program Files\Git\cmd\git.exe`,
+			`C:\Program Files\Git\bin\git.exe`,
+		}
+		for _, p := range defaultPaths {
+			if _, e := os.Stat(p); e == nil {
+				cachedGitPath = p
+				return
+			}
+		}
+		err = fmt.Errorf("未找到 Git")
+	})
+	if err != nil {
+		return "", err
+	}
+	if cachedGitPath != "" {
+		return cachedGitPath, nil
+	}
+	return "", fmt.Errorf("未找到 Git")
+}
+
+// SetupNodeEnv 配置 Node 环境变量
 func SetupNodeEnv() error {
 	nodeExe, err := GetNodePath()
 	if err != nil {
@@ -172,14 +198,12 @@ func SetupNodeEnv() error {
 	nodeDir := filepath.Dir(nodeExe)
 
 	pathEnv := os.Getenv("PATH")
-	// 简单检查是否已包含 (忽略大小写)
 	if strings.Contains(strings.ToLower(pathEnv), strings.ToLower(nodeDir)) {
 		return nil
 	}
 
 	newPath := nodeDir + string(os.PathListSeparator) + pathEnv
 
-	// 同时确保 npm prefix 在 PATH 中
 	if npmPrefix, err := getNpmPrefix(); err == nil {
 		if !strings.Contains(strings.ToLower(newPath), strings.ToLower(npmPrefix)) {
 			newPath = npmPrefix + string(os.PathListSeparator) + newPath
@@ -189,10 +213,25 @@ func SetupNodeEnv() error {
 	return os.Setenv("PATH", newPath)
 }
 
-// CheckMoltbot 检查 Moltbot 是否已安装
-// 返回: (版本号, 是否已安装)
+// SetupGitEnv 配置 Git 环境变量
+func SetupGitEnv() error {
+	gitExe, err := GetGitPath()
+	if err != nil {
+		return err
+	}
+	gitDir := filepath.Dir(gitExe)
+
+	pathEnv := os.Getenv("PATH")
+	if strings.Contains(strings.ToLower(pathEnv), strings.ToLower(gitDir)) {
+		return nil
+	}
+
+	newPath := gitDir + string(os.PathListSeparator) + pathEnv
+	return os.Setenv("PATH", newPath)
+}
+
+// CheckMoltbot 检查安装状态
 func CheckMoltbot() (string, bool) {
-	// 确保环境正确
 	SetupNodeEnv()
 
 	cmdName, err := GetMoltbotPath()
@@ -200,7 +239,6 @@ func CheckMoltbot() (string, bool) {
 		return "", false
 	}
 
-	// Get version
 	cmd := exec.Command("cmd", "/c", cmdName, "--version")
 	out, err := cmd.Output()
 	if err != nil {
@@ -209,9 +247,8 @@ func CheckMoltbot() (string, bool) {
 	return strings.TrimSpace(string(out)), true
 }
 
-// CheckNode 检查 Node.js 版本是否 >= 22
+// CheckNode 检查 Node 版本
 func CheckNode() (string, bool) {
-	// Try to find node
 	nodePath, err := GetNodePath()
 	if err != nil {
 		return "", false
@@ -223,7 +260,7 @@ func CheckNode() (string, bool) {
 		return "", false
 	}
 
-	versionStr := strings.TrimSpace(string(out)) // e.g., "v22.1.0"
+	versionStr := strings.TrimSpace(string(out))
 	re := regexp.MustCompile(`v(\d+)\.`)
 	matches := re.FindStringSubmatch(versionStr)
 	if len(matches) < 2 {
@@ -241,13 +278,28 @@ func CheckNode() (string, bool) {
 	return versionStr, false
 }
 
-// getNpmPath 获取 npm 可执行文件路径
+// CheckGit 检查 Git 状态
+func CheckGit() (string, bool) {
+	gitPath, err := GetGitPath()
+	if err != nil {
+		return "", false
+	}
+
+	cmd := exec.Command(gitPath, "--version")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", false
+	}
+
+	return strings.TrimSpace(string(out)), true
+}
+
+// getNpmPath 获取 npm
 func getNpmPath() (string, error) {
 	path, err := exec.LookPath("npm")
 	if err == nil {
 		return path, nil
 	}
-	// Try default Windows install path
 	defaultPath := `C:\Program Files\nodejs\npm.cmd`
 	if _, err := os.Stat(defaultPath); err == nil {
 		return defaultPath, nil
@@ -277,13 +329,12 @@ func getNpmPrefix() (string, error) {
 	return cachedNpmPrefix, nil
 }
 
-// ConfigureNpmMirror 设置 npm 淘宝镜像
+// ConfigureNpmMirror 配置镜像
 func ConfigureNpmMirror() error {
 	npmPath, err := getNpmPath()
 	if err != nil {
 		return err
 	}
-	// 设置 registry 为淘宝镜像
 	cmd := exec.Command(npmPath, "config", "set", "registry", "https://registry.npmmirror.com/")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("设置 npm 镜像失败: %v", err)
@@ -291,57 +342,52 @@ func ConfigureNpmMirror() error {
 	return nil
 }
 
-// InstallNode 下载并安装 Node.js MSI
-func InstallNode() error {
-	// 0. Check existing installation
-	_, ok := CheckNode()
-	if ok {
-		// Version is >= 22, skip install
+// downloadFile 下载文件
+func downloadFile(url, dest string) error {
+	if info, err := os.Stat(dest); err == nil && info.Size() > 10000000 {
 		return nil
 	}
-	// If version exists but is old (ok=false, verStr not empty), we update.
-	// If verStr is empty, we install fresh.
+
+	fmt.Printf("正在下载: %s\n", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("下载失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("下载失败，状态码: %d", resp.StatusCode)
+	}
+
+	out, err := os.Create(dest)
+	if err != nil {
+		return fmt.Errorf("创建文件失败: %v", err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+	return nil
+}
+
+// InstallNode 安装 Node.js
+func InstallNode() error {
+	if _, ok := CheckNode(); ok {
+		return nil
+	}
 
 	msiUrl := "https://nodejs.org/dist/v24.13.0/node-v24.13.0-x64.msi"
 	tempDir := os.TempDir()
 	msiPath := filepath.Join(tempDir, "node-v24.13.0-x64.msi")
 
-	// 1. 下载 MSI
-	// Check if file already exists and has size (basic cache check)
-	if info, err := os.Stat(msiPath); err == nil && info.Size() > 10000000 {
-		// Assume valid if > 10MB, skip download
-	} else {
-		fmt.Printf("正在下载 Node.js: %s\n", msiUrl)
-		resp, err := http.Get(msiUrl)
-		if err != nil {
-			return fmt.Errorf("下载失败: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("下载失败，状态码: %d", resp.StatusCode)
-		}
-
-		out, err := os.Create(msiPath)
-		if err != nil {
-			return fmt.Errorf("创建文件失败: %v", err)
-		}
-		defer out.Close()
-
-		_, err = io.Copy(out, resp.Body)
-		if err != nil {
-			return fmt.Errorf("写入文件失败: %v", err)
-		}
+	if err := downloadFile(msiUrl, msiPath); err != nil {
+		return err
 	}
 
-	// 2. 安装 MSI (静默安装)
-	// msiexec /i <file> /qn
-	// Error 1619: This installation package could not be opened.
-	// Error 1603: Fatal error during installation.
-	// Error 1618: Another installation is already in progress.
 	fmt.Println("正在安装 Node.js (可能需要管理员权限)...")
 	
-	// Retry loop for 1618 (Another installation in progress)
 	for i := 0; i < 3; i++ {
 		installCmd := exec.Command("msiexec", "/i", msiPath, "/qn")
 		output, err := installCmd.CombinedOutput()
@@ -355,10 +401,8 @@ func InstallNode() error {
 			continue
 		}
 		
-		// If error is 1619, maybe file is corrupted, delete and retry download? 
-		// For now just return error but with better message
 		if strings.Contains(outStr, "1619") {
-			return fmt.Errorf("安装包损坏或无法打开 (Error 1619). 请尝试手动下载安装: %s", msiUrl)
+			return fmt.Errorf("安装包损坏 (Error 1619). 请尝试手动下载: %s", msiUrl)
 		}
 		
 		if i == 2 {
@@ -367,18 +411,48 @@ func InstallNode() error {
 		time.Sleep(2 * time.Second)
 	}
 
-	// 3. 刷新环境变量 (当前进程无法立即生效，但后续调用 getNpmPath 会尝试绝对路径)
 	SetupNodeEnv()
 	return nil
 }
 
-// InstallMoltbotNpm 使用 npm 全局安装
+// InstallGit 安装 Git
+func InstallGit() error {
+	if _, ok := CheckGit(); ok {
+		return nil
+	}
+
+	gitUrl := "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe"
+	tempDir := os.TempDir()
+	exePath := filepath.Join(tempDir, "Git-2.52.0-64-bit.exe")
+
+	fmt.Println("正在下载 Git...")
+	if err := downloadFile(gitUrl, exePath); err != nil {
+		return fmt.Errorf("git 下载失败: %v", err)
+	}
+
+	fmt.Println("正在安装 Git (可能需要管理员权限)...")
+	installCmd := exec.Command(exePath,
+		"/VERYSILENT",
+		"/NORESTART",
+		"/NOCANCEL",
+		"/SP-",
+		"/CLOSEAPPLICATIONS",
+		"/RESTARTAPPLICATIONS",
+		"/o:PathOption=Cmd",
+	)
+	
+	if out, err := installCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git 安装失败: %v, Output: %s", err, string(out))
+	}
+
+	SetupGitEnv()
+	return nil
+}
+
+// InstallMoltbotNpm 安装包
 func InstallMoltbotNpm(tag string) error {
-	// 确保 Node 环境就绪
 	SetupNodeEnv()
 
-	// 强制使用 clawdbot 包，因为用户反馈该包更稳定
-	// 如果之前传入的是 beta，重置为 latest，因为 clawdbot 的版本管理可能不同
 	pkgName := "clawdbot"
 	if tag == "" || tag == "beta" {
 		tag = "latest"
@@ -389,7 +463,6 @@ func InstallMoltbotNpm(tag string) error {
 		return err
 	}
 
-	// 设置环境变量以减少 npm 输出
 	os.Setenv("NPM_CONFIG_LOGLEVEL", "error")
 	os.Setenv("NPM_CONFIG_UPDATE_NOTIFIER", "false")
 	os.Setenv("NPM_CONFIG_FUND", "false")
@@ -405,14 +478,13 @@ func InstallMoltbotNpm(tag string) error {
 	return nil
 }
 
-// EnsureOnPath 确保 moltbot 或 clawdbot 在 PATH 中
-// 返回值: (需要重启终端, error)
+// EnsureOnPath 检查并配置 PATH
 func EnsureOnPath() (bool, error) {
 	if _, err := exec.LookPath("clawdbot"); err == nil {
-		return false, nil // 已存在
+		return false, nil
 	}
 	if _, err := exec.LookPath("moltbot"); err == nil {
-		return false, nil // 已存在
+		return false, nil
 	}
 
 	npmPrefix, err := getNpmPrefix()
@@ -421,19 +493,14 @@ func EnsureOnPath() (bool, error) {
 	}
 	npmBin := filepath.Join(npmPrefix, "bin")
 
-	// 查找 clawdbot.cmd 或 moltbot.cmd
 	possiblePath := npmPrefix
 
-	// Check priority: clawdbot -> moltbot
 	if _, err := os.Stat(filepath.Join(npmPrefix, "clawdbot.cmd")); os.IsNotExist(err) {
 		if _, err := os.Stat(filepath.Join(npmPrefix, "moltbot.cmd")); os.IsNotExist(err) {
-			// Check bin subdir
 			possiblePath = npmBin
 		}
 	}
 
-	// 添加到用户 PATH
-	// 这里我们添加包含 .cmd 文件的目录到 PATH
 	psCmd := fmt.Sprintf(`
 		$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 		if (-not ($userPath -split ";" | Where-Object { $_ -ieq "%s" })) {
@@ -443,25 +510,21 @@ func EnsureOnPath() (bool, error) {
 
 	exec.Command("powershell", "-Command", psCmd).Run()
 
-	return true, nil // 已添加，需要重启终端
+	return true, nil
 }
 
-// RunDoctor 运行迁移
+// RunDoctor 运行诊断
 func RunDoctor() error {
 	cmdName, err := GetMoltbotPath()
 	if err != nil {
-		// 尝试直接运行，虽然可能失败
 		cmdName = "moltbot"
 	}
 
-	// 在 Windows 上，需要通过 cmd /c 或 powershell 来运行 .cmd 文件
-	// 但 exec.Command 如果指向 .cmd 文件通常可以直接运行
-	// 为了保险，使用 cmd /c
 	cmd := exec.Command("cmd", "/c", cmdName, "doctor", "--non-interactive")
 	return cmd.Run()
 }
 
-// RunOnboard 运行引导 (未使用，保留备用)
+// RunOnboard 运行引导
 func RunOnboard() error {
 	cmdName, err := GetMoltbotPath()
 	if err != nil {
@@ -474,9 +537,9 @@ func RunOnboard() error {
 	return cmd.Run()
 }
 
-// Config Options Struct
+// ConfigOptions 配置选项
 type ConfigOptions struct {
-	ApiType       string // "anthropic" or "openai"
+	ApiType       string
 	BotToken      string
 	AdminID       string
 	AnthropicKey  string
@@ -485,7 +548,7 @@ type ConfigOptions struct {
 	OpenAIModel   string
 }
 
-// GenerateAndWriteConfig 生成并写入配置文件
+// GenerateAndWriteConfig 生成配置
 func GenerateAndWriteConfig(opts ConfigOptions) error {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
@@ -519,7 +582,6 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 		},
 	}
 
-	// Configure Telegram if token provided
 	if opts.BotToken != "" {
 		config.Channels.Telegram.Enabled = true
 		config.Channels.Telegram.BotToken = opts.BotToken
@@ -541,17 +603,15 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 			},
 		}
 	} else if opts.ApiType == "skip" {
-		// Minimal config for Web UI setup
 		config.Channels.Telegram.Enabled = false
 		config.Agents = AgentsConfig{
 			Defaults: AgentDefaults{
 				Model: ModelRef{
-					Primary: "anthropic/claude-opus-4-5", // Default placeholder
+					Primary: "anthropic/claude-opus-4-5",
 				},
 			},
 		}
 	} else {
-		// OpenAI Compatible
 		config.Agents = AgentsConfig{
 			Defaults: AgentDefaults{
 				Model: ModelRef{
@@ -577,7 +637,6 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 				},
 			},
 		}
-		// Add extra exec config for OpenAI mode (as per install.sh)
 		config.Tools.Exec = &ExecConfig{
 			BackgroundMs: 10000,
 			TimeoutSec:   1800,
@@ -594,25 +653,23 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 	return os.WriteFile(configFile, data, 0644)
 }
 
-// StartGateway 在后台启动网关 (隐藏窗口)
+// StartGateway 启动网关
 func StartGateway() error {
 	cmdName, err := GetMoltbotPath()
 	if err != nil {
 		cmdName = "moltbot"
 	}
 
-	// 使用 SysProcAttr 隐藏窗口
 	cmd := exec.Command(cmdName, "gateway", "--verbose")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+		CreationFlags: 0x08000000,
 	}
 
-	// 不等待，让其在后台运行
 	return cmd.Start()
 }
 
-// IsGatewayRunning 检查端口 18789 是否被占用
+// IsGatewayRunning 检查端口
 func IsGatewayRunning() bool {
 	conn, err := net.DialTimeout("tcp", "127.0.0.1:18789", 500*time.Millisecond)
 	if err == nil {
@@ -622,9 +679,8 @@ func IsGatewayRunning() bool {
 	return false
 }
 
-// KillGateway 查找占用 18789 端口的进程并强制结束
+// KillGateway 停止网关
 func KillGateway() error {
-	// 1. netstat -ano 查找 PID
 	cmd := exec.Command("netstat", "-ano")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
@@ -646,38 +702,34 @@ func KillGateway() error {
 	}
 
 	if pid == "" {
-		return nil // 未找到，可能已停止
+		return nil
 	}
 
-	// 2. taskkill /F /PID <pid>
 	killCmd := exec.Command("taskkill", "/F", "/PID", pid)
 	killCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	return killCmd.Run()
 }
 
-// UninstallMoltbot 卸载 Moltbot/Clawdbot 并清理配置
+// UninstallMoltbot 卸载清理
 func UninstallMoltbot() error {
 	npmPath, err := getNpmPath()
 	if err != nil {
 		return err
 	}
 
-	// 1. Uninstall global packages
 	packages := []string{"clawdbot", "moltbot"}
 	for _, pkg := range packages {
 		cmd := exec.Command(npmPath, "uninstall", "-g", pkg)
 		cmd.Stdout = nil
 		cmd.Stderr = nil
-		cmd.Run() // Ignore errors if not installed
+		cmd.Run()
 	}
 
-	// 2. Remove configuration directory
 	userHome, err := os.UserHomeDir()
 	if err == nil {
 		configDir := filepath.Join(userHome, ".clawdbot")
 		os.RemoveAll(configDir)
 
-		// Also check for legacy .moltbot if exists
 		legacyDir := filepath.Join(userHome, ".moltbot")
 		os.RemoveAll(legacyDir)
 	}

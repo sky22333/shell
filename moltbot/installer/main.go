@@ -13,13 +13,13 @@ func main() {
 	p := tea.NewProgram(ui.InitialModel())
 	m, err := p.Run()
 	if err != nil {
-		fmt.Printf("Error starting installer: %v\n", err)
+		fmt.Printf("启动失败: %v\n", err)
 		os.Exit(1)
 	}
 
 	if model, ok := m.(ui.Model); ok {
 		if model.DidStartGateway {
-			fmt.Println("Web Console: http://127.0.0.1:18789/")
+			fmt.Println("Web 控制台: http://127.0.0.1:18789/")
 		}
 	}
 
