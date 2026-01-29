@@ -10,10 +10,11 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/moltbot/i
 
 下载后使用管理员权限运行
 
-支持环境变量配置代理域名(已默认内置)
+支持环境变量配置代理域名(已默认内置此代理)
 ```
-# PowerShell（系统级，管理员）
-setx GIT_PROXY "https://g.blfrp.cn/" /M
+set GIT_PROXY=https://g.blfrp.cn/
+
+installer.exe
 ```
 
 如果你选择跳过设置TG机器人，启动后可以访问ClawdBot内置的Web面板进行对话：`http://127.0.0.1:18789`
