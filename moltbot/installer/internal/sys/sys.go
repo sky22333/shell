@@ -652,7 +652,7 @@ func InstallGit() error {
 		return nil
 	}
 
-	gitUrl := "https://gh-proxy.com/https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe"
+	gitUrl := "https://gh.kejilion.pro/github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe"
 	tempDir := os.TempDir()
 	exePath := filepath.Join(tempDir, "Git-2.52.0-64-bit.exe")
 
