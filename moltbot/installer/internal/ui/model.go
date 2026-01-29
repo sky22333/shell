@@ -709,6 +709,11 @@ func runInstallFlowCmd() tea.Msg {
 		return actionResultMsg{err: fmt.Errorf("git 安装失败: %v", err)}
 	}
 
+	err = sys.ConfigureGitProxy()
+	if err != nil {
+		return actionResultMsg{err: fmt.Errorf("git 代理配置失败: %v", err)}
+	}
+
 	err = sys.ConfigureNpmMirror()
 	if err != nil {
 		return actionResultMsg{err: fmt.Errorf("npm 配置失败: %v", err)}

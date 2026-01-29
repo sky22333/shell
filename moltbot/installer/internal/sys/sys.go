@@ -36,6 +36,20 @@ const (
 	downloadConcurrentParts           = 4
 )
 
+const gitProxyEnv = "GIT_PROXY"
+const gitProxyDefault = "https://g.blfrp.cn/"
+
+func gitProxy() string {
+	proxy := strings.TrimSpace(os.Getenv(gitProxyEnv))
+	if proxy == "" {
+		proxy = gitProxyDefault
+	}
+	if !strings.HasSuffix(proxy, "/") {
+		proxy += "/"
+	}
+	return proxy
+}
+
 // SHA256 来源 https://nodejs.org/dist/v24.13.0/SHASUMS256.txt.asc
 const nodeMsiSHA256 = "1a5f0cd914386f3be2fbaf03ad9fff808a588ce50d2e155f338fad5530575f18"
 
@@ -361,6 +375,20 @@ func ConfigureNpmMirror() error {
 	cmd := exec.Command(npmPath, "config", "set", "registry", "https://registry.npmmirror.com/")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("设置 npm 镜像失败: %v", err)
+	}
+	return nil
+}
+
+func ConfigureGitProxy() error {
+	gitPath, err := GetGitPath()
+	if err != nil {
+		return err
+	}
+	proxy := gitProxy()
+	key := fmt.Sprintf("url.%shttps://github.com/.insteadOf", proxy)
+	cmd := exec.Command(gitPath, "config", "--global", key, "https://github.com/")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("设置 git 代理失败: %v", err)
 	}
 	return nil
 }
@@ -747,7 +775,7 @@ func InstallGit() error {
 		return nil
 	}
 
-	gitUrl := "https://gh.kejilion.pro/github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe"
+	gitUrl := fmt.Sprintf("%sgithub.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe", gitProxy())
 	tempDir := os.TempDir()
 	exePath := filepath.Join(tempDir, "Git-2.52.0-64-bit.exe")
 
