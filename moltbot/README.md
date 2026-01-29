@@ -5,8 +5,10 @@
 bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/moltbot/install.sh)
 ```
 
-### windows 安装脚本
+### windows 脚本
 直接下载使用编译好的二进制文件：https://github.com/sky22333/shell/raw/main/moltbot/installer/installer.exe
+
+下载后双击运行
 
 如果你选择跳过设置TG机器人，启动后可以访问ClawdBot内置的Web面板进行对话：
 ```
