@@ -72,7 +72,8 @@ install_nodejs() {
     fi
 
     log_info "正在安装Node.js"
-    apt-get install -y curl
+    [ -d /etc/apt/sources.list.d ] || mkdir -p /etc/apt/sources.list.d
+    apt-get install -y curl git
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
     apt-get install -y nodejs
     
