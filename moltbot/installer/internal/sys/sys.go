@@ -3,6 +3,8 @@ package sys
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +29,17 @@ var (
 	nodePathOnce    sync.Once
 	gitPathOnce     sync.Once
 )
+
+const (
+	downloadConcurrentThreshold int64 = 20 * 1024 * 1024
+	downloadConcurrentParts           = 4
+)
+
+// SHA256 来源 https://nodejs.org/dist/v24.13.0/SHASUMS256.txt.asc
+const nodeMsiSHA256 = "1a5f0cd914386f3be2fbaf03ad9fff808a588ce50d2e155f338fad5530575f18"
+
+// SHA256 来源 https://github.com/git-for-windows/git/releases/tag/v2.52.0.windows.1
+const gitExeSHA256 = "d8de7a3152266c8bb13577eab850ea1df6dccf8c2aa48be5b4a1c58b7190d62c"
 
 // MoltbotConfig 配置结构
 type MoltbotConfig struct {
@@ -343,33 +356,251 @@ func ConfigureNpmMirror() error {
 }
 
 // downloadFile 下载文件
-func downloadFile(url, dest string) error {
-	if info, err := os.Stat(dest); err == nil && info.Size() > 10000000 {
+func downloadFile(url, dest, expectedSHA256 string) error {
+	if ok, err := verifyFileSHA256(dest, expectedSHA256); err == nil && ok {
 		return nil
 	}
 
-	fmt.Printf("正在下载: %s\n", url)
-	resp, err := http.Get(url)
+	partPath := dest + ".part"
+	if ok, err := verifyFileSHA256(partPath, expectedSHA256); err == nil && ok {
+		_ = os.Remove(dest)
+		return os.Rename(partPath, dest)
+	}
+
+	_ = os.Remove(dest)
+
+	size, acceptRanges, err := probeRemoteFile(url)
 	if err != nil {
-		return fmt.Errorf("下载失败: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("下载失败，状态码: %d", resp.StatusCode)
+		return err
 	}
 
-	out, err := os.Create(dest)
+	fmt.Printf("正在下载: %s\n", url)
+	if err := downloadWithResume(url, partPath, size, acceptRanges); err != nil {
+		return err
+	}
+
+	if ok, err := verifyFileSHA256(partPath, expectedSHA256); err != nil || !ok {
+		_ = os.Remove(partPath)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("下载文件校验失败")
+	}
+
+	_ = os.Remove(dest)
+	return os.Rename(partPath, dest)
+}
+
+func downloadWithResume(url, dest string, size int64, acceptRanges bool) error {
+	if size > 0 && acceptRanges {
+		if info, err := os.Stat(dest); err == nil && info.Size() > 0 && info.Size() < size {
+			return downloadRange(url, dest, info.Size(), size-1)
+		}
+		if size >= downloadConcurrentThreshold {
+			return downloadConcurrent(url, dest, size, downloadConcurrentParts)
+		}
+	}
+	return downloadRange(url, dest, 0, -1)
+}
+
+func downloadRange(url, dest string, start, end int64) error {
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %v", err)
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
+	if start > 0 {
+		if _, err := out.Seek(start, 0); err != nil {
+			return fmt.Errorf("定位文件失败: %v", err)
+		}
+	}
+
+	client := &http.Client{Timeout: 30 * time.Minute}
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		return fmt.Errorf("创建请求失败: %v", err)
+	}
+	if start > 0 || end >= 0 {
+		if end >= start && end >= 0 {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end))
+		} else {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", start))
+		}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("下载失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if start > 0 && resp.StatusCode != http.StatusPartialContent {
+		return fmt.Errorf("不支持断点续传，状态码: %d", resp.StatusCode)
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		return fmt.Errorf("下载失败，状态码: %d", resp.StatusCode)
+	}
+
+	if _, err = io.Copy(out, resp.Body); err != nil {
 		return fmt.Errorf("写入文件失败: %v", err)
 	}
 	return nil
+}
+
+func downloadConcurrent(url, dest string, size int64, parts int) error {
+	if parts < 2 {
+		return downloadRange(url, dest, 0, -1)
+	}
+
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("创建文件失败: %v", err)
+	}
+	if err := out.Truncate(size); err != nil {
+		out.Close()
+		return fmt.Errorf("预分配文件失败: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, parts)
+
+	partSize := size / int64(parts)
+	for i := 0; i < parts; i++ {
+		start := int64(i) * partSize
+		end := start + partSize - 1
+		if i == parts-1 {
+			end = size - 1
+		}
+
+		wg.Add(1)
+		go func(s, e int64) {
+			defer wg.Done()
+			client := &http.Client{Timeout: 30 * time.Minute}
+			req, err := http.NewRequest("GET", url, nil)
+			if err != nil {
+				errCh <- fmt.Errorf("创建请求失败: %v", err)
+				return
+			}
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", s, e))
+			resp, err := client.Do(req)
+			if err != nil {
+				errCh <- fmt.Errorf("下载失败: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusPartialContent {
+				errCh <- fmt.Errorf("分段下载失败，状态码: %d", resp.StatusCode)
+				return
+			}
+			writer := &writeAtWriter{file: out, offset: s}
+			if _, err := io.Copy(writer, resp.Body); err != nil {
+				errCh <- fmt.Errorf("写入文件失败: %v", err)
+				return
+			}
+		}(start, end)
+	}
+
+	wg.Wait()
+	close(errCh)
+	out.Close()
+
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type writeAtWriter struct {
+	file   *os.File
+	offset int64
+}
+
+func (w *writeAtWriter) Write(p []byte) (int, error) {
+	n, err := w.file.WriteAt(p, w.offset)
+	w.offset += int64(n)
+	return n, err
+}
+
+func probeRemoteFile(url string) (int64, bool, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err == nil {
+		resp, err := client.Do(req)
+		if err == nil {
+			resp.Body.Close()
+			size := resp.ContentLength
+			acceptRanges := strings.Contains(strings.ToLower(resp.Header.Get("Accept-Ranges")), "bytes")
+			if size > 0 && acceptRanges {
+				return size, acceptRanges, nil
+			}
+		}
+	}
+
+	req, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		return 0, false, fmt.Errorf("创建请求失败: %v", err)
+	}
+	req.Header.Set("Range", "bytes=0-0")
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, false, fmt.Errorf("探测下载失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusPartialContent {
+		return -1, false, nil
+	}
+
+	total := parseContentRangeTotal(resp.Header.Get("Content-Range"))
+	return total, true, nil
+}
+
+func parseContentRangeTotal(value string) int64 {
+	parts := strings.Split(value, "/")
+	if len(parts) != 2 {
+		return -1
+	}
+	totalStr := strings.TrimSpace(parts[1])
+	if totalStr == "*" {
+		return -1
+	}
+	total, err := strconv.ParseInt(totalStr, 10, 64)
+	if err != nil {
+		return -1
+	}
+	return total
+}
+
+func verifyFileSHA256(path, expected string) (bool, error) {
+	if expected == "" {
+		return true, nil
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.Size() == 0 {
+		return false, err
+	}
+	sum, err := fileSHA256(path)
+	if err != nil {
+		return false, err
+	}
+	return strings.EqualFold(sum, expected), nil
+}
+
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("打开文件失败: %v", err)
+	}
+	defer f.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		return "", fmt.Errorf("读取文件失败: %v", err)
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 // InstallNode 安装 Node.js
@@ -382,7 +613,7 @@ func InstallNode() error {
 	tempDir := os.TempDir()
 	msiPath := filepath.Join(tempDir, "node-v24.13.0-x64.msi")
 
-	if err := downloadFile(msiUrl, msiPath); err != nil {
+	if err := downloadFile(msiUrl, msiPath, nodeMsiSHA256); err != nil {
 		return err
 	}
 
@@ -421,12 +652,12 @@ func InstallGit() error {
 		return nil
 	}
 
-	gitUrl := "https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe"
+	gitUrl := "https://gh-proxy.com/https://github.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe"
 	tempDir := os.TempDir()
 	exePath := filepath.Join(tempDir, "Git-2.52.0-64-bit.exe")
 
 	fmt.Println("正在下载 Git...")
-	if err := downloadFile(gitUrl, exePath); err != nil {
+	if err := downloadFile(gitUrl, exePath, gitExeSHA256); err != nil {
 		return fmt.Errorf("git 下载失败: %v", err)
 	}
 
