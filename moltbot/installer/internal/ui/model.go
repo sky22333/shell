@@ -2,8 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"math/rand"
-	"sync"
+	"strings"
 	"time"
 
 	"moltbot-installer/internal/style"
@@ -12,71 +11,90 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-type AppState int
+// SessionState defines the high-level mode of the application
+type SessionState int
 
 const (
-	StateInit AppState = iota
-	StateChecking
-	StateConfirmInstall
-	StateInstallingNode
-	StateConfiguringNpm
-	StateInstallingMoltbot
-	StateConfiguring
-	StateInstalled
-	StateMenu
-	StateConfigApiSelect
-	StateConfigInput
-	StateGatewayRunning
-	StateUninstallConfirm
-	StateUninstalling
-	StateError
+	StateDashboard SessionState = iota
+	StateWizard
+	StateAction
 )
 
+// Sub-states for specific flows
+type WizardStep int
+
+const (
+	StepApiSelect WizardStep = iota
+	StepApiInput
+	StepConfirm
+)
+
+type ActionType int
+
+const (
+	ActionCheckEnv ActionType = iota
+	ActionInstall
+	ActionUninstall
+	ActionStartGateway
+	ActionKillGateway
+)
+
+// Model is the main application state
 type Model struct {
-	state      AppState
-	spinner    spinner.Model
-	err        error
-	logs       []string
+	// Global State
+	state  SessionState
+	width  int
+	height int
+	
+	// Flag to signal main.go (legacy/compatibility)
+	DidStartGateway bool
+
+	// Dashboard State
+	menuIndex int
+
+	// Wizard State
+	wizardStep WizardStep
+	configOpts sys.ConfigOptions
+	input      textinput.Model
+	inputStep  int // For multi-field steps like API Input
+
+	// Action/Progress State
+	actionType  ActionType
+	spinner     spinner.Model
+	progressMsg string
+	actionErr   error
+	actionDone  bool
+
+	// System Status Cache
 	nodeVer    string
 	nodeOk     bool
-	installMsg string
-	quitting   bool
-
-	// Config Wizard
-	input      textinput.Model
-	configOpts sys.ConfigOptions
-	configStep int
-	menuIndex  int
-
-	nextState AppState
-	nextCmd   tea.Cmd
-
-	DidStartGateway bool
+	moltbotVer string
+	moltbotOk  bool
+	gatewayOk  bool
+	checkDone  bool
 }
 
+// Messages
 type checkMsg struct {
 	nodeVer          string
 	nodeOk           bool
-	needsNode        bool
 	moltbotVer       string
 	moltbotInstalled bool
 	gatewayRunning   bool
 }
 
-type installNodeMsg struct{ err error }
-type configNpmMsg struct{ err error }
-type installMoltbotMsg struct {
-	version string
-	err     error
+type actionResultMsg struct {
+	err error
 }
-type configMsg struct {
-	restartPath bool
-	err         error
-}
-type saveConfigMsg struct{ err error }
-type uninstallMsg struct{ err error }
+
+type progressMsg string
+
+type tickMsg time.Time
+
+type gatewayStatusMsg bool
 
 func InitialModel() Model {
 	s := spinner.New()
@@ -88,20 +106,18 @@ func InitialModel() Model {
 	ti.Focus()
 
 	return Model{
-		state:   StateInit,
-		spinner: s,
-		input:   ti,
-		logs:    []string{},
+		state:     StateDashboard,
+		spinner:   s,
+		input:     ti,
+		menuIndex: 0,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.spinner.Tick,
-		func() tea.Msg {
-			time.Sleep(500 * time.Millisecond)
-			return checkMsg{}
-		},
+		checkEnvCmd,
+		tickCmd(),
 	)
 }
 
@@ -111,523 +127,541 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
-			m.quitting = true
 			return m, tea.Quit
 		}
-
-		// Menu Navigation
-		if m.state == StateMenu {
-			switch msg.String() {
-			case "up", "k":
-				if m.menuIndex > 0 {
-					m.menuIndex--
-				}
-			case "down", "j":
-				if m.menuIndex < 2 {
-					m.menuIndex++
-				}
-			case "enter":
-				switch m.menuIndex {
-				case 0: // Start
-					if sys.IsGatewayRunning() {
-						m.state = StateGatewayRunning
-					} else {
-						sys.StartGateway()
-						m.DidStartGateway = true
-						return m, tea.Quit
-					}
-				case 1: // Configure
-					m.state = StateConfigApiSelect
-					m.configOpts = sys.ConfigOptions{}
-				case 2: // Uninstall
-					m.state = StateUninstallConfirm
-				case 3: // Exit
-					return m, tea.Quit
-				}
-			}
+		// Global Back handler for Wizard
+		if m.state == StateWizard && msg.String() == "esc" {
+			m.state = StateDashboard
 			return m, nil
 		}
-
-		// Uninstall Confirm State
-		if m.state == StateUninstallConfirm {
-			switch msg.String() {
-			case "y", "Y":
-				m.state = StateUninstalling
-				m.logs = append(m.logs, style.RenderStep("➜", "正在卸载 Moltbot 并清理配置...", "running"))
-				return m, uninstallCmd
-			case "n", "N", "enter":
-				m.state = StateMenu
-			}
-			return m, nil
-		}
-
-		// Config API Selection
-		if m.state == StateConfigApiSelect {
-			switch msg.String() {
-			case "1":
-				m.configOpts.ApiType = "anthropic"
-				m.state = StateConfigInput
-				m.configStep = 0
-				m.input.Placeholder = "sk-ant-api03-..."
-				m.input.EchoMode = textinput.EchoPassword
-				m.input.SetValue("")
-			case "2":
-				m.configOpts.ApiType = "openai"
-				m.state = StateConfigInput
-				m.configStep = 0
-				m.input.Placeholder = "https://api.openai.com/v1"
-				m.input.EchoMode = textinput.EchoNormal
-				m.input.SetValue("")
-			case "q", "esc":
-				m.state = StateMenu // Back to menu
-			}
-			return m, nil
-		}
-
-		// Config Input Steps
-		if m.state == StateConfigInput {
-			switch msg.String() {
-			case "enter":
-				val := m.input.Value()
-				// Step logic:
-				// Anthropic: 0(Key) -> 1(TG Token) -> 2(TG ID) -> Finish
-				// OpenAI: 0(BaseURL) -> 1(Key) -> 2(Model) -> 3(TG Token) -> 4(TG ID) -> Finish
-
-				if m.configOpts.ApiType == "anthropic" {
-					switch m.configStep {
-					case 0: // API Key
-						m.configOpts.AnthropicKey = val
-						m.configStep++
-						m.input.Placeholder = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-						m.input.EchoMode = textinput.EchoNormal
-						m.input.SetValue("")
-					case 1: // TG Token
-						m.configOpts.BotToken = val
-						m.configStep++
-						m.input.Placeholder = "123456789"
-						m.input.SetValue("")
-					case 2: // TG Admin ID
-						m.configOpts.AdminID = val
-						return m, saveConfigCmd(m.configOpts)
-					}
-				} else {
-					// OpenAI
-					switch m.configStep {
-					case 0: // BaseURL
-						m.configOpts.OpenAIBaseURL = val
-						m.configStep++
-						m.input.Placeholder = "sk-..."
-						m.input.EchoMode = textinput.EchoPassword
-						m.input.SetValue("")
-					case 1: // Key
-						m.configOpts.OpenAIKey = val
-						m.configStep++
-						m.input.Placeholder = "gpt-4o / claude-3-5-sonnet"
-						m.input.EchoMode = textinput.EchoNormal
-						m.input.SetValue("")
-					case 2: // Model
-						m.configOpts.OpenAIModel = val
-						m.configStep++
-						m.input.Placeholder = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-						m.input.EchoMode = textinput.EchoNormal
-						m.input.SetValue("")
-					case 3: // TG Token
-						m.configOpts.BotToken = val
-						m.configStep++
-						m.input.Placeholder = "123456789"
-						m.input.SetValue("")
-					case 4: // TG Admin ID
-						m.configOpts.AdminID = val
-						return m, saveConfigCmd(m.configOpts)
-					}
-				}
-				return m, nil
-			}
-			m.input, cmd = m.input.Update(msg)
-			return m, cmd
-		}
-
-		// Gateway Running Conflict State
-		if m.state == StateGatewayRunning {
-			proceed := false
-			switch msg.String() {
-			case "y", "Y":
-				sys.KillGateway()
-				time.Sleep(1 * time.Second)
-				sys.StartGateway()
-				proceed = true
-			case "n", "N", "esc", "enter":
-				proceed = true
-			}
-
-			if proceed {
-				m.state = m.nextState
-				if m.nextState == StateInstallingNode {
-					m.logs = append(m.logs, style.RenderStep("➜", "正在安装 Node.js (可能需要管理员权限)...", "running"))
-					return m, m.nextCmd
-				} else if m.nextState == StateConfiguringNpm {
-					m.logs = append(m.logs, style.RenderStep("➜", "正在配置 npm 淘宝镜像...", "running"))
-					return m, m.nextCmd
-				}
-				return m, nil
-			}
-			return m, nil
-		}
-
-		// Confirm Install State
-		if m.state == StateConfirmInstall {
-			switch msg.String() {
-			case "y", "Y":
-				m.logs = append(m.logs, style.RenderStep("➜", "开始安装...", "running"))
-				if !m.nodeOk {
-					m.state = StateInstallingNode
-					m.logs = append(m.logs, style.RenderStep("➜", "正在安装 Node.js (可能需要管理员权限)...", "running"))
-					return m, installNodeCmd
-				}
-				m.state = StateConfiguringNpm
-				m.logs = append(m.logs, style.RenderStep("➜", "正在配置 npm 淘宝镜像...", "running"))
-				return m, configNpmCmd
-			case "n", "N", "enter":
-				m.logs = append(m.logs, style.RenderStep("!", "跳过安装步骤", "warning"))
-				m.state = StateConfiguring
-				return m, configCmd
-			}
-			return m, nil
-		}
-
-		// Installed State (Transition to Config)
-		if m.state == StateInstalled {
-			if msg.String() == "enter" {
-				m.state = StateConfigApiSelect
-				m.configOpts = sys.ConfigOptions{}
-			}
-			return m, nil
-		}
-
-	case checkMsg:
-		if m.state == StateInit {
-			m.state = StateChecking
+		// Global Back handler for Action Result
+		if m.state == StateAction && m.actionDone && (msg.String() == "enter" || msg.String() == "esc") {
+			m.state = StateDashboard
+			// Refresh env after action
 			return m, checkEnvCmd
 		}
 
-		m.nodeVer = msg.nodeVer
-		m.nodeOk = msg.nodeOk
-		m.logs = append(m.logs, style.RenderStep("✓", "Windows 系统检测完毕", "done"))
-
-		if msg.nodeOk {
-			m.logs = append(m.logs, style.RenderStep("✓", fmt.Sprintf("发现 Node.js %s", msg.nodeVer), "done"))
-		} else {
-			if msg.nodeVer != "" {
-				m.logs = append(m.logs, style.RenderStep("!", fmt.Sprintf("发现 Node.js %s (需要 v22+)", msg.nodeVer), "warning"))
-			} else {
-				m.logs = append(m.logs, style.RenderStep("!", "未检测到 Node.js", "warning"))
-			}
-		}
-
-		// Determine Next Step
-		var nextState AppState
-		var nextCmd tea.Cmd
-
-		if msg.moltbotInstalled {
-			m.logs = append(m.logs, style.RenderStep("!", fmt.Sprintf("检测到 Moltbot 已安装 (%s)", msg.moltbotVer), "warning"))
-			nextState = StateConfirmInstall
-			nextCmd = nil
-		} else if !msg.nodeOk {
-			nextState = StateInstallingNode
-			nextCmd = installNodeCmd
-		} else {
-			nextState = StateConfiguringNpm
-			nextCmd = configNpmCmd
-		}
-
-		m.nextState = nextState
-		m.nextCmd = nextCmd
-
-		// Check Gateway Conflict
-		if msg.gatewayRunning {
-			m.state = StateGatewayRunning
-			return m, nil
-		}
-
-		// Proceed immediately if no conflict
-		m.state = nextState
-		if nextState == StateInstallingNode {
-			m.logs = append(m.logs, style.RenderStep("➜", "正在安装 Node.js (可能需要管理员权限)...", "running"))
-			return m, nextCmd
-		} else if nextState == StateConfiguringNpm {
-			m.logs = append(m.logs, style.RenderStep("➜", "正在配置 npm 淘宝镜像...", "running"))
-			return m, nextCmd
-		}
-		return m, nil
-
-	case installNodeMsg:
-		if msg.err != nil {
-			m.err = msg.err
-			m.state = StateError
-			return m, nil
-		}
-		m.logs = append(m.logs, style.RenderStep("✓", "Node.js 安装成功", "done"))
-		m.state = StateConfiguringNpm
-		m.logs = append(m.logs, style.RenderStep("➜", "正在配置 npm 淘宝镜像...", "running"))
-		return m, configNpmCmd
-
-	case configNpmMsg:
-		if msg.err != nil {
-			m.logs = append(m.logs, style.RenderStep("!", fmt.Sprintf("配置镜像失败 (跳过): %v", msg.err), "warning"))
-		} else {
-			m.logs = append(m.logs, style.RenderStep("✓", "npm 淘宝镜像配置成功", "done"))
-		}
-		m.state = StateInstallingMoltbot
-		m.logs = append(m.logs, style.RenderStep("➜", "正在安装 Moltbot...", "running"))
-		return m, installMoltbotCmd
-
-	case installMoltbotMsg:
-		if msg.err != nil {
-			m.err = msg.err
-			m.state = StateError
-			return m, nil
-		}
-		if msg.version != "" {
-			m.logs = append(m.logs, style.RenderStep("✓", fmt.Sprintf("Moltbot 安装成功 (%s)", msg.version), "done"))
-		} else {
-			m.logs = append(m.logs, style.RenderStep("✓", "Moltbot 安装成功", "done"))
-		}
-		m.state = StateConfiguring
-		return m, configCmd
-
-	case configMsg:
-		if msg.err != nil {
-			m.logs = append(m.logs, style.RenderStep("!", fmt.Sprintf("配置迁移失败: %v", msg.err), "warning"))
-		} else {
-			m.logs = append(m.logs, style.RenderStep("✓", "配置迁移/初始化完成", "done"))
-		}
-		if msg.restartPath {
-			m.logs = append(m.logs, style.RenderStep("!", "已添加 PATH 环境变量，请重启终端生效", "warning"))
-		}
-		m.state = StateInstalled
-		m.installMsg = getRandomWelcomeMsg()
-		return m, nil
-
-	case saveConfigMsg:
-		if msg.err != nil {
-			m.logs = append(m.logs, style.RenderStep("!", fmt.Sprintf("保存配置失败: %v", msg.err), "warning"))
-		} else {
-			m.logs = append(m.logs, style.RenderStep("✓", "配置文件已生成!", "done"))
-			m.logs = append(m.logs, style.RenderStep("✓", "配置完成，准备启动", "done"))
-		}
-		m.state = StateMenu
-		m.menuIndex = 0 // Default to Start
-		return m, nil
-
-	case uninstallMsg:
-		if msg.err != nil {
-			m.logs = append(m.logs, style.RenderStep("!", fmt.Sprintf("卸载失败: %v", msg.err), "warning"))
-		} else {
-			m.logs = append(m.logs, style.RenderStep("✓", "Moltbot 已卸载并清理配置", "done"))
-		}
-		m.state = StateMenu
-		m.menuIndex = 0
-		return m, nil
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 
 	case spinner.TickMsg:
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
+
+	case checkMsg:
+		m.nodeVer = msg.nodeVer
+		m.nodeOk = msg.nodeOk
+		m.moltbotVer = msg.moltbotVer
+		m.moltbotOk = msg.moltbotInstalled
+		m.gatewayOk = msg.gatewayRunning
+		m.checkDone = true
+
+		// If we are in Action mode checking env, this might be a refresh
+		if m.state == StateAction && m.actionType == ActionCheckEnv {
+			m.state = StateDashboard
+		}
+		return m, nil
+
+	case progressMsg:
+		m.progressMsg = string(msg)
+		return m, nil
+
+	case tickMsg:
+		return m, tea.Batch(checkGatewayCmd, tickCmd())
+
+	case gatewayStatusMsg:
+		m.gatewayOk = bool(msg)
+		return m, nil
+
+	case actionResultMsg:
+		m.actionErr = msg.err
+		m.actionDone = true
+		if msg.err == nil {
+			m.progressMsg = "操作成功完成！"
+			if m.actionType == ActionStartGateway {
+				m.DidStartGateway = true
+			}
+		} else {
+			m.progressMsg = fmt.Sprintf("操作失败: %v", msg.err)
+		}
+		return m, nil
+	}
+
+	// State-specific updates
+	switch m.state {
+	case StateDashboard:
+		return m.updateDashboard(msg)
+	case StateWizard:
+		return m.updateWizard(msg)
+	case StateAction:
+		// In action state, mostly waiting for msgs, but maybe handle quit
+		return m, nil
 	}
 
 	return m, nil
 }
 
+func (m Model) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "up", "k":
+			if m.menuIndex > 0 {
+				m.menuIndex--
+			}
+		case "down", "j":
+			if m.menuIndex < 4 { // 5 items (0-4)
+				m.menuIndex++
+			}
+		case "enter":
+			return m.handleMenuSelect()
+		case "q":
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleMenuSelect() (tea.Model, tea.Cmd) {
+	switch m.menuIndex {
+	case 0: // Start/Restart Gateway
+		m.state = StateAction
+		m.actionDone = false
+		m.actionErr = nil
+		if m.gatewayOk {
+			m.actionType = ActionKillGateway
+			m.progressMsg = "正在停止网关..."
+			return m, runKillGatewayCmd
+		} else {
+			m.actionType = ActionStartGateway
+			m.progressMsg = "正在启动网关..."
+			return m, runStartGatewayCmd
+		}
+	case 1: // Configure
+		m.state = StateWizard
+		m.wizardStep = StepApiSelect
+		m.configOpts = sys.ConfigOptions{}
+		return m, nil
+	case 2: // Install/Update
+		m.state = StateAction
+		m.actionType = ActionInstall
+		m.actionDone = false
+		m.actionErr = nil
+		m.progressMsg = "准备安装..."
+		return m, runInstallFlowCmd
+	case 3: // Uninstall
+		m.state = StateAction
+		m.actionType = ActionUninstall
+		m.actionDone = false
+		m.actionErr = nil
+		m.progressMsg = "正在卸载..."
+		return m, runUninstallCmd
+	case 4: // Exit
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) updateWizard(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	switch m.wizardStep {
+	case StepApiSelect:
+		if k, ok := msg.(tea.KeyMsg); ok {
+			switch k.String() {
+			case "1":
+				m.configOpts.ApiType = "anthropic"
+				m.wizardStep = StepApiInput
+				m.inputStep = 0
+				m.input.Placeholder = "sk-ant-api03-..."
+				m.input.EchoMode = textinput.EchoPassword
+				m.input.SetValue("")
+			case "2":
+				m.configOpts.ApiType = "openai"
+				m.wizardStep = StepApiInput
+				m.inputStep = 0
+				m.input.Placeholder = "https://api.openai.com/v1"
+				m.input.EchoMode = textinput.EchoNormal
+				m.input.SetValue("")
+			}
+		}
+
+	case StepApiInput:
+		switch k := msg.(type) {
+		case tea.KeyMsg:
+			if k.String() == "enter" {
+				val := m.input.Value()
+				// Logic handles both Anthropic and OpenAI flows
+				isAnthropic := m.configOpts.ApiType == "anthropic"
+
+				if isAnthropic {
+					switch m.inputStep {
+					case 0: // Key
+						m.configOpts.AnthropicKey = val
+						m.inputStep++
+						m.input.Placeholder = "123456:ABC-DEF..."
+						m.input.EchoMode = textinput.EchoNormal
+						m.input.SetValue("")
+					case 1: // Bot Token
+						m.configOpts.BotToken = val
+						m.inputStep++
+						m.input.Placeholder = "123456789"
+						m.input.SetValue("")
+					case 2: // Admin ID
+						m.configOpts.AdminID = val
+						m.wizardStep = StepConfirm
+					}
+				} else { // OpenAI
+					switch m.inputStep {
+					case 0: // Base URL
+						m.configOpts.OpenAIBaseURL = val
+						m.inputStep++
+						m.input.Placeholder = "sk-..."
+						m.input.EchoMode = textinput.EchoPassword
+						m.input.SetValue("")
+					case 1: // Key
+						m.configOpts.OpenAIKey = val
+						m.inputStep++
+						m.input.Placeholder = "gpt-4o / claude-3-5-sonnet"
+						m.input.EchoMode = textinput.EchoNormal
+						m.input.SetValue("")
+					case 2: // Model
+						m.configOpts.OpenAIModel = val
+						m.inputStep++
+						m.input.Placeholder = "123456:ABC-DEF..."
+						m.input.SetValue("")
+					case 3: // Bot Token
+						m.configOpts.BotToken = val
+						m.inputStep++
+						m.input.Placeholder = "123456789"
+						m.input.SetValue("")
+					case 4: // Admin ID
+						m.configOpts.AdminID = val
+						m.wizardStep = StepConfirm
+					}
+				}
+				return m, nil
+			}
+		}
+		m.input, cmd = m.input.Update(msg)
+		return m, cmd
+
+	case StepConfirm:
+		if k, ok := msg.(tea.KeyMsg); ok {
+			if k.String() == "enter" {
+				// Run Save Action
+				m.state = StateAction
+				m.actionDone = false
+				m.actionErr = nil
+				m.progressMsg = "正在保存配置..."
+				return m, runSaveConfigCmd(m.configOpts)
+			}
+		}
+	}
+	return m, nil
+}
+
+// VIEW RENDERING
+
 func (m Model) View() string {
-	if m.err != nil {
-		return fmt.Sprintf("\n%s\n\n%s: %v\n\n按 q 退出\n",
-			style.HeaderStyle.Render("Moltbot 安装程序"),
-			style.ErrorStyle.Render("发生错误"),
-			m.err,
+	if m.width == 0 {
+		return "Loading..."
+	}
+
+	switch m.state {
+	case StateDashboard:
+		return m.renderDashboard()
+	case StateWizard:
+		return m.renderWizard()
+	case StateAction:
+		return m.renderAction()
+	}
+	return ""
+}
+
+func (m Model) renderDashboard() string {
+	// 1. Header
+	header := style.HeaderStyle.Render("Moltbot Installer")
+
+	// 2. Status Bar
+	nodeStatus := style.Badge("检测中...", "info")
+	if m.checkDone {
+		if m.nodeOk {
+			nodeStatus = style.Badge(m.nodeVer, "success")
+		} else {
+			nodeStatus = style.Badge("缺失", "error")
+		}
+	}
+
+	moltStatus := style.Badge("检测中...", "info")
+	if m.checkDone {
+		if m.moltbotOk {
+			ver := m.moltbotVer
+			if ver == "" {
+				ver = "已安装"
+			}
+			moltStatus = style.Badge(ver, "success")
+		} else {
+			moltStatus = style.Badge("未安装", "warning")
+		}
+	}
+
+	gwStatus := style.Badge("...", "info")
+	if m.checkDone {
+		if m.gatewayOk {
+			gwStatus = style.Badge("运行中", "success")
+		} else {
+			gwStatus = style.Badge("已停止", "warning")
+		}
+	}
+
+	statusPanel := style.PanelStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
+		style.SubHeaderStyle.Render("系统状态"),
+		fmt.Sprintf("Node.js 环境:  %s", nodeStatus),
+		fmt.Sprintf("Moltbot 核心:  %s", moltStatus),
+		fmt.Sprintf("网关进程:      %s", gwStatus),
+	))
+
+	// 3. Menu
+	menuItems := []struct{ title, desc string }{
+		{"启动/重启服务", "管理后台网关进程"},
+		{"配置向导", "设置 API 密钥与机器人参数"},
+		{"安装/更新环境", "一键部署 Node.js 与核心组件"},
+		{"卸载 Moltbot", "清理所有文件与配置"},
+		{"退出", "关闭控制台"},
+	}
+
+	// Dynamic text for toggle
+	if m.gatewayOk {
+		menuItems[0].title = "重启服务"
+		menuItems[0].desc = "停止当前进程并重新启动"
+	} else {
+		menuItems[0].title = "启动服务"
+		menuItems[0].desc = "启动后台网关进程"
+	}
+
+	var menuView string
+	for i, item := range menuItems {
+		if i == m.menuIndex {
+			menuView += style.MenuSelectedStyle.Render(fmt.Sprintf("%s\n%s", item.title, style.DescriptionStyle.Render(item.desc)))
+		} else {
+			menuView += style.MenuNormalStyle.Render(item.title)
+		}
+		menuView += "\n\n"
+	}
+
+	menuPanel := style.FocusedPanelStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
+		style.SubHeaderStyle.Render("主菜单"),
+		menuView,
+		style.SubtleStyle.Render("使用 ↑/↓ 选择，Enter 确认"),
+	))
+
+	// Layout
+	if m.width > 100 {
+		// Side by Side
+		return style.AppStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
+			header,
+			"",
+			lipgloss.JoinHorizontal(lipgloss.Top, statusPanel, "   ", menuPanel),
+		))
+	}
+
+	// Vertical Stack
+	return style.AppStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		"",
+		statusPanel,
+		"",
+		menuPanel,
+	))
+}
+
+func (m Model) renderWizard() string {
+	var content string
+
+	switch m.wizardStep {
+	case StepApiSelect:
+		content = lipgloss.JoinVertical(lipgloss.Left,
+			style.SubHeaderStyle.Render("Step 1: 选择 API 提供商"),
+			"",
+			style.MenuNormalStyle.Render("[1] Anthropic 官方 API (推荐)"),
+			style.DescriptionStyle.Render("    直接连接 Claude 服务，最稳定"),
+			"",
+			style.MenuNormalStyle.Render("[2] OpenAI 兼容 API"),
+			style.DescriptionStyle.Render("    支持 DeepSeek, GPT-4 等第三方模型"),
+			"",
+			style.SubtleStyle.Render("按 1 或 2 选择，Esc 返回"),
+		)
+	case StepApiInput:
+		label := "配置项"
+		if m.configOpts.ApiType == "anthropic" {
+			switch m.inputStep {
+			case 0:
+				label = "Anthropic API Key"
+			case 1:
+				label = "Telegram Bot Token (可选)"
+			case 2:
+				label = "Telegram 账户ID (可选)"
+			}
+		} else {
+			switch m.inputStep {
+			case 0:
+				label = "API 地址"
+			case 1:
+				label = "API Key"
+			case 2:
+				label = "模型名称"
+			case 3:
+				label = "Telegram Bot Token (可选)"
+			case 4:
+				label = "Telegram 账户ID (可选)"
+			}
+		}
+
+		var extraHelp string
+		if strings.Contains(label, "(可选)") {
+			extraHelp = style.InputHelpStyle.Render("如无需配置，请直接按 Enter 跳过。")
+		}
+
+		content = lipgloss.JoinVertical(lipgloss.Left,
+			style.SubHeaderStyle.Render("Step 2: 录入凭证"),
+			"",
+			style.InputHelpStyle.Render("请在下方输入您的 "+label+"。"),
+			style.InputHelpStyle.Render("支持使用 Ctrl+V  或 鼠标右键粘贴内容。"),
+			extraHelp,
+			"",
+			style.TitleStyle.Render(label),
+			"",
+			style.InputFocusedStyle.Render(m.input.View()),
+			"",
+			style.DescriptionStyle.Render("示例格式: "+m.input.Placeholder),
+			"",
+			style.SubtleStyle.Render("Enter 下一步"),
+		)
+	case StepConfirm:
+		content = lipgloss.JoinVertical(lipgloss.Left,
+			style.SubHeaderStyle.Render("Step 3: 确认配置"),
+			"",
+			"配置已就绪，准备写入文件。",
+			style.DescriptionStyle.Render("路径: ~/.clawdbot/clawdbot.json"),
+			"",
+			style.SubtleStyle.Render("Enter 确认写入，Esc 取消"),
 		)
 	}
 
-	s := fmt.Sprintf("\n%s\n\n", style.HeaderStyle.Render("Moltbot 安装程序"))
-
-	// Show logs for install process
-	if m.state != StateMenu && m.state != StateConfigApiSelect && m.state != StateConfigInput {
-		for _, log := range m.logs {
-			s += log + "\n"
-		}
-	}
-
-	// Dynamic Content based on State
-	switch m.state {
-	case StateInstallingNode, StateConfiguringNpm, StateInstallingMoltbot, StateConfiguring, StateUninstalling:
-		s += fmt.Sprintf("\n%s %s\n", m.spinner.View(), style.SubtleStyle.Render("处理中..."))
-
-	case StateConfirmInstall:
-		s += fmt.Sprintf("\n%s\n", style.SubtleStyle.Render("是否强制重新安装/更新？[y/N]"))
-
-	case StateGatewayRunning:
-		s += fmt.Sprintf("\n%s\n", style.SubtleStyle.Render("检测到 Moltbot 网关已在运行 (端口 18789 被占用)"))
-		s += fmt.Sprintf("\n%s\n", style.SubtleStyle.Render("是否停止旧进程并重新启动？[y/N]"))
-
-	case StateUninstallConfirm:
-		s += fmt.Sprintf("\n%s\n", style.SubtleStyle.Render("确定要卸载 Moltbot 吗？(这将删除配置文件) [y/N]"))
-
-	case StateInstalled:
-		s += fmt.Sprintf("\n%s\n", style.SuccessStyle.Render("安装完成!"))
-		s += style.SubtleStyle.Render(m.installMsg) + "\n\n"
-		s += style.StepStyle.Render("按 Enter 进入配置向导") + "\n"
-
-	case StateMenu:
-		s += style.HeaderStyle.Render("主菜单") + "\n\n"
-		choices := []string{"启动 Moltbot 网关", "配置 Moltbot", "卸载 Moltbot", "退出"}
-		for i, choice := range choices {
-			cursor := " "
-			if m.menuIndex == i {
-				cursor = "➜"
-				choice = style.HighlightStyle.Render(choice)
-			}
-			s += fmt.Sprintf(" %s %s\n", cursor, choice)
-		}
-		s += "\n" + style.SubtleStyle.Render("使用 ↑/↓ 选择，Enter 确认") + "\n"
-		// Show logs below menu if desired, or keep clean
-		if len(m.logs) > 0 {
-			s += "\n" + style.SubtleStyle.Render("--- 安装日志 ---") + "\n"
-			start := len(m.logs) - 3
-			if start < 0 {
-				start = 0
-			}
-			for _, log := range m.logs[start:] {
-				s += log + "\n"
-			}
-		}
-
-	case StateConfigApiSelect:
-		s += style.HeaderStyle.Render("配置向导 - 选择 API 类型") + "\n\n"
-		s += "1. Anthropic 官方 API (推荐)\n"
-		s += "2. OpenAI 兼容 API (中转站/其他模型)\n\n"
-		s += style.SubtleStyle.Render("按 1 或 2 选择，Esc 返回") + "\n"
-
-	case StateConfigInput:
-		s += style.HeaderStyle.Render("配置向导") + "\n\n"
-
-		label := ""
-		if m.configOpts.ApiType == "anthropic" {
-			switch m.configStep {
-			case 0:
-				label = "Anthropic API Key (sk-ant-...):"
-			case 1:
-				label = "Telegram Bot Token (选填, 回车跳过):"
-			case 2:
-				label = "Telegram User ID (管理员) (选填, 回车跳过):"
-			}
-		} else {
-			// OpenAI
-			switch m.configStep {
-			case 0:
-				label = "API Base URL (例如 https://api.example.com/v1):"
-			case 1:
-				label = "API Key:"
-			case 2:
-				label = "模型名称 (例如 gpt-4o):"
-			case 3:
-				label = "Telegram Bot Token (选填, 回车跳过):"
-			case 4:
-				label = "Telegram User ID (管理员) (选填, 回车跳过):"
-			}
-		}
-
-		s += fmt.Sprintf("%s\n\n%s\n\n", label, m.input.View())
-		s += style.SubtleStyle.Render("按 Enter 确认") + "\n"
-		if (m.configOpts.ApiType == "anthropic" && m.configStep >= 1) || (m.configOpts.ApiType == "openai" && m.configStep >= 3) {
-			s += style.SubtleStyle.Render("跳过后可通过 http://127.0.0.1:18789/ Web UI 交互") + "\n"
-		}
-	}
-
-	return style.AppStyle.Render(s)
+	return style.AppStyle.Render(style.WizardPanelStyle.Render(content))
 }
 
-// Commands
+func (m Model) renderAction() string {
+	icon := m.spinner.View()
+	title := "正在处理..."
 
-func checkEnvCmd() tea.Msg {
-	var (
-		nodeVer          string
-		nodeOk           bool
-		moltbotVer       string
-		moltbotInstalled bool
-		gatewayRunning   bool
-		wg               sync.WaitGroup
+	if m.actionDone {
+		icon = "✅"
+		if m.actionErr != nil {
+			icon = "❌"
+			title = "操作失败"
+		} else {
+			title = "操作完成"
+		}
+	}
+
+	content := lipgloss.JoinVertical(lipgloss.Center,
+		style.SubHeaderStyle.Render(title),
+		"",
+		fmt.Sprintf("%s %s", icon, m.progressMsg),
+		"",
 	)
 
-	wg.Add(3)
+	if m.actionDone {
+		content = lipgloss.JoinVertical(lipgloss.Center, content, style.SubtleStyle.Render("按 Enter 返回主菜单"))
+	}
 
-	go func() {
-		defer wg.Done()
-		nodeVer, nodeOk = sys.CheckNode()
-	}()
+	return style.AppStyle.Render(style.PanelStyle.Render(content))
+}
 
-	go func() {
-		defer wg.Done()
-		moltbotVer, moltbotInstalled = sys.CheckMoltbot()
-	}()
+// COMMANDS
 
-	go func() {
-		defer wg.Done()
-		gatewayRunning = sys.IsGatewayRunning()
-	}()
-
-	wg.Wait()
-
+func checkEnvCmd() tea.Msg {
+	nodeVer, nodeOk := sys.CheckNode()
+	moltVer, moltOk := sys.CheckMoltbot()
+	gwRun := sys.IsGatewayRunning()
 	return checkMsg{
 		nodeVer:          nodeVer,
 		nodeOk:           nodeOk,
-		needsNode:        !nodeOk,
-		moltbotVer:       moltbotVer,
-		moltbotInstalled: moltbotInstalled,
-		gatewayRunning:   gatewayRunning,
+		moltbotVer:       moltVer,
+		moltbotInstalled: moltOk,
+		gatewayRunning:   gwRun,
 	}
 }
 
-func installNodeCmd() tea.Msg {
-	err := sys.InstallNode()
-	return installNodeMsg{err: err}
+func runStartGatewayCmd() tea.Msg {
+	sys.StartGateway()
+	time.Sleep(1 * time.Second) // Wait for startup
+	return actionResultMsg{err: nil}
 }
 
-func configNpmCmd() tea.Msg {
-	err := sys.ConfigureNpmMirror()
-	return configNpmMsg{err: err}
+func runKillGatewayCmd() tea.Msg {
+	sys.KillGateway()
+	time.Sleep(1 * time.Second)
+	return actionResultMsg{err: nil}
 }
 
-func installMoltbotCmd() tea.Msg {
-	err := sys.InstallMoltbotNpm("latest")
-	if err != nil {
-		return installMoltbotMsg{err: err}
-	}
-	ver, _ := sys.CheckMoltbot()
-	return installMoltbotMsg{version: ver, err: nil}
+func runUninstallCmd() tea.Msg {
+	// 1. Try to stop gateway if running
+	_ = sys.KillGateway()
+	time.Sleep(1 * time.Second)
+
+	// 2. Uninstall files
+	err := sys.UninstallMoltbot()
+	return actionResultMsg{err: err}
 }
 
-func configCmd() tea.Msg {
-	restart, _ := sys.EnsureOnPath()
-	sys.RunDoctor()
-	return configMsg{restartPath: restart, err: nil}
-}
-
-func saveConfigCmd(opts sys.ConfigOptions) tea.Cmd {
+func runSaveConfigCmd(opts sys.ConfigOptions) tea.Cmd {
 	return func() tea.Msg {
 		err := sys.GenerateAndWriteConfig(opts)
-		return saveConfigMsg{err: err}
+		return actionResultMsg{err: err}
 	}
 }
 
-func uninstallCmd() tea.Msg {
-	err := sys.UninstallMoltbot()
-	return uninstallMsg{err: err}
+func runInstallFlowCmd() tea.Msg {
+	// Linear flow: Check Node -> Install Node -> Config NPM -> Install Moltbot -> Config System
+	// Simplified to a blocking chain for "Action" state simplicity,
+	// or we can use tea.Sequence if we want granular updates.
+	// For now, we do a blocking sequence in a goroutine wrapper.
+
+	err := sys.InstallNode()
+	if err != nil {
+		return actionResultMsg{err: fmt.Errorf("node.js 安装失败: %v", err)}
+	}
+
+	err = sys.ConfigureNpmMirror()
+	if err != nil {
+		return actionResultMsg{err: fmt.Errorf("npm 配置失败: %v", err)}
+	}
+
+	err = sys.InstallMoltbotNpm("latest")
+	if err != nil {
+		return actionResultMsg{err: fmt.Errorf("moltbot 安装失败: %v", err)}
+	}
+
+	_, err = sys.EnsureOnPath()
+	if err != nil {
+		// Non-fatal
+	}
+
+	sys.RunDoctor()
+
+	return actionResultMsg{err: nil}
 }
 
-func getRandomWelcomeMsg() string {
-	msgs := []string{
-		"所有系统准备就绪",
-		"Moltbot 已就绪，随时为您服务",
-		"环境配置完成，开始使用吧",
-		"安装成功，期待您的使用",
-	}
-	return msgs[rand.Intn(len(msgs))]
+func tickCmd() tea.Cmd {
+	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
+func checkGatewayCmd() tea.Msg {
+	return gatewayStatusMsg(sys.IsGatewayRunning())
 }

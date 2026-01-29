@@ -293,39 +293,78 @@ func ConfigureNpmMirror() error {
 
 // InstallNode 下载并安装 Node.js MSI
 func InstallNode() error {
+	// 0. Check existing installation
+	_, ok := CheckNode()
+	if ok {
+		// Version is >= 22, skip install
+		return nil
+	}
+	// If version exists but is old (ok=false, verStr not empty), we update.
+	// If verStr is empty, we install fresh.
+
 	msiUrl := "https://nodejs.org/dist/v24.13.0/node-v24.13.0-x64.msi"
 	tempDir := os.TempDir()
 	msiPath := filepath.Join(tempDir, "node-v24.13.0-x64.msi")
 
 	// 1. 下载 MSI
-	fmt.Printf("正在下载 Node.js: %s\n", msiUrl)
-	resp, err := http.Get(msiUrl)
-	if err != nil {
-		return fmt.Errorf("下载失败: %v", err)
-	}
-	defer resp.Body.Close()
+	// Check if file already exists and has size (basic cache check)
+	if info, err := os.Stat(msiPath); err == nil && info.Size() > 10000000 {
+		// Assume valid if > 10MB, skip download
+	} else {
+		fmt.Printf("正在下载 Node.js: %s\n", msiUrl)
+		resp, err := http.Get(msiUrl)
+		if err != nil {
+			return fmt.Errorf("下载失败: %v", err)
+		}
+		defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("下载失败，状态码: %d", resp.StatusCode)
-	}
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("下载失败，状态码: %d", resp.StatusCode)
+		}
 
-	out, err := os.Create(msiPath)
-	if err != nil {
-		return fmt.Errorf("创建文件失败: %v", err)
-	}
-	defer out.Close()
+		out, err := os.Create(msiPath)
+		if err != nil {
+			return fmt.Errorf("创建文件失败: %v", err)
+		}
+		defer out.Close()
 
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return fmt.Errorf("写入文件失败: %v", err)
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			return fmt.Errorf("写入文件失败: %v", err)
+		}
 	}
 
 	// 2. 安装 MSI (静默安装)
 	// msiexec /i <file> /qn
-	fmt.Println("正在安装 Node.js...")
-	installCmd := exec.Command("msiexec", "/i", msiPath, "/qn")
-	if err := installCmd.Run(); err != nil {
-		return fmt.Errorf("安装失败: %v", err)
+	// Error 1619: This installation package could not be opened.
+	// Error 1603: Fatal error during installation.
+	// Error 1618: Another installation is already in progress.
+	fmt.Println("正在安装 Node.js (可能需要管理员权限)...")
+	
+	// Retry loop for 1618 (Another installation in progress)
+	for i := 0; i < 3; i++ {
+		installCmd := exec.Command("msiexec", "/i", msiPath, "/qn")
+		output, err := installCmd.CombinedOutput()
+		if err == nil {
+			break
+		}
+		
+		outStr := string(output)
+		if strings.Contains(outStr, "1618") {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		
+		// If error is 1619, maybe file is corrupted, delete and retry download? 
+		// For now just return error but with better message
+		if strings.Contains(outStr, "1619") {
+			return fmt.Errorf("安装包损坏或无法打开 (Error 1619). 请尝试手动下载安装: %s", msiUrl)
+		}
+		
+		if i == 2 {
+			return fmt.Errorf("安装失败: %v, Output: %s", err, outStr)
+		}
+		time.Sleep(2 * time.Second)
 	}
 
 	// 3. 刷新环境变量 (当前进程无法立即生效，但后续调用 getNpmPath 会尝试绝对路径)
