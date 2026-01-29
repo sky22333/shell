@@ -10,3 +10,21 @@ Web面板：
 ```
 http://127.0.0.1:18789
 ```
+
+### 构建
+如果你不放心预编译的二进制文件，可以自己构建。
+
+windows 安装go环境：https://golang.org/doc/install
+
+进入项目目录
+```
+cd moltbot/installer
+```
+安装依赖
+```
+go mod tidy
+```
+编译
+```
+go build -o installer.exe .
+```
