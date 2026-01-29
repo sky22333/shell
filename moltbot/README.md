@@ -11,7 +11,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/moltbot/i
 下载后使用管理员权限运行
 
 支持环境变量配置代理域名(已默认内置此代理)
-```
+```cmd
 set GIT_PROXY=https://g.blfrp.cn/
 
 installer.exe
