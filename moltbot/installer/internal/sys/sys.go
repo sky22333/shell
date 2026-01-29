@@ -380,17 +380,25 @@ func ConfigureNpmMirror() error {
 }
 
 func ConfigureGitProxy() error {
-	gitPath, err := GetGitPath()
-	if err != nil {
-		return err
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		ResetPathCache()
+		gitPath, err := GetGitPath()
+		if err != nil {
+			lastErr = err
+		} else {
+			proxy := gitProxy()
+			key := fmt.Sprintf("url.%shttps://github.com/.insteadOf", proxy)
+			cmd := exec.Command(gitPath, "config", "--global", key, "https://github.com/")
+			if err := cmd.Run(); err == nil {
+				return nil
+			} else {
+				lastErr = fmt.Errorf("设置 git 代理失败: %v", err)
+			}
+		}
+		time.Sleep(300 * time.Millisecond)
 	}
-	proxy := gitProxy()
-	key := fmt.Sprintf("url.%shttps://github.com/.insteadOf", proxy)
-	cmd := exec.Command(gitPath, "config", "--global", key, "https://github.com/")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("设置 git 代理失败: %v", err)
-	}
-	return nil
+	return lastErr
 }
 
 // downloadFile 下载文件
@@ -799,6 +807,7 @@ func InstallGit() error {
 		return fmt.Errorf("git 安装失败: %v, Output: %s", err, string(out))
 	}
 
+	ResetPathCache()
 	SetupGitEnv()
 	return nil
 }
