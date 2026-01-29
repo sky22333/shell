@@ -289,6 +289,7 @@ install() {
 
 # 卸载流程
 uninstall() {
+    check_root
     read -p "确定要卸载 Moltbot 吗？配置文件也将被删除 [y/n]: " confirm
     if [ "$confirm" != "y" ]; then
         echo "已取消。"
@@ -307,10 +308,24 @@ uninstall() {
     log_info "Moltbot (ClawdBot) 已卸载。"
 }
 
+# 修改配置 (重新运行配置向导)
+modify_config() {
+    echo -e "${YELLOW}注意：此操作将重新生成配置文件，并且重启服务。${PLAIN}"
+    configure_moltbot
+    log_info "正在重启服务以应用更改..."
+    systemctl restart moltbot
+    sleep 1
+    if systemctl is-active --quiet moltbot; then
+        log_info "服务已重启并正常运行。"
+    else
+        log_error "服务启动失败！请查看日志。"
+    fi
+}
+
 # 菜单
 show_menu() {
     clear
-    echo -e "${CYAN}Moltbot 管理脚本${PLAIN}"
+    echo -e "${CYAN}Moltbot（Clawdbot）管理脚本${PLAIN}"
     echo -e "${CYAN}------------------------${PLAIN}"
     echo -e "1. 安装并配置 Moltbot"
     echo -e "2. 启动服务"
@@ -320,7 +335,7 @@ show_menu() {
     echo -e "6. 查看实时日志"
     echo -e "7. 修改配置文件"
     echo -e "8. 卸载 Moltbot"
-    echo -e "9. 运行健康检查 (Doctor)"
+    echo -e "9. 运行doctor自检"
     echo -e "0. 退出脚本"
     echo -e "${CYAN}------------------------${PLAIN}"
     read -p "请输入选项 [0-9]: " choice
@@ -332,7 +347,7 @@ show_menu() {
         4) systemctl restart moltbot && log_info "服务已重启" ;;
         5) systemctl status moltbot ;;
         6) journalctl -u moltbot -f ;;
-        7) nano "${CONFIG_FILE}" && systemctl restart moltbot && log_info "配置已更新并重启服务" ;;
+        7) modify_config ;;
         8) uninstall ;;
         9) clawdbot doctor ;;
         0) exit 0 ;;
