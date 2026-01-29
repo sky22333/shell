@@ -8,9 +8,9 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/moltbot/i
 ### windows 脚本
 直接下载使用编译好的二进制文件：https://github.com/sky22333/shell/raw/main/moltbot/installer/installer.exe
 
-下载后双击运行
+下载后使用管理员权限运行
 
-支持环境变量配置代理域名(已默认配置)
+支持环境变量配置代理域名(已默认内置)
 ```
 # PowerShell（系统级，管理员）
 setx GIT_PROXY "https://g.blfrp.cn/" /M
