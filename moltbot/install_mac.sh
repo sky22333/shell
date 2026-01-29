@@ -347,6 +347,13 @@ setup_launchd() {
         log_error "未找到 clawdbot 可执行文件。"
         exit 1
     fi
+    NODE_BIN=$(command -v node)
+    if [ -n "${NODE_BIN}" ]; then
+        NODE_DIR=$(dirname "${NODE_BIN}")
+        LAUNCH_PATH="${NODE_DIR}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    else
+        LAUNCH_PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    fi
     cat > "${PLIST_PATH}" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -372,6 +379,8 @@ setup_launchd() {
   <dict>
     <key>HOME</key>
     <string>${HOME}</string>
+    <key>PATH</key>
+    <string>${LAUNCH_PATH}</string>
   </dict>
 </dict>
 </plist>
