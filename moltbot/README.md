@@ -10,10 +10,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/moltbot/i
 
 下载后双击运行
 
-如果你选择跳过设置TG机器人，启动后可以访问ClawdBot内置的Web面板进行对话：
-```
-http://127.0.0.1:18789
-```
+如果你选择跳过设置TG机器人，启动后可以访问ClawdBot内置的Web面板进行对话：`http://127.0.0.1:18789`
 
 ### 构建
 如果你不放心预编译的二进制文件，可以自己构建。
