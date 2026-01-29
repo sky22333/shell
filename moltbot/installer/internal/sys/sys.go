@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -342,6 +343,15 @@ func getNpmPrefix() (string, error) {
 	return cachedNpmPrefix, nil
 }
 
+func ResetPathCache() {
+	cachedNpmPrefix = ""
+	cachedNodePath = ""
+	cachedGitPath = ""
+	prefixOnce = sync.Once{}
+	nodePathOnce = sync.Once{}
+	gitPathOnce = sync.Once{}
+}
+
 // ConfigureNpmMirror 配置镜像
 func ConfigureNpmMirror() error {
 	npmPath, err := getNpmPath()
@@ -374,7 +384,6 @@ func downloadFile(url, dest, expectedSHA256 string) error {
 		return err
 	}
 
-	fmt.Printf("正在下载: %s\n", url)
 	if err := downloadWithResume(url, partPath, size, acceptRanges); err != nil {
 		return err
 	}
@@ -394,16 +403,16 @@ func downloadFile(url, dest, expectedSHA256 string) error {
 func downloadWithResume(url, dest string, size int64, acceptRanges bool) error {
 	if size > 0 && acceptRanges {
 		if info, err := os.Stat(dest); err == nil && info.Size() > 0 && info.Size() < size {
-			return downloadRange(url, dest, info.Size(), size-1)
+			return downloadRange(url, dest, info.Size(), size-1, size)
 		}
 		if size >= downloadConcurrentThreshold {
 			return downloadConcurrent(url, dest, size, downloadConcurrentParts)
 		}
 	}
-	return downloadRange(url, dest, 0, -1)
+	return downloadRange(url, dest, 0, -1, size)
 }
 
-func downloadRange(url, dest string, start, end int64) error {
+func downloadRange(url, dest string, start, end, total int64) error {
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %v", err)
@@ -442,15 +451,23 @@ func downloadRange(url, dest string, start, end int64) error {
 		return fmt.Errorf("下载失败，状态码: %d", resp.StatusCode)
 	}
 
-	if _, err = io.Copy(out, resp.Body); err != nil {
+	if total <= 0 && resp.ContentLength > 0 {
+		total = start + resp.ContentLength
+	}
+	progress := newProgressReporter(total, start)
+	progress.Start()
+	reader := &countingReader{r: resp.Body, written: progress.written}
+	if _, err = io.Copy(out, reader); err != nil {
+		progress.Stop()
 		return fmt.Errorf("写入文件失败: %v", err)
 	}
+	progress.Stop()
 	return nil
 }
 
 func downloadConcurrent(url, dest string, size int64, parts int) error {
 	if parts < 2 {
-		return downloadRange(url, dest, 0, -1)
+		return downloadRange(url, dest, 0, -1, size)
 	}
 
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -464,6 +481,8 @@ func downloadConcurrent(url, dest string, size int64, parts int) error {
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, parts)
+	progress := newProgressReporter(size, 0)
+	progress.Start()
 
 	partSize := size / int64(parts)
 	for i := 0; i < parts; i++ {
@@ -493,7 +512,7 @@ func downloadConcurrent(url, dest string, size int64, parts int) error {
 				errCh <- fmt.Errorf("分段下载失败，状态码: %d", resp.StatusCode)
 				return
 			}
-			writer := &writeAtWriter{file: out, offset: s}
+			writer := &writeAtWriter{file: out, offset: s, written: progress.written}
 			if _, err := io.Copy(writer, resp.Body); err != nil {
 				errCh <- fmt.Errorf("写入文件失败: %v", err)
 				return
@@ -504,6 +523,7 @@ func downloadConcurrent(url, dest string, size int64, parts int) error {
 	wg.Wait()
 	close(errCh)
 	out.Close()
+	progress.Stop()
 
 	for err := range errCh {
 		if err != nil {
@@ -516,12 +536,87 @@ func downloadConcurrent(url, dest string, size int64, parts int) error {
 type writeAtWriter struct {
 	file   *os.File
 	offset int64
+	written *int64
 }
 
 func (w *writeAtWriter) Write(p []byte) (int, error) {
 	n, err := w.file.WriteAt(p, w.offset)
 	w.offset += int64(n)
+	if w.written != nil && n > 0 {
+		atomic.AddInt64(w.written, int64(n))
+	}
 	return n, err
+}
+
+type countingReader struct {
+	r       io.Reader
+	written *int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	if n > 0 && c.written != nil {
+		atomic.AddInt64(c.written, int64(n))
+	}
+	return n, err
+}
+
+type progressReporter struct {
+	total   int64
+	written *int64
+	done    chan struct{}
+	once    sync.Once
+}
+
+func newProgressReporter(total, initial int64) *progressReporter {
+	current := initial
+	return &progressReporter{
+		total:   total,
+		written: &current,
+		done:    make(chan struct{}),
+	}
+}
+
+func (p *progressReporter) Start() {
+	if p == nil || p.total <= 0 {
+		return
+	}
+	p.print()
+	go func() {
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				p.print()
+			case <-p.done:
+				p.print()
+				fmt.Print("\n")
+				return
+			}
+		}
+	}()
+}
+
+func (p *progressReporter) Stop() {
+	if p == nil || p.total <= 0 {
+		return
+	}
+	p.once.Do(func() {
+		close(p.done)
+	})
+}
+
+func (p *progressReporter) print() {
+	current := atomic.LoadInt64(p.written)
+	if current < 0 {
+		current = 0
+	}
+	if current > p.total {
+		current = p.total
+	}
+	percent := float64(current) * 100 / float64(p.total)
+	fmt.Printf("\r下载进度: %.2f%%", percent)
 }
 
 func probeRemoteFile(url string) (int64, bool, error) {

@@ -77,6 +77,11 @@ type Model struct {
 	gitOk      bool
 	gatewayOk  bool
 	checkDone  bool
+
+	envRefreshActive          bool
+	envRefreshAttempt         int
+	envRefreshMax             int
+	envRefreshExpectInstalled bool
 }
 
 // 消息定义
@@ -99,6 +104,7 @@ type progressMsg string
 type tickMsg time.Time
 
 type gatewayStatusMsg bool
+type envRefreshMsg int
 
 func InitialModel() Model {
 	s := spinner.New()
@@ -162,6 +168,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.gitOk = msg.gitOk
 		m.gatewayOk = msg.gatewayRunning
 		m.checkDone = true
+		if m.envRefreshActive {
+			expect := m.envRefreshExpectInstalled
+			if m.nodeOk == expect && m.gitOk == expect && m.moltbotOk == expect {
+				m.envRefreshActive = false
+			}
+		}
 
 		// 如果在动作模式下检查环境，可能需要切回主菜单
 		if m.state == StateAction && m.actionType == ActionCheckEnv {
@@ -188,10 +200,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.actionType == ActionStartGateway {
 				m.DidStartGateway = true
 			}
+			if m.actionType == ActionInstall || m.actionType == ActionUninstall {
+				m.envRefreshActive = true
+				m.envRefreshAttempt = 0
+				m.envRefreshMax = 5
+				m.envRefreshExpectInstalled = m.actionType == ActionInstall
+				return m, envRefreshCmd(0)
+			}
 		} else {
 			m.progressMsg = fmt.Sprintf("操作失败: %v", msg.err)
 		}
 		return m, nil
+
+	case envRefreshMsg:
+		if !m.envRefreshActive {
+			return m, nil
+		}
+		attempt := int(msg)
+		m.envRefreshAttempt = attempt
+		cmds := []tea.Cmd{checkEnvCmd}
+		if attempt+1 < m.envRefreshMax {
+			cmds = append(cmds, envRefreshCmd(attempt+1))
+		}
+		return m, tea.Batch(cmds...)
 	}
 
 	// 状态更新
@@ -602,6 +633,7 @@ func (m Model) renderAction() string {
 // 指令处理
 
 func checkEnvCmd() tea.Msg {
+	sys.ResetPathCache()
 	nodeVer, nodeOk := sys.CheckNode()
 	moltVer, moltOk := sys.CheckMoltbot()
 	gitVer, gitOk := sys.CheckGit()
@@ -615,6 +647,23 @@ func checkEnvCmd() tea.Msg {
 		gitOk:            gitOk,
 		gatewayRunning:   gwRun,
 	}
+}
+
+func envRefreshDelay(attempt int) time.Duration {
+	delay := 300 * time.Millisecond
+	for i := 0; i < attempt; i++ {
+		delay *= 2
+		if delay > 3*time.Second {
+			return 3 * time.Second
+		}
+	}
+	return delay
+}
+
+func envRefreshCmd(attempt int) tea.Cmd {
+	return tea.Tick(envRefreshDelay(attempt), func(t time.Time) tea.Msg {
+		return envRefreshMsg(attempt)
+	})
 }
 
 func runStartGatewayCmd() tea.Msg {
