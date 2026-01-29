@@ -174,9 +174,9 @@ configure_moltbot() {
 }
 EOF
     else
-        read -p "请输入 API Base URL (例如 https://api.example.com/v1): " base_url
-        read -p "请输入 API Key: " api_key
-        read -p "请输入模型名称 (例如 gemini-3-flash 或 claude-3-5-sonnet): " model_name
+        read -p "请输入 API Base URL (例如 https://example.com/v1): " base_url
+        read -p "请输入 API Key (例如 sk-abc123...): " api_key
+        read -p "请输入模型名称 (例如 gpt-4o): " model_name
         
         cat > "${CONFIG_FILE}" <<EOF
 {
@@ -283,7 +283,7 @@ install() {
     echo -e "${GREEN}=============================================${PLAIN}"
     echo -e "${GREEN} Moltbot 安装配置完成！${PLAIN}"
     echo -e "${GREEN}=============================================${PLAIN}"
-    echo -e "请等待大约1分钟后机器人初始化完成，然后在Telegram中向您的Bot发送消息开始使用。"
+    echo -e "请等待Moltbot初始化完成（约1分钟），然后使用Telegram向您的Bot发送消息开始使用。"
     echo -e "${GREEN}=============================================${PLAIN}"
 }
 
