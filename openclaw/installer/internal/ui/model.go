@@ -65,6 +65,7 @@ type Model struct {
 	actionType  ActionType
 	spinner     spinner.Model
 	progressMsg string
+	progressPercent float64
 	actionErr   error
 	actionDone  bool
 
@@ -107,6 +108,7 @@ type actionResultMsg struct {
 
 type installProgressMsg struct {
 	step    string
+	percent float64
 	err     error
 	done    bool
 	channel chan installProgressMsg
@@ -236,11 +238,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.actionErr = msg.err
 			m.actionDone = true
 			m.progressMsg = fmt.Sprintf("安装失败: %v", msg.err)
+			m.progressPercent = 0
 			return m, nil
 		}
 		if msg.done {
 			m.actionDone = true
 			m.progressMsg = "安装流程完成！"
+			m.progressPercent = 0
 			m.envRefreshActive = true
 			m.envRefreshAttempt = 0
 			m.envRefreshMax = 5
@@ -248,6 +252,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, envRefreshCmd(0)
 		}
 		m.progressMsg = msg.step
+		m.progressPercent = msg.percent
 		return m, waitForInstallProgress(msg.channel)
 
 	case envRefreshMsg:
@@ -324,6 +329,7 @@ func (m Model) handleMenuSelect() (tea.Model, tea.Cmd) {
 		m.actionDone = false
 		m.actionErr = nil
 		m.progressMsg = "准备安装..."
+		m.progressPercent = 0
 		return m, runInstallFlowCmd()
 	case 3: // 卸载
 		m.state = StateAction
@@ -331,6 +337,7 @@ func (m Model) handleMenuSelect() (tea.Model, tea.Cmd) {
 		m.actionDone = false
 		m.actionErr = nil
 		m.progressMsg = "正在卸载..."
+		m.progressPercent = 0
 		return m, runUninstallCmd
 	case 4: // 退出
 		return m, tea.Quit
@@ -517,7 +524,8 @@ func (m Model) renderDashboard() string {
 
 	if m.gatewayOk && m.gatewayToken != "" {
 		statusRows = append(statusRows, "")
-		url := fmt.Sprintf("http://127.0.0.1:18789/?token=%s", m.gatewayToken)
+		port := sys.GetGatewayPort()
+		url := fmt.Sprintf("http://127.0.0.1:%d/?token=%s", port, m.gatewayToken)
 		statusRows = append(statusRows, fmt.Sprintf("访问地址: %s", style.SuccessStyle.Render(url)))
 	}
 
@@ -671,6 +679,17 @@ func (m Model) renderAction() string {
 		style.SubHeaderStyle.Render(title),
 		"",
 		fmt.Sprintf("%s %s", icon, m.progressMsg),
+	)
+
+	if m.progressPercent > 0 {
+		content = lipgloss.JoinVertical(lipgloss.Center,
+			content,
+			fmt.Sprintf("%.0f%%", m.progressPercent),
+		)
+	}
+
+	content = lipgloss.JoinVertical(lipgloss.Center,
+		content,
 		"",
 	)
 
@@ -774,14 +793,18 @@ func runInstallFlowCmd() tea.Cmd {
 
 		// 1. Install Node
 		ch <- installProgressMsg{step: "正在安装 Node.js...", channel: ch}
-		if err := sys.InstallNode(); err != nil {
+		if err := sys.InstallNode(func(percent float64) {
+			ch <- installProgressMsg{step: "正在安装 Node.js...", percent: percent, channel: ch}
+		}); err != nil {
 			ch <- installProgressMsg{err: fmt.Errorf("node.js 安装失败: %v", err), channel: ch}
 			return
 		}
 
 		// 2. Install Git
 		ch <- installProgressMsg{step: "正在安装 Git...", channel: ch}
-		if err := sys.InstallGit(); err != nil {
+		if err := sys.InstallGit(func(percent float64) {
+			ch <- installProgressMsg{step: "正在安装 Git...", percent: percent, channel: ch}
+		}); err != nil {
 			ch <- installProgressMsg{err: fmt.Errorf("git 安装失败: %v", err), channel: ch}
 			return
 		}
@@ -802,7 +825,9 @@ func runInstallFlowCmd() tea.Cmd {
 
 		// 5. Install OpenClaw
 		ch <- installProgressMsg{step: "正在安装 OpenClaw...", channel: ch}
-		if err := sys.InstallOpenclawNpm("latest"); err != nil {
+		if err := sys.InstallOpenclawNpm("latest", func(percent float64) {
+			ch <- installProgressMsg{step: "正在安装 OpenClaw...", percent: percent, channel: ch}
+		}); err != nil {
 			ch <- installProgressMsg{err: fmt.Errorf("openclaw 安装失败: %v", err), channel: ch}
 			return
 		}

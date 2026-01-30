@@ -23,6 +23,8 @@ import (
 	"time"
 )
 
+type ProgressCallback func(percent float64)
+
 var (
 	cachedNpmPrefix string
 	cachedNodePath  string
@@ -35,6 +37,7 @@ var (
 const (
 	downloadConcurrentThreshold int64 = 20 * 1024 * 1024
 	downloadConcurrentParts           = 4
+	DefaultGatewayPort                = 18789
 )
 
 const gitProxyEnv = "GIT_PROXY"
@@ -414,7 +417,7 @@ func ConfigureGitProxy() error {
 }
 
 // downloadFile 下载文件
-func downloadFile(url, dest, expectedSHA256 string) error {
+func downloadFile(url, dest, expectedSHA256 string, onProgress ProgressCallback) error {
 	if ok, err := verifyFileSHA256(dest, expectedSHA256); err == nil && ok {
 		return nil
 	}
@@ -432,7 +435,7 @@ func downloadFile(url, dest, expectedSHA256 string) error {
 		return err
 	}
 
-	if err := downloadWithResume(url, partPath, size, acceptRanges); err != nil {
+	if err := downloadWithResume(url, partPath, size, acceptRanges, onProgress); err != nil {
 		return err
 	}
 
@@ -448,19 +451,19 @@ func downloadFile(url, dest, expectedSHA256 string) error {
 	return os.Rename(partPath, dest)
 }
 
-func downloadWithResume(url, dest string, size int64, acceptRanges bool) error {
+func downloadWithResume(url, dest string, size int64, acceptRanges bool, onProgress ProgressCallback) error {
 	if size > 0 && acceptRanges {
 		if info, err := os.Stat(dest); err == nil && info.Size() > 0 && info.Size() < size {
-			return downloadRange(url, dest, info.Size(), size-1, size)
+			return downloadRange(url, dest, info.Size(), size-1, size, onProgress)
 		}
 		if size >= downloadConcurrentThreshold {
-			return downloadConcurrent(url, dest, size, downloadConcurrentParts)
+			return downloadConcurrent(url, dest, size, downloadConcurrentParts, onProgress)
 		}
 	}
-	return downloadRange(url, dest, 0, -1, size)
+	return downloadRange(url, dest, 0, -1, size, onProgress)
 }
 
-func downloadRange(url, dest string, start, end, total int64) error {
+func downloadRange(url, dest string, start, end, total int64, onProgress ProgressCallback) error {
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %v", err)
@@ -502,20 +505,27 @@ func downloadRange(url, dest string, start, end, total int64) error {
 	if total <= 0 && resp.ContentLength > 0 {
 		total = start + resp.ContentLength
 	}
-	progress := newProgressReporter(total, start)
-	progress.Start()
-	reader := &countingReader{r: resp.Body, written: progress.written}
+
+	reader := &countingReader{
+		r: resp.Body,
+		update: func(n int64) {
+			if total > 0 && onProgress != nil {
+				current := start + n
+				percent := float64(current) * 100 / float64(total)
+				onProgress(percent)
+			}
+		},
+	}
+
 	if _, err = io.Copy(out, reader); err != nil {
-		progress.Stop()
 		return fmt.Errorf("写入文件失败: %v", err)
 	}
-	progress.Stop()
 	return nil
 }
 
-func downloadConcurrent(url, dest string, size int64, parts int) error {
+func downloadConcurrent(url, dest string, size int64, parts int, onProgress ProgressCallback) error {
 	if parts < 2 {
-		return downloadRange(url, dest, 0, -1, size)
+		return downloadRange(url, dest, 0, -1, size, onProgress)
 	}
 
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -529,9 +539,10 @@ func downloadConcurrent(url, dest string, size int64, parts int) error {
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, parts)
-	progress := newProgressReporter(size, 0)
-	progress.Start()
-
+	
+	// Shared progress tracking
+	var written int64
+	
 	partSize := size / int64(parts)
 	for i := 0; i < parts; i++ {
 		start := int64(i) * partSize
@@ -560,7 +571,19 @@ func downloadConcurrent(url, dest string, size int64, parts int) error {
 				errCh <- fmt.Errorf("分段下载失败，状态码: %d", resp.StatusCode)
 				return
 			}
-			writer := &writeAtWriter{file: out, offset: s, written: progress.written}
+			
+			writer := &writeAtWriter{
+				file: out,
+				offset: s,
+				update: func(n int) {
+					newVal := atomic.AddInt64(&written, int64(n))
+					if onProgress != nil {
+						percent := float64(newVal) * 100 / float64(size)
+						onProgress(percent)
+					}
+				},
+			}
+			
 			if _, err := io.Copy(writer, resp.Body); err != nil {
 				errCh <- fmt.Errorf("写入文件失败: %v", err)
 				return
@@ -571,7 +594,6 @@ func downloadConcurrent(url, dest string, size int64, parts int) error {
 	wg.Wait()
 	close(errCh)
 	out.Close()
-	progress.Stop()
 
 	for err := range errCh {
 		if err != nil {
@@ -584,87 +606,33 @@ func downloadConcurrent(url, dest string, size int64, parts int) error {
 type writeAtWriter struct {
 	file   *os.File
 	offset int64
-	written *int64
+	update func(int)
 }
 
 func (w *writeAtWriter) Write(p []byte) (int, error) {
 	n, err := w.file.WriteAt(p, w.offset)
 	w.offset += int64(n)
-	if w.written != nil && n > 0 {
-		atomic.AddInt64(w.written, int64(n))
+	if w.update != nil && n > 0 {
+		w.update(n)
 	}
 	return n, err
 }
 
 type countingReader struct {
 	r       io.Reader
-	written *int64
+	totalRead int64
+	update  func(int64)
 }
 
 func (c *countingReader) Read(p []byte) (int, error) {
 	n, err := c.r.Read(p)
-	if n > 0 && c.written != nil {
-		atomic.AddInt64(c.written, int64(n))
+	if n > 0 {
+		c.totalRead += int64(n)
+		if c.update != nil {
+			c.update(c.totalRead)
+		}
 	}
 	return n, err
-}
-
-type progressReporter struct {
-	total   int64
-	written *int64
-	done    chan struct{}
-	once    sync.Once
-}
-
-func newProgressReporter(total, initial int64) *progressReporter {
-	current := initial
-	return &progressReporter{
-		total:   total,
-		written: &current,
-		done:    make(chan struct{}),
-	}
-}
-
-func (p *progressReporter) Start() {
-	if p == nil || p.total <= 0 {
-		return
-	}
-	p.print()
-	go func() {
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				p.print()
-			case <-p.done:
-				p.print()
-				fmt.Print("\n")
-				return
-			}
-		}
-	}()
-}
-
-func (p *progressReporter) Stop() {
-	if p == nil || p.total <= 0 {
-		return
-	}
-	p.once.Do(func() {
-		close(p.done)
-	})
-}
-
-func (p *progressReporter) print() {
-	current := atomic.LoadInt64(p.written)
-	if current < 0 {
-		current = 0
-	}
-	if current > p.total {
-		current = p.total
-	}
-	percent := float64(current) * 100 / float64(p.total)
-	fmt.Printf("\r下载进度: %.2f%%", percent)
 }
 
 func probeRemoteFile(url string) (int64, bool, error) {
@@ -747,7 +715,7 @@ func fileSHA256(path string) (string, error) {
 }
 
 // InstallNode 安装 Node.js
-func InstallNode() error {
+func InstallNode(onProgress ProgressCallback) error {
 	if _, ok := CheckNode(); ok {
 		return nil
 	}
@@ -756,11 +724,9 @@ func InstallNode() error {
 	tempDir := os.TempDir()
 	msiPath := filepath.Join(tempDir, "node-v24.13.0-x64.msi")
 
-	if err := downloadFile(msiUrl, msiPath, nodeMsiSHA256); err != nil {
+	if err := downloadFile(msiUrl, msiPath, nodeMsiSHA256, onProgress); err != nil {
 		return err
 	}
-
-	fmt.Println("正在安装 Node.js (可能需要管理员权限)...")
 	
 	for i := 0; i < 3; i++ {
 		installCmd := exec.Command("msiexec", "/i", msiPath, "/qn")
@@ -790,7 +756,7 @@ func InstallNode() error {
 }
 
 // InstallGit 安装 Git
-func InstallGit() error {
+func InstallGit(onProgress ProgressCallback) error {
 	if _, ok := CheckGit(); ok {
 		return nil
 	}
@@ -799,12 +765,10 @@ func InstallGit() error {
 	tempDir := os.TempDir()
 	exePath := filepath.Join(tempDir, "Git-2.52.0-64-bit.exe")
 
-	fmt.Println("正在下载 Git...")
-	if err := downloadFile(gitUrl, exePath, gitExeSHA256); err != nil {
+	if err := downloadFile(gitUrl, exePath, gitExeSHA256, onProgress); err != nil {
 		return fmt.Errorf("git 下载失败: %v", err)
 	}
 
-	fmt.Println("正在安装 Git (可能需要管理员权限)...")
 	installCmd := exec.Command(exePath,
 		"/VERYSILENT",
 		"/NORESTART",
@@ -825,7 +789,7 @@ func InstallGit() error {
 }
 
 // InstallOpenclawNpm 安装包
-func InstallOpenclawNpm(tag string) error {
+func InstallOpenclawNpm(tag string, onProgress ProgressCallback) error {
 	SetupNodeEnv()
 
 	pkgName := "openclaw"
@@ -947,7 +911,7 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 		Gateway: GatewayConfig{
 			Mode: "local",
 			Bind: "loopback",
-			Port: 18789,
+			Port: DefaultGatewayPort,
 			Auth: &AuthConfig{
 				Mode:  "token",
 				Token: token,
@@ -1053,6 +1017,34 @@ func GetConfigPath() (string, error) {
 	return filepath.Join(userHome, ".openclaw", "openclaw.json"), nil
 }
 
+func loadConfig() (*OpenclawConfig, error) {
+	configPath, err := GetConfigPath()
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	var config OpenclawConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+// GetGatewayPort 获取网关端口
+func GetGatewayPort() int {
+	config, err := loadConfig()
+	if err != nil {
+		return DefaultGatewayPort
+	}
+	if config.Gateway.Port > 0 {
+		return config.Gateway.Port
+	}
+	return DefaultGatewayPort
+}
+
 // GetGatewayToken 获取 Gateway Token
 func GetGatewayToken() (string, error) {
 	configPath, err := GetConfigPath()
@@ -1091,7 +1083,8 @@ func StartGateway() error {
 
 // IsGatewayRunning 检查端口
 func IsGatewayRunning() bool {
-	conn, err := net.DialTimeout("tcp", "127.0.0.1:18789", 500*time.Millisecond)
+	port := GetGatewayPort()
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 500*time.Millisecond)
 	if err == nil {
 		conn.Close()
 		return true
@@ -1101,6 +1094,7 @@ func IsGatewayRunning() bool {
 
 // KillGateway 停止网关
 func KillGateway() error {
+	port := GetGatewayPort()
 	cmd := exec.Command("netstat", "-ano")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	out, err := cmd.Output()
@@ -1110,9 +1104,10 @@ func KillGateway() error {
 
 	scanner := bufio.NewScanner(bytes.NewReader(out))
 	var pid string
+	portStr := fmt.Sprintf(":%d", port)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, ":18789") && strings.Contains(line, "LISTENING") {
+		if strings.Contains(line, portStr) && strings.Contains(line, "LISTENING") {
 			fields := strings.Fields(line)
 			if len(fields) > 0 {
 				pid = fields[len(fields)-1]
