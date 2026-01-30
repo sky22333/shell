@@ -5,6 +5,11 @@
 bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/install.sh)
 ```
 
+### mac 脚本
+```
+bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/install_mac.sh)
+```
+
 ### windows 脚本
 直接下载使用编译好的二进制文件：https://github.com/sky22333/shell/raw/main/openclaw/installer/installer.exe
 
