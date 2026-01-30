@@ -1041,11 +1041,36 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 		return err
 	}
 
-	fmt.Printf("配置文件绝对路径: %s\n", configFile)
-	fmt.Printf("Gateway Token: %s\n", token)
-	fmt.Println("请妥善保存此 Token，用于远程连接 Gateway。")
-
 	return nil
+}
+
+// GetConfigPath 获取配置文件路径
+func GetConfigPath() (string, error) {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(userHome, ".openclaw", "openclaw.json"), nil
+}
+
+// GetGatewayToken 获取 Gateway Token
+func GetGatewayToken() (string, error) {
+	configPath, err := GetConfigPath()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", err
+	}
+	var config OpenclawConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return "", err
+	}
+	if config.Gateway.Auth != nil {
+		return config.Gateway.Auth.Token, nil
+	}
+	return "", nil
 }
 
 // StartGateway 启动网关

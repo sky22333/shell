@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -79,6 +77,9 @@ type Model struct {
 	gitOk      bool
 	gatewayOk  bool
 	checkDone  bool
+	
+	configPath   string
+	gatewayToken string
 
 	envRefreshActive          bool
 	envRefreshAttempt         int
@@ -95,6 +96,8 @@ type checkMsg struct {
 	gitVer           string
 	gitOk            bool
 	gatewayRunning   bool
+	configPath       string
+	gatewayToken     string
 }
 
 type actionResultMsg struct {
@@ -170,6 +173,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.gitVer = msg.gitVer
 		m.gitOk = msg.gitOk
 		m.gatewayOk = msg.gatewayRunning
+		m.configPath = msg.configPath
+		m.gatewayToken = msg.gatewayToken
 		m.checkDone = true
 		if m.envRefreshActive {
 			expect := m.envRefreshExpectInstalled
@@ -471,13 +476,26 @@ func (m Model) renderDashboard() string {
 		}
 	}
 
-	statusPanel := style.PanelStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
+	statusRows := []string{
 		style.SubHeaderStyle.Render("系统状态"),
 		fmt.Sprintf("Node.js 环境:  %s", nodeStatus),
 		fmt.Sprintf("Git 环境:      %s", gitStatus),
 		fmt.Sprintf("OpenClaw 核心:  %s", openclawStatus),
 		fmt.Sprintf("网关进程:      %s", gwStatus),
-	))
+	}
+
+	if m.openclawOk && m.configPath != "" {
+		statusRows = append(statusRows, "")
+		statusRows = append(statusRows, fmt.Sprintf("配置文件: %s", m.configPath))
+	}
+
+	if m.gatewayOk && m.gatewayToken != "" {
+		statusRows = append(statusRows, "")
+		url := fmt.Sprintf("http://127.0.0.1:18789/?token=%s", m.gatewayToken)
+		statusRows = append(statusRows, fmt.Sprintf("访问地址: %s", style.SuccessStyle.Render(url)))
+	}
+
+	statusPanel := style.PanelStyle.Render(lipgloss.JoinVertical(lipgloss.Left, statusRows...))
 
 	// 3. 菜单
 	menuItems := []struct{ title, desc string }{
@@ -645,6 +663,10 @@ func checkEnvCmd() tea.Msg {
 	openclawVer, openclawOk := sys.CheckOpenclaw()
 	gitVer, gitOk := sys.CheckGit()
 	gwRun := sys.IsGatewayRunning()
+	
+	cfgPath, _ := sys.GetConfigPath()
+	token, _ := sys.GetGatewayToken()
+	
 	return checkMsg{
 		nodeVer:          nodeVer,
 		nodeOk:           nodeOk,
@@ -653,6 +675,8 @@ func checkEnvCmd() tea.Msg {
 		gitVer:           gitVer,
 		gitOk:            gitOk,
 		gatewayRunning:   gwRun,
+		configPath:       cfgPath,
+		gatewayToken:     token,
 	}
 }
 
@@ -700,9 +724,7 @@ func runSaveConfigCmd(opts sys.ConfigOptions) tea.Cmd {
 		err := sys.GenerateAndWriteConfig(opts)
 		msg := ""
 		if err == nil {
-			userHome, _ := os.UserHomeDir()
-			path := filepath.Join(userHome, ".openclaw", "openclaw.json")
-			msg = fmt.Sprintf("配置文件路径: %s", path)
+			msg = "配置已保存！"
 		}
 		return actionResultMsg{err: err, successMsg: msg}
 	}
