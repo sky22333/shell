@@ -372,6 +372,26 @@ func getNpmPrefix() (string, error) {
 	return cachedNpmPrefix, nil
 }
 
+// checkIsCNLocation Checks if the current IP location is in China
+func checkIsCNLocation() bool {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("https://www.cloudflare.com/cdn-cgi/trace")
+	if err != nil {
+		// If the request fails, assume CN to be safe and ensure accessibility
+		return true
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "loc=CN" {
+			return true
+		}
+	}
+	return false
+}
+
 func ResetPathCache() {
 	cachedNpmPrefix = ""
 	cachedNodePath = ""
@@ -395,6 +415,10 @@ func ConfigureNpmMirror() error {
 }
 
 func ConfigureGitProxy() error {
+	if !checkIsCNLocation() {
+		return nil
+	}
+
 	var lastErr error
 	for i := 0; i < 3; i++ {
 		ResetPathCache()
@@ -414,6 +438,21 @@ func ConfigureGitProxy() error {
 		time.Sleep(300 * time.Millisecond)
 	}
 	return lastErr
+}
+
+// RemoveGitProxy 取消 Git 代理
+func RemoveGitProxy() error {
+	gitPath, err := GetGitPath()
+	if err != nil {
+		return nil
+	}
+
+	proxy := gitProxy()
+	key := fmt.Sprintf("url.%shttps://github.com/.insteadOf", proxy)
+	
+	// Unset the proxy configuration
+	cmd := exec.Command(gitPath, "config", "--global", "--unset", key)
+	return cmd.Run()
 }
 
 // downloadFile 下载文件
@@ -1139,6 +1178,8 @@ func UninstallOpenclaw() error {
 		cmd.Stderr = nil
 		cmd.Run()
 	}
+
+	RemoveGitProxy()
 
 	userHome, err := os.UserHomeDir()
 	if err == nil {
