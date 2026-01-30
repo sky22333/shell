@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -96,7 +98,8 @@ type checkMsg struct {
 }
 
 type actionResultMsg struct {
-	err error
+	err        error
+	successMsg string
 }
 
 type progressMsg string
@@ -196,7 +199,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.actionErr = msg.err
 		m.actionDone = true
 		if msg.err == nil {
-			m.progressMsg = "操作成功完成！"
+			if msg.successMsg != "" {
+				m.progressMsg = msg.successMsg
+			} else {
+				m.progressMsg = "操作成功完成！"
+			}
 			if m.actionType == ActionStartGateway {
 				m.DidStartGateway = true
 			}
@@ -691,7 +698,13 @@ func runUninstallCmd() tea.Msg {
 func runSaveConfigCmd(opts sys.ConfigOptions) tea.Cmd {
 	return func() tea.Msg {
 		err := sys.GenerateAndWriteConfig(opts)
-		return actionResultMsg{err: err}
+		msg := ""
+		if err == nil {
+			userHome, _ := os.UserHomeDir()
+			path := filepath.Join(userHome, ".openclaw", "openclaw.json")
+			msg = fmt.Sprintf("配置文件路径: %s", path)
+		}
+		return actionResultMsg{err: err, successMsg: msg}
 	}
 }
 

@@ -255,6 +255,7 @@ EOF
     fi
     
     log_info "配置文件已生成: ${CONFIG_FILE}"
+    echo -e "${GREEN}配置文件路径: ${CONFIG_FILE}${PLAIN}"
 }
 
 # 配置 Systemd 服务
