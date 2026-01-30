@@ -2,7 +2,7 @@
 
 # OpenClaw 一键安装与管理脚本
 # 兼容 Debian / Ubuntu
-# 官方文档: https://docs.openclaw.app
+# 官方文档: https://openclaw.ai/
 
 # 颜色定义
 RED='\033[0;31m'
@@ -302,8 +302,7 @@ uninstall() {
     systemctl daemon-reload
     
     npm uninstall -g openclaw
-    npm uninstall -g moltbot # 尝试卸载旧包
-    npm uninstall -g clawdbot # 尝试卸载旧包
+    npm uninstall -g clawdbot
     rm -rf "${CONFIG_DIR}"
     
     log_info "OpenClaw 已卸载。"

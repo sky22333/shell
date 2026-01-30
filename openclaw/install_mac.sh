@@ -445,7 +445,6 @@ uninstall() {
     rm -f "${PLIST_PATH}"
     npm uninstall -g openclaw
     npm uninstall -g clawdbot
-    npm uninstall -g moltbot
     rm -rf "${CONFIG_DIR}"
     log_info "OpenClaw 已卸载。"
 }

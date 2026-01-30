@@ -1085,7 +1085,7 @@ func UninstallOpenclaw() error {
 		return err
 	}
 
-	packages := []string{"openclaw", "clawdbot", "moltbot"}
+	packages := []string{"openclaw", "clawdbot"}
 	for _, pkg := range packages {
 		cmd := exec.Command(npmPath, "uninstall", "-g", pkg)
 		cmd.Stdout = nil
@@ -1100,9 +1100,6 @@ func UninstallOpenclaw() error {
 
 		legacyDir := filepath.Join(userHome, ".clawdbot")
 		os.RemoveAll(legacyDir)
-		
-		legacyDir2 := filepath.Join(userHome, ".moltbot")
-		os.RemoveAll(legacyDir2)
 	}
 
 	return nil
