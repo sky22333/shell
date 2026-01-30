@@ -105,6 +105,13 @@ type actionResultMsg struct {
 	successMsg string
 }
 
+type installProgressMsg struct {
+	step    string
+	err     error
+	done    bool
+	channel chan installProgressMsg
+}
+
 type progressMsg string
 
 type tickMsg time.Time
@@ -224,6 +231,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case installProgressMsg:
+		if msg.err != nil {
+			m.actionErr = msg.err
+			m.actionDone = true
+			m.progressMsg = fmt.Sprintf("安装失败: %v", msg.err)
+			return m, nil
+		}
+		if msg.done {
+			m.actionDone = true
+			m.progressMsg = "安装流程完成！"
+			m.envRefreshActive = true
+			m.envRefreshAttempt = 0
+			m.envRefreshMax = 5
+			m.envRefreshExpectInstalled = true
+			return m, envRefreshCmd(0)
+		}
+		m.progressMsg = msg.step
+		return m, waitForInstallProgress(msg.channel)
+
 	case envRefreshMsg:
 		if !m.envRefreshActive {
 			return m, nil
@@ -298,7 +324,7 @@ func (m Model) handleMenuSelect() (tea.Model, tea.Cmd) {
 		m.actionDone = false
 		m.actionErr = nil
 		m.progressMsg = "准备安装..."
-		return m, runInstallFlowCmd
+		return m, runInstallFlowCmd()
 	case 3: // 卸载
 		m.state = StateAction
 		m.actionType = ActionUninstall
@@ -730,43 +756,66 @@ func runSaveConfigCmd(opts sys.ConfigOptions) tea.Cmd {
 	}
 }
 
-func runInstallFlowCmd() tea.Msg {
-	// 线性流程: 检查Node -> 安装Node -> 检查Git -> 安装Git -> 配置NPM -> 安装OpenClaw -> 配置系统
-	// 为简化状态，使用阻塞执行
-
-	err := sys.InstallNode()
-	if err != nil {
-		return actionResultMsg{err: fmt.Errorf("node.js 安装失败: %v", err)}
+func waitForInstallProgress(sub chan installProgressMsg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-sub
+		if !ok {
+			return nil
+		}
+		return msg
 	}
+}
 
-	err = sys.InstallGit()
-	if err != nil {
-		return actionResultMsg{err: fmt.Errorf("git 安装失败: %v", err)}
-	}
+func runInstallFlowCmd() tea.Cmd {
+	ch := make(chan installProgressMsg)
 
-	err = sys.ConfigureGitProxy()
-	if err != nil {
-		return actionResultMsg{err: fmt.Errorf("git 代理配置失败: %v", err)}
-	}
+	go func() {
+		defer close(ch)
 
-	err = sys.ConfigureNpmMirror()
-	if err != nil {
-		return actionResultMsg{err: fmt.Errorf("npm 配置失败: %v", err)}
-	}
+		// 1. Install Node
+		ch <- installProgressMsg{step: "正在安装 Node.js...", channel: ch}
+		if err := sys.InstallNode(); err != nil {
+			ch <- installProgressMsg{err: fmt.Errorf("node.js 安装失败: %v", err), channel: ch}
+			return
+		}
 
-	err = sys.InstallOpenclawNpm("latest")
-	if err != nil {
-		return actionResultMsg{err: fmt.Errorf("openclaw 安装失败: %v", err)}
-	}
+		// 2. Install Git
+		ch <- installProgressMsg{step: "正在安装 Git...", channel: ch}
+		if err := sys.InstallGit(); err != nil {
+			ch <- installProgressMsg{err: fmt.Errorf("git 安装失败: %v", err), channel: ch}
+			return
+		}
 
-	_, err = sys.EnsureOnPath()
-	if err != nil {
-		// 非致命错误
-	}
+		// 3. Configure Git Proxy
+		ch <- installProgressMsg{step: "正在配置 Git 代理...", channel: ch}
+		if err := sys.ConfigureGitProxy(); err != nil {
+			ch <- installProgressMsg{err: fmt.Errorf("git 代理配置失败: %v", err), channel: ch}
+			return
+		}
 
-	sys.RunDoctor()
+		// 4. Configure NPM Mirror
+		ch <- installProgressMsg{step: "正在配置 NPM 镜像...", channel: ch}
+		if err := sys.ConfigureNpmMirror(); err != nil {
+			ch <- installProgressMsg{err: fmt.Errorf("npm 配置失败: %v", err), channel: ch}
+			return
+		}
 
-	return actionResultMsg{err: nil}
+		// 5. Install OpenClaw
+		ch <- installProgressMsg{step: "正在安装 OpenClaw...", channel: ch}
+		if err := sys.InstallOpenclawNpm("latest"); err != nil {
+			ch <- installProgressMsg{err: fmt.Errorf("openclaw 安装失败: %v", err), channel: ch}
+			return
+		}
+
+		// 6. Finalize
+		ch <- installProgressMsg{step: "正在配置环境...", channel: ch}
+		sys.EnsureOnPath()
+		sys.RunDoctor()
+
+		ch <- installProgressMsg{done: true, channel: ch}
+	}()
+
+	return waitForInstallProgress(ch)
 }
 
 func tickCmd() tea.Cmd {
