@@ -3,6 +3,7 @@ package sys
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -67,9 +68,15 @@ type OpenclawConfig struct {
 }
 
 type GatewayConfig struct {
-	Mode string `json:"mode"`
-	Bind string `json:"bind"`
-	Port int    `json:"port"`
+	Mode string      `json:"mode"`
+	Bind string      `json:"bind"`
+	Port int         `json:"port"`
+	Auth *AuthConfig `json:"auth,omitempty"`
+}
+
+type AuthConfig struct {
+	Mode  string `json:"mode,omitempty"`
+	Token string `json:"token"`
 }
 
 type AgentsConfig struct {
@@ -928,11 +935,22 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 	}
 	configFile := filepath.Join(configDir, "openclaw.json")
 
+	// 生成随机 Token
+	tokenBytes := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, tokenBytes); err != nil {
+		// 降级方案
+		copy(tokenBytes, []byte(fmt.Sprintf("%d", time.Now().UnixNano())))
+	}
+	token := hex.EncodeToString(tokenBytes)
+
 	config := OpenclawConfig{
 		Gateway: GatewayConfig{
-			Mode: "local",
+			Mode: "token",
 			Bind: "loopback",
 			Port: 18789,
+			Auth: &AuthConfig{
+				Token: token,
+			},
 		},
 		Tools: ToolsConfig{
 			Elevated: ElevatedConfig{
@@ -1018,7 +1036,15 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 		return fmt.Errorf("序列化配置失败: %v", err)
 	}
 
-	return os.WriteFile(configFile, data, 0644)
+	if err := os.WriteFile(configFile, data, 0644); err != nil {
+		return err
+	}
+
+	fmt.Printf("配置文件绝对路径: %s\n", configFile)
+	fmt.Printf("Gateway Token: %s\n", token)
+	fmt.Println("请妥善保存此 Token，用于远程连接 Gateway。")
+
+	return nil
 }
 
 // StartGateway 启动网关
