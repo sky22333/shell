@@ -37,3 +37,24 @@ go mod tidy
 ```
 go build -o installer.exe .
 ```
+
+### windows版本QQ机器人插件
+安装插件
+```
+git clone https://github.com/sliverp/qqbot.git "$env:USERPROFILE\.openclaw\extensions\qqbot"
+
+cd "$env:USERPROFILE\.openclaw\extensions\qqbot"
+
+npm i
+```
+添加QQ机器人参数
+```
+openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
+```
+然后重启`openclaw`即可。
+
+卸载插件要先停止`openclaw`，然后删除插件
+```
+Remove-Item "$env:USERPROFILE\.openclaw\extensions\qqbot" -Recurse -Force
+```
+然后重启`openclaw`即可。
