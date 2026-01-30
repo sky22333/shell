@@ -53,8 +53,26 @@ openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
 ```
 然后重启`openclaw`即可。
 
+### Linux版本QQ机器人插件
+安装插件
+```
+mkdir -p "${HOME}/.openclaw/extensions"
+
+git clone https://github.com/sliverp/qqbot.git "${HOME}/.openclaw/extensions/qqbot"
+
+cd "${HOME}/.openclaw/extensions/qqbot"
+
+npm i
+```
+添加QQ机器人参数
+```
+openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
+```
+然后重启`openclaw`即可。
+
+
 卸载插件要先停止`openclaw`，然后删除插件
 ```
-Remove-Item "$env:USERPROFILE\.openclaw\extensions\qqbot" -Recurse -Force
+rm -rf "${HOME}/.openclaw/extensions/qqbot"
 ```
 然后重启`openclaw`即可。
