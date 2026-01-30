@@ -15,14 +15,10 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/
 
 下载后使用管理员权限运行
 
-支持环境变量配置代理域名(已默认内置此代理)
-```cmd
-set GIT_PROXY=https://g.blfrp.cn/
-
-installer.exe
+CMD修改加速域名环境变量（可选）
 ```
-
-如果你选择跳过设置TG机器人，启动后可以访问OpenClaw内置的Web面板进行对话：`http://127.0.0.1:18789`
+set GIT_PROXY=https://g.blfrp.cn/
+```
 
 ### 构建（可选）
 如果你不放心预编译的二进制文件，可以自己构建。
