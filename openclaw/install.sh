@@ -161,10 +161,11 @@ configure_openclaw() {
         cat > "${CONFIG_FILE}" <<EOF
 {
   "gateway": {
-    "mode": "token",
+    "mode": "local",
     "bind": "loopback",
     "port": 18789,
     "auth": {
+      "mode": "token",
       "token": "${GATEWAY_TOKEN}"
     }
   },
@@ -205,10 +206,11 @@ EOF
         cat > "${CONFIG_FILE}" <<EOF
 {
   "gateway": {
-    "mode": "token",
+    "mode": "local",
     "bind": "loopback",
     "port": 18789,
     "auth": {
+      "mode": "token",
       "token": "${GATEWAY_TOKEN}"
     }
   },

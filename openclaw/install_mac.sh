@@ -130,6 +130,14 @@ configure_openclaw() {
     fi
     log_info "开始配置 OpenClaw..."
     mkdir -p "${CONFIG_DIR}"
+    
+    # 生成随机 Token
+    if command -v openssl >/dev/null 2>&1; then
+        GATEWAY_TOKEN=$(openssl rand -hex 16)
+    else
+        GATEWAY_TOKEN=$(date +%s%N | sha256sum | head -c 32)
+    fi
+
     echo -e "${CYAN}请选择 API 类型:${PLAIN}"
     echo "1. Anthropic 官方 API"
     echo "2. OpenAI 兼容 API (中转站/其他模型)"
@@ -149,7 +157,11 @@ configure_openclaw() {
   "gateway": {
     "mode": "local",
     "bind": "loopback",
-    "port": 18789
+    "port": 18789,
+    "auth": {
+      "mode": "token",
+      "token": "${GATEWAY_TOKEN}"
+    }
   },
   "env": {
     "ANTHROPIC_API_KEY": "${api_key}"
@@ -186,7 +198,11 @@ EOF
   "gateway": {
     "mode": "local",
     "bind": "loopback",
-    "port": 18789
+    "port": 18789,
+    "auth": {
+      "mode": "token",
+      "token": "${GATEWAY_TOKEN}"
+    }
   },
   "env": {
     "ANTHROPIC_API_KEY": "${api_key}"
@@ -222,7 +238,11 @@ EOF
   "gateway": {
     "mode": "local",
     "bind": "loopback",
-    "port": 18789
+    "port": 18789,
+    "auth": {
+      "mode": "token",
+      "token": "${GATEWAY_TOKEN}"
+    }
   },
   "agents": {
     "defaults": {
@@ -283,7 +303,11 @@ EOF
   "gateway": {
     "mode": "local",
     "bind": "loopback",
-    "port": 18789
+    "port": 18789,
+    "auth": {
+      "mode": "token",
+      "token": "${GATEWAY_TOKEN}"
+    }
   },
   "agents": {
     "defaults": {
@@ -335,7 +359,9 @@ EOF
         fi
     fi
     log_info "配置文件已生成: ${CONFIG_FILE}"
-    log_info "配置文件绝对路径: ${CONFIG_FILE}"
+    echo -e "${GREEN}配置文件绝对路径: ${CONFIG_FILE}${PLAIN}"
+    echo -e "${GREEN}Gateway Token: ${GATEWAY_TOKEN}${PLAIN}"
+    echo -e "${YELLOW}请妥善保存此 Token，用于远程连接 Gateway。${PLAIN}"
 }
 
 setup_launchd() {

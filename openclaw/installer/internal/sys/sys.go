@@ -945,10 +945,11 @@ func GenerateAndWriteConfig(opts ConfigOptions) error {
 
 	config := OpenclawConfig{
 		Gateway: GatewayConfig{
-			Mode: "token",
+			Mode: "local",
 			Bind: "loopback",
 			Port: 18789,
 			Auth: &AuthConfig{
+				Mode:  "token",
 				Token: token,
 			},
 		},
