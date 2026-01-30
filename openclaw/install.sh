@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # OpenClaw 一键安装与管理脚本
-# 兼容 Debian / Ubuntu
+# 兼容 Debian / Ubuntu / CentOS / RHEL / Fedora / AlmaLinux / Rocky Linux / Oracle Linux
 # 官方文档: https://openclaw.ai/
 
 # 颜色定义
@@ -28,10 +28,21 @@ check_root() {
 check_sys() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        if [[ "$ID" != "debian" && "$ID" != "ubuntu" ]]; then
-            echo -e "${RED}错误: 本脚本仅支持 Debian 或 Ubuntu 系统！${PLAIN}"
-            exit 1
-        fi
+        case "$ID" in
+            debian|ubuntu|kali)
+                PM="apt-get"
+                NODE_REPO="https://deb.nodesource.com/setup_22.x"
+                ;;
+            centos|rhel|fedora|almalinux|rocky|ol)
+                PM="yum"
+                command -v dnf >/dev/null 2>&1 && PM="dnf"
+                NODE_REPO="https://rpm.nodesource.com/setup_22.x"
+                ;;
+            *)
+                echo -e "${RED}错误: 本脚本不支持当前系统: $ID${PLAIN}"
+                exit 1
+                ;;
+        esac
     else
         echo -e "${RED}错误: 无法检测系统版本！${PLAIN}"
         exit 1
@@ -72,10 +83,13 @@ install_nodejs() {
     fi
 
     log_info "正在安装Node.js"
-    [ -d /etc/apt/sources.list.d ] || mkdir -p /etc/apt/sources.list.d
-    apt-get install -y curl git
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-    apt-get install -y nodejs
+    if [ "$PM" == "apt-get" ]; then
+        [ -d /etc/apt/sources.list.d ] || mkdir -p /etc/apt/sources.list.d
+    fi
+    
+    $PM install -y curl git
+    curl -fsSL $NODE_REPO | bash -
+    $PM install -y nodejs
     
     if command -v node >/dev/null 2>&1; then
         NODE_VERSION=$(node -v)
@@ -325,7 +339,7 @@ modify_config() {
 # 菜单
 show_menu() {
     clear
-    echo -e "${CYAN}OpenClaw 管理脚本${PLAIN}"
+    echo -e "${CYAN}OpenClaw （原ClawdBot）管理脚本${PLAIN}"
     echo -e "${CYAN}------------------------${PLAIN}"
     echo -e "1. 安装并配置 OpenClaw"
     echo -e "2. 启动服务"

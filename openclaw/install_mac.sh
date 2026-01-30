@@ -458,7 +458,7 @@ modify_config() {
 
 show_menu() {
     clear
-    echo -e "${CYAN}OpenClaw 管理脚本${PLAIN}"
+    echo -e "${CYAN}OpenClaw （原ClawdBot）管理脚本${PLAIN}"
     echo -e "${CYAN}------------------------${PLAIN}"
     echo -e "1. 安装并配置 OpenClaw"
     echo -e "2. 启动服务"
