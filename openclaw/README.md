@@ -76,3 +76,5 @@ openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
 rm -rf "${HOME}/.openclaw/extensions/qqbot"
 ```
 然后重启`openclaw`即可。
+
+> QQ开放平台：https://q.qq.com/#/apps
