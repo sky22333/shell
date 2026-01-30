@@ -76,11 +76,10 @@ openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
 然后重启`openclaw`即可。
 
 
-卸载插件要先停止`openclaw`，然后删除插件
+删除插件
 ```
 rm -rf "${HOME}/.openclaw/extensions/qqbot"
 ```
-然后重启`openclaw`即可。
 
 > QQ开放平台：https://q.qq.com/#/apps
 > 查看日志：`openclaw logs`
