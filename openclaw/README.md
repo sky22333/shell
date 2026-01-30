@@ -53,6 +53,11 @@ openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
 ```
 然后重启`openclaw`即可。
 
+删除插件
+```
+Remove-Item "$env:USERPROFILE\.openclaw\extensions\qqbot" -Recurse -Force
+```
+
 ### Linux版本QQ机器人插件
 安装插件
 ```
