@@ -55,10 +55,7 @@ openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
 ```
 然后重启`openclaw`即可。
 
-删除插件（可选）
-```
-Remove-Item "$env:USERPROFILE\.openclaw\extensions\qqbot" -Recurse -Force
-```
+如需删除`Remove-Item "$env:USERPROFILE\.openclaw\extensions\qqbot" -Recurse -Force`
 
 ### Linux版本QQ机器人插件
 确保已经openclaw本体已经安装完成
@@ -80,10 +77,7 @@ openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
 然后重启`openclaw`即可。
 
 
-删除插件（可选）
-```
-rm -rf "${HOME}/.openclaw/extensions/qqbot"
-```
+如需删除`rm -rf "${HOME}/.openclaw/extensions/qqbot"`
 
 > QQ开放平台：https://q.qq.com/#/apps
 > 查看日志：`openclaw logs`
