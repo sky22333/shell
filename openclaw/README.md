@@ -39,6 +39,8 @@ go build -o installer.exe .
 ```
 
 ### windows版本QQ机器人插件
+确保已经openclaw本体已经安装完成
+
 安装插件
 ```
 git clone https://github.com/sliverp/qqbot.git "$env:USERPROFILE\.openclaw\extensions\qqbot"
@@ -53,12 +55,14 @@ openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
 ```
 然后重启`openclaw`即可。
 
-删除插件
+删除插件（可选）
 ```
 Remove-Item "$env:USERPROFILE\.openclaw\extensions\qqbot" -Recurse -Force
 ```
 
 ### Linux版本QQ机器人插件
+确保已经openclaw本体已经安装完成
+
 安装插件
 ```
 mkdir -p "${HOME}/.openclaw/extensions"
@@ -76,7 +80,7 @@ openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
 然后重启`openclaw`即可。
 
 
-删除插件
+删除插件（可选）
 ```
 rm -rf "${HOME}/.openclaw/extensions/qqbot"
 ```
