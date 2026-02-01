@@ -7,7 +7,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/
 
 ### mac 脚本
 ```
-bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/install_mac.sh)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/install_mac.sh)"
 ```
 
 ### windows 脚本
