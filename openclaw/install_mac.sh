@@ -98,8 +98,38 @@ install_git() {
     fi
 }
 
+configure_user_npm() {
+    log_info "正在配置 npm 安装至用户目录 (~/.npm-global)..."
+    NPM_GLOBAL_DIR="${HOME}/.npm-global"
+    mkdir -p "${NPM_GLOBAL_DIR}"
+    
+    # 配置 npm 使用该目录
+    npm config set prefix "${NPM_GLOBAL_DIR}"
+    
+    # 临时更新当前 PATH 以便后续命令可用
+    export PATH="${NPM_GLOBAL_DIR}/bin:$PATH"
+    
+    # 持久化到 Shell 配置文件 (zshrc, bash_profile, bashrc)
+    local SHELL_CONFIGS=("${HOME}/.zshrc" "${HOME}/.bash_profile" "${HOME}/.bashrc")
+    local PATH_EXPORT="export PATH=\"${NPM_GLOBAL_DIR}/bin:\$PATH\""
+    
+    for config in "${SHELL_CONFIGS[@]}"; do
+        # 如果文件存在，或者它是当前用户的默认 shell 配置文件
+        if [ -f "$config" ] || [ "$config" == "${HOME}/.zshrc" ]; then
+            if ! grep -q "${NPM_GLOBAL_DIR}/bin" "$config" 2>/dev/null; then
+                touch "$config"
+                echo "" >> "$config"
+                echo "# OpenClaw npm global path" >> "$config"
+                echo "$PATH_EXPORT" >> "$config"
+                log_info "已添加 PATH 配置到 $config"
+            fi
+        fi
+    done
+}
+
 install_openclaw_core() {
     log_info "正在安装 OpenClaw..."
+    configure_user_npm
     if command -v openclaw >/dev/null 2>&1; then
         CURRENT_VERSION=$(openclaw --version)
         log_warn "OpenClaw 已安装 (版本: ${CURRENT_VERSION})"
@@ -379,7 +409,7 @@ setup_launchd() {
         exit 1
     fi
     NODE_DIR=$(dirname "${NODE_BIN}")
-    LAUNCH_PATH="${NODE_DIR}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    LAUNCH_PATH="${HOME}/.npm-global/bin:${NODE_DIR}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     cat > "${PLIST_PATH}" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
