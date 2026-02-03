@@ -20,7 +20,7 @@ CMD修改加速域名环境变量（可选）
 set GIT_PROXY=https://g.blfrp.cn/
 ```
 
-安装技能：`npx clawhub@latest install sonoscli`
+www.clawhub.ai 安装技能：`npx clawhub@latest install sonoscli`
 
 ### 构建（可选）
 如果你不放心预编译的二进制文件，可以自己构建。
