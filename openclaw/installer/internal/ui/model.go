@@ -530,7 +530,7 @@ func (m Model) renderDashboard() string {
 
 	if m.gatewayOk && m.gatewayToken != "" {
 		statusRows = append(statusRows, "")
-		statusRows = append(statusRows, fmt.Sprintf("访问地址: %s", style.SuccessStyle.Render("[已就绪] 按 'O' 键打开")))
+		statusRows = append(statusRows, fmt.Sprintf("访问地址: %s", style.SuccessStyle.Render("[已就绪] 按字母 O 打开")))
 	}
 
 	// 3. 菜单
