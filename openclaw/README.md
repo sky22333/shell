@@ -37,3 +37,7 @@ go mod tidy
 ```
 go build -o installer.exe .
 ```
+
+---
+
+相关文档：https://clawd.org.cn/reference/cli-cheatsheet
