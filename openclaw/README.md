@@ -17,7 +17,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/
 
 CMD修改加速域名环境变量（可选）
 ```
-set GIT_PROXY=https://gh-proxy.com/
+set GIT_PROXY=https://hub.cmoko.com/
 ```
 
 ### 构建（可选）
