@@ -43,7 +43,7 @@ const (
 )
 
 const gitProxyEnv = "GIT_PROXY"
-const gitProxyDefault = "https://gh-proxy.org/"
+const gitProxyDefault = "https://gh-proxy.com/"
 
 func gitProxy() string {
 	proxy := strings.TrimSpace(os.Getenv(gitProxyEnv))
