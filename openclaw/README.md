@@ -17,10 +17,8 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/
 
 CMD修改加速域名环境变量（可选）
 ```
-set GIT_PROXY=https://g.blfrp.cn/
+set GIT_PROXY=https://gh-proxy.org/
 ```
-
-www.clawhub.ai 安装技能：`npx clawhub@latest install sonoscli`
 
 ### 构建（可选）
 如果你不放心预编译的二进制文件，可以自己构建。
@@ -39,47 +37,3 @@ go mod tidy
 ```
 go build -o installer.exe .
 ```
-
-### windows版本QQ机器人插件
-确保openclaw本体已经安装完成
-
-安装插件
-```
-git clone https://github.com/sliverp/qqbot.git "$env:USERPROFILE\.openclaw\extensions\qqbot"
-
-cd "$env:USERPROFILE\.openclaw\extensions\qqbot"
-
-npm i
-```
-添加QQ机器人参数
-```
-openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
-```
-然后重启`openclaw`即可。
-
-插件删除命令`Remove-Item "$env:USERPROFILE\.openclaw\extensions\qqbot" -Recurse -Force`
-
-### Linux版本QQ机器人插件
-确保openclaw本体已经安装完成
-
-安装插件
-```
-mkdir -p "${HOME}/.openclaw/extensions"
-
-git clone https://github.com/sliverp/qqbot.git "${HOME}/.openclaw/extensions/qqbot"
-
-cd "${HOME}/.openclaw/extensions/qqbot"
-
-npm i
-```
-添加QQ机器人参数
-```
-openclaw channels add --channel qqbot --token "AppID的值:AppSecret的值"
-```
-然后重启`openclaw`即可。
-
-
-插件删除命令`rm -rf "${HOME}/.openclaw/extensions/qqbot"`
-
-> QQ开放平台：https://q.qq.com/#/apps
-> 查看日志：`openclaw logs`

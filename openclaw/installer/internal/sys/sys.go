@@ -2,7 +2,6 @@ package sys
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -21,6 +20,9 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"unsafe"
+
+	"golang.org/x/sys/windows/registry"
 )
 
 type ProgressCallback func(percent float64)
@@ -397,6 +399,35 @@ func ConfigureNpmMirror() error {
 	cmd := exec.Command(npmPath, "config", "set", "registry", "https://registry.npmmirror.com/")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("设置 npm 镜像失败: %v", err)
+	}
+	return nil
+}
+
+// OpenBrowser 打开浏览器
+func OpenBrowser(url string) error {
+	var (
+		shell32      = syscall.NewLazyDLL("shell32.dll")
+		shellExecute = shell32.NewProc("ShellExecuteW")
+	)
+
+	urlPtr, err := syscall.UTF16PtrFromString(url)
+	if err != nil {
+		return err
+	}
+	verbPtr, _ := syscall.UTF16PtrFromString("open")
+
+	ret, _, _ := shellExecute.Call(
+		0,
+		uintptr(unsafe.Pointer(verbPtr)),
+		uintptr(unsafe.Pointer(urlPtr)),
+		0,
+		0,
+		1, // SW_SHOWNORMAL
+	)
+
+	// ShellExecute returns a value > 32 on success
+	if ret <= 32 {
+		return fmt.Errorf("打开浏览器失败，错误代码: %d", ret)
 	}
 	return nil
 }
@@ -871,6 +902,55 @@ func EnsureOnPath() (bool, error) {
 	return true, nil
 }
 
+// removePathFromEnv 从用户 PATH 环境变量中移除指定路径
+func removePathFromEnv(pathToRemove string) error {
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer k.Close()
+
+	oldPath, _, err := k.GetStringValue("Path")
+	if err != nil {
+		return err
+	}
+
+	paths := strings.Split(oldPath, string(os.PathListSeparator))
+	var newPaths []string
+	pathToRemove = strings.ToLower(filepath.Clean(pathToRemove))
+
+	for _, p := range paths {
+		if strings.ToLower(filepath.Clean(p)) != pathToRemove {
+			newPaths = append(newPaths, p)
+		}
+	}
+
+	newPath := strings.Join(newPaths, string(os.PathListSeparator))
+	if newPath != oldPath {
+		if err := k.SetStringValue("Path", newPath); err != nil {
+			return err
+		}
+		
+		// 广播环境变量变更消息 (WM_SETTINGCHANGE)
+		var (
+			user32 = syscall.NewLazyDLL("user32.dll")
+			sendMessageTimeout = user32.NewProc("SendMessageTimeoutW")
+		)
+		
+		envPtr, _ := syscall.UTF16PtrFromString("Environment")
+		sendMessageTimeout.Call(
+			0xFFFF, // HWND_BROADCAST
+			0x001A, // WM_SETTINGCHANGE
+			0,
+			uintptr(unsafe.Pointer(envPtr)),
+			0x0002, // SMTO_ABORTIFHUNG
+			5000,
+			0,
+		)
+	}
+	return nil
+}
+
 // RunDoctor 运行诊断
 func RunDoctor() error {
 	cmdName, err := GetOpenclawPath()
@@ -1116,34 +1196,128 @@ func IsGatewayRunning() bool {
 // KillGateway 停止网关
 func KillGateway() error {
 	port := GetGatewayPort()
-	cmd := exec.Command("netstat", "-ano")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	out, err := cmd.Output()
+	
+	// 1. Find PID using GetExtendedTcpTable (iphlpapi.dll)
+	pid, err := findPidByPort(port)
 	if err != nil {
-		return err
+		return err // Or ignore if not found
+	}
+	if pid == 0 {
+		return nil
 	}
 
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	var pid string
-	portStr := fmt.Sprintf(":%d", port)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, portStr) && strings.Contains(line, "LISTENING") {
-			fields := strings.Fields(line)
-			if len(fields) > 0 {
-				pid = fields[len(fields)-1]
-				break
+	// 2. Kill Process using OpenProcess/TerminateProcess (kernel32.dll)
+	return killProcess(pid)
+}
+
+const (
+	AF_INET = 2
+	TCP_TABLE_OWNER_PID_ALL = 5
+)
+
+// MIB_TCPROW_OWNER_PID structure
+type mibTcpRowOwnerPid struct {
+	dwState      uint32
+	dwLocalAddr  uint32
+	dwLocalPort  uint32
+	dwRemoteAddr uint32
+	dwRemotePort uint32
+	dwOwningPid  uint32
+}
+
+func findPidByPort(port int) (uint32, error) {
+	var (
+		iphlpapi = syscall.NewLazyDLL("iphlpapi.dll")
+		getExtendedTcpTable = iphlpapi.NewProc("GetExtendedTcpTable")
+	)
+
+	var size uint32 = 0
+	// First call to get size
+	getExtendedTcpTable.Call(
+		0,
+		uintptr(unsafe.Pointer(&size)),
+		0,
+		uintptr(AF_INET),
+		uintptr(TCP_TABLE_OWNER_PID_ALL),
+		0,
+	)
+	
+	if size == 0 {
+		return 0, fmt.Errorf("GetExtendedTcpTable failed to get size")
+	}
+
+	buffer := make([]byte, size)
+	// Second call to get data
+	ret, _, _ := getExtendedTcpTable.Call(
+		uintptr(unsafe.Pointer(&buffer[0])),
+		uintptr(unsafe.Pointer(&size)),
+		0,
+		uintptr(AF_INET),
+		uintptr(TCP_TABLE_OWNER_PID_ALL),
+		0,
+	)
+
+	if ret != 0 {
+		return 0, fmt.Errorf("GetExtendedTcpTable failed: %d", ret)
+	}
+
+	// Parse the table
+	// DWORD dwNumEntries
+	numEntries := *(*uint32)(unsafe.Pointer(&buffer[0]))
+	
+	// Check entries
+	// sizeof(DWORD) = 4
+	rowSize := uint32(unsafe.Sizeof(mibTcpRowOwnerPid{}))
+	
+	for i := uint32(0); i < numEntries; i++ {
+		offset := 4 + i*rowSize
+		if uint32(len(buffer)) < offset+rowSize {
+			break
+		}
+		
+		row := (*mibTcpRowOwnerPid)(unsafe.Pointer(&buffer[offset]))
+		
+		// Port is in network byte order (Big Endian)
+		localPort := (uint16(row.dwLocalPort)>>8) | (uint16(row.dwLocalPort)<<8)
+		
+		if int(localPort) == port {
+			// dwState: 2 = MIB_TCP_STATE_LISTEN
+			if row.dwState == 2 {
+				return row.dwOwningPid, nil
 			}
 		}
 	}
 
-	if pid == "" {
-		return nil
-	}
+	return 0, nil
+}
 
-	killCmd := exec.Command("taskkill", "/F", "/PID", pid)
-	killCmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return killCmd.Run()
+func killProcess(pid uint32) error {
+	var (
+		kernel32 = syscall.NewLazyDLL("kernel32.dll")
+		openProcess = kernel32.NewProc("OpenProcess")
+		terminateProcess = kernel32.NewProc("TerminateProcess")
+		closeHandle = kernel32.NewProc("CloseHandle")
+	)
+
+	const PROCESS_TERMINATE = 0x0001
+	
+	hProcess, _, _ := openProcess.Call(
+		uintptr(PROCESS_TERMINATE),
+		0,
+		uintptr(pid),
+	)
+	
+	if hProcess == 0 {
+		return fmt.Errorf("OpenProcess failed")
+	}
+	defer closeHandle.Call(hProcess)
+
+	ret, _, _ := terminateProcess.Call(hProcess, 1)
+	if ret == 0 {
+		return fmt.Errorf("TerminateProcess failed")
+	}
+	
+	return nil
 }
 
 // UninstallOpenclaw 卸载清理
@@ -1162,6 +1336,15 @@ func UninstallOpenclaw() error {
 	}
 
 	RemoveGitProxy()
+
+	// 清理环境变量
+	if npmPrefix, err := getNpmPrefix(); err == nil {
+		npmBin := filepath.Join(npmPrefix, "bin")
+		
+		// 尝试移除两种可能的路径
+		removePathFromEnv(npmPrefix)
+		removePathFromEnv(npmBin)
+	}
 
 	userHome, err := os.UserHomeDir()
 	if err == nil {

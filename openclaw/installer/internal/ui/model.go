@@ -296,6 +296,12 @@ func (m Model) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			return m.handleMenuSelect()
+		case "o", "O":
+			if m.gatewayOk && m.gatewayToken != "" {
+				port := sys.GetGatewayPort()
+				url := fmt.Sprintf("http://127.0.0.1:%d/?token=%s", port, m.gatewayToken)
+				sys.OpenBrowser(url)
+			}
 		case "q":
 			return m, tea.Quit
 		}
@@ -524,12 +530,8 @@ func (m Model) renderDashboard() string {
 
 	if m.gatewayOk && m.gatewayToken != "" {
 		statusRows = append(statusRows, "")
-		port := sys.GetGatewayPort()
-		url := fmt.Sprintf("http://127.0.0.1:%d/?token=%s", port, m.gatewayToken)
-		statusRows = append(statusRows, fmt.Sprintf("访问地址: %s", style.SuccessStyle.Render(url)))
+		statusRows = append(statusRows, fmt.Sprintf("访问地址: %s", style.SuccessStyle.Render("[已就绪] 按 'O' 键打开")))
 	}
-
-	statusPanel := style.PanelStyle.Render(lipgloss.JoinVertical(lipgloss.Left, statusRows...))
 
 	// 3. 菜单
 	menuItems := []struct{ title, desc string }{
@@ -551,21 +553,48 @@ func (m Model) renderDashboard() string {
 
 	var menuView string
 	for i, item := range menuItems {
+		var itemBlock string
 		if i == m.menuIndex {
-			menuView += style.MenuSelectedStyle.Render(fmt.Sprintf("%s\n%s", item.title, style.DescriptionStyle.Render(item.desc)))
+			title := item.title
+			desc := style.DescriptionStyle.Render(item.desc)
+			itemBlock = style.MenuSelectedStyle.Render(
+				lipgloss.JoinVertical(lipgloss.Left, title, desc),
+			)
 		} else {
-			menuView += style.MenuNormalStyle.Render(item.title)
+			itemBlock = style.MenuNormalStyle.Render(item.title)
 		}
-		menuView += "\n\n"
+		menuView = lipgloss.JoinVertical(lipgloss.Left, menuView, itemBlock, "")
 	}
 
-	menuPanel := style.FocusedPanelStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
-		style.SubHeaderStyle.Render("主菜单"),
-		menuView,
-		style.SubtleStyle.Render("使用 ↑/↓ 选择，Enter 确认"),
-	))
-
 	// 4. 布局
+	// 动态计算宽度
+	var (
+		statusWidth = 45
+		menuWidth   = 50
+	)
+	
+	// 如果总宽度允许，适当扩展
+	if m.width > 120 {
+		menuWidth = m.width - statusWidth - 10 // 留出 Padding
+		if menuWidth > 80 {
+			menuWidth = 80
+		}
+	}
+
+	var statusPanel, menuPanel string
+
+	statusPanel = style.PanelStyle.Width(statusWidth).Render(
+		lipgloss.JoinVertical(lipgloss.Left, statusRows...),
+	)
+
+	menuPanel = style.FocusedPanelStyle.Width(menuWidth).Render(
+		lipgloss.JoinVertical(lipgloss.Left,
+			style.SubHeaderStyle.Render("主菜单"),
+			menuView,
+			style.SubtleStyle.Render("使用 ↑/↓ 选择，Enter 确认"),
+		),
+	)
+
 	if m.width > 100 {
 		// 并排
 		return style.AppStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
@@ -576,6 +605,18 @@ func (m Model) renderDashboard() string {
 	}
 
 	// 垂直堆叠
+	// 在垂直模式下，不需要强制宽度，或者设置为较宽的值
+	statusPanel = style.PanelStyle.Width(80).Render(
+		lipgloss.JoinVertical(lipgloss.Left, statusRows...),
+	)
+	menuPanel = style.FocusedPanelStyle.Width(80).Render(
+		lipgloss.JoinVertical(lipgloss.Left,
+			style.SubHeaderStyle.Render("主菜单"),
+			menuView,
+			style.SubtleStyle.Render("使用 ↑/↓ 选择，Enter 确认"),
+		),
+	)
+
 	return style.AppStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		"",
