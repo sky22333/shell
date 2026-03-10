@@ -41,7 +41,7 @@ const (
 )
 
 const gitProxyEnv = "GIT_PROXY"
-const gitProxyDefault = "https://g.blfrp.cn/"
+const gitProxyDefault = "https://gh-proxy.org/"
 
 func gitProxy() string {
 	proxy := strings.TrimSpace(os.Getenv(gitProxyEnv))
@@ -149,14 +149,7 @@ type TelegramConfig struct {
 
 // GetOpenclawPath 获取执行路径
 func GetOpenclawPath() (string, error) {
-	if path, err := exec.LookPath("openclaw"); err == nil {
-		return path, nil
-	}
-	// Legacy fallback
-	if path, err := exec.LookPath("clawdbot"); err == nil {
-		return path, nil
-	}
-	if path, err := exec.LookPath("moltbot"); err == nil {
+	if path, err := exec.LookPath("openclaw-cn"); err == nil {
 		return path, nil
 	}
 
@@ -165,18 +158,12 @@ func GetOpenclawPath() (string, error) {
 		return "", err
 	}
 
-	possibleClawd := filepath.Join(npmPrefix, "openclaw.cmd")
+	possibleClawd := filepath.Join(npmPrefix, "openclaw-cn.cmd")
 	if _, err := os.Stat(possibleClawd); err == nil {
 		return possibleClawd, nil
 	}
 
-	// Legacy checks
-	possibleMolt := filepath.Join(npmPrefix, "moltbot.cmd")
-	if _, err := os.Stat(possibleMolt); err == nil {
-		return possibleMolt, nil
-	}
-
-	return "", fmt.Errorf("未找到 openclaw 可执行文件")
+	return "", fmt.Errorf("未找到 openclaw-cn 可执行文件")
 }
 
 // GetNodePath 获取 Node 路径
@@ -828,13 +815,11 @@ func InstallGit(onProgress ProgressCallback) error {
 }
 
 // InstallOpenclawNpm 安装包
-func InstallOpenclawNpm(tag string, onProgress ProgressCallback) error {
+func InstallOpenclawNpm(onProgress ProgressCallback) error {
 	SetupNodeEnv()
 
-	pkgName := "openclaw"
-	if tag == "" || tag == "beta" {
-		tag = "latest"
-	}
+	pkgName := "openclaw-cn"
+	tag := "latest"
 
 	npmPath, err := getNpmPath()
 	if err != nil {
@@ -858,10 +843,7 @@ func InstallOpenclawNpm(tag string, onProgress ProgressCallback) error {
 
 // EnsureOnPath 检查并配置 PATH
 func EnsureOnPath() (bool, error) {
-	if _, err := exec.LookPath("openclaw"); err == nil {
-		return false, nil
-	}
-	if _, err := exec.LookPath("clawdbot"); err == nil {
+	if _, err := exec.LookPath("openclaw-cn"); err == nil {
 		return false, nil
 	}
 
@@ -873,10 +855,8 @@ func EnsureOnPath() (bool, error) {
 
 	possiblePath := npmPrefix
 
-	if _, err := os.Stat(filepath.Join(npmPrefix, "openclaw.cmd")); os.IsNotExist(err) {
-		if _, err := os.Stat(filepath.Join(npmPrefix, "clawdbot.cmd")); os.IsNotExist(err) {
-			possiblePath = npmBin
-		}
+	if _, err := os.Stat(filepath.Join(npmPrefix, "openclaw-cn.cmd")); os.IsNotExist(err) {
+		possiblePath = npmBin
 	}
 
 	psCmd := fmt.Sprintf(`
@@ -895,10 +875,12 @@ func EnsureOnPath() (bool, error) {
 func RunDoctor() error {
 	cmdName, err := GetOpenclawPath()
 	if err != nil {
-		cmdName = "openclaw"
+		return err
 	}
 
 	cmd := exec.Command("cmd", "/c", cmdName, "doctor", "--non-interactive")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
@@ -906,7 +888,7 @@ func RunDoctor() error {
 func RunOnboard() error {
 	cmdName, err := GetOpenclawPath()
 	if err != nil {
-		cmdName = "openclaw"
+		return err
 	}
 	cmd := exec.Command("cmd", "/c", cmdName, "onboard")
 	cmd.Stdin = os.Stdin
@@ -1108,7 +1090,7 @@ func GetGatewayToken() (string, error) {
 func StartGateway() error {
 	cmdName, err := GetOpenclawPath()
 	if err != nil {
-		cmdName = "openclaw"
+		return err
 	}
 
 	cmd := exec.Command(cmdName, "gateway", "--verbose")
@@ -1171,7 +1153,7 @@ func UninstallOpenclaw() error {
 		return err
 	}
 
-	packages := []string{"openclaw", "clawdbot"}
+	packages := []string{"openclaw-cn", "openclaw"}
 	for _, pkg := range packages {
 		cmd := exec.Command(npmPath, "uninstall", "-g", pkg)
 		cmd.Stdout = nil
@@ -1185,9 +1167,6 @@ func UninstallOpenclaw() error {
 	if err == nil {
 		configDir := filepath.Join(userHome, ".openclaw")
 		os.RemoveAll(configDir)
-
-		legacyDir := filepath.Join(userHome, ".clawdbot")
-		os.RemoveAll(legacyDir)
 	}
 
 	return nil

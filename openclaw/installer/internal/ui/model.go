@@ -463,7 +463,7 @@ func (m Model) View() string {
 
 func (m Model) renderDashboard() string {
 	// 1. 标题
-	header := style.HeaderStyle.Render("OpenClaw Installer")
+	header := style.HeaderStyle.Render("OpenClaw-CN Installer")
 
 	// 2. 状态栏
 	nodeStatus := style.Badge("检测中...", "info")
@@ -513,7 +513,7 @@ func (m Model) renderDashboard() string {
 		style.SubHeaderStyle.Render("系统状态"),
 		fmt.Sprintf("Node.js 环境:  %s", nodeStatus),
 		fmt.Sprintf("Git 环境:      %s", gitStatus),
-		fmt.Sprintf("OpenClaw 核心:  %s", openclawStatus),
+		fmt.Sprintf("OpenClaw-CN 核心:  %s", openclawStatus),
 		fmt.Sprintf("网关进程:      %s", gwStatus),
 	}
 
@@ -536,7 +536,7 @@ func (m Model) renderDashboard() string {
 		{"启动/重启服务", "管理后台网关进程"},
 		{"配置向导", "设置 API 密钥与机器人参数"},
 		{"安装/更新环境", "一键部署 Node.js 与核心组件"},
-		{"卸载 OpenClaw", "清理所有文件与配置"},
+		{"卸载 OpenClaw-CN", "清理所有文件与配置"},
 		{"退出", "关闭控制台"},
 	}
 
@@ -824,11 +824,11 @@ func runInstallFlowCmd() tea.Cmd {
 		}
 
 		// 5. Install OpenClaw
-		ch <- installProgressMsg{step: "正在安装 OpenClaw...", channel: ch}
-		if err := sys.InstallOpenclawNpm("latest", func(percent float64) {
-			ch <- installProgressMsg{step: "正在安装 OpenClaw...", percent: percent, channel: ch}
+		ch <- installProgressMsg{step: "正在安装 OpenClaw-CN...", channel: ch}
+		if err := sys.InstallOpenclawNpm(func(percent float64) {
+			ch <- installProgressMsg{step: "正在安装 OpenClaw-CN...", percent: percent, channel: ch}
 		}); err != nil {
-			ch <- installProgressMsg{err: fmt.Errorf("openclaw 安装失败: %v", err), channel: ch}
+			ch <- installProgressMsg{err: fmt.Errorf("openclaw-cn 安装失败: %v", err), channel: ch}
 			return
 		}
 
