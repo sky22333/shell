@@ -1,5 +1,7 @@
 package main
 
+//go:generate rsrc -manifest installer.manifest -o installer.syso
+
 import (
 	"fmt"
 	"os"
