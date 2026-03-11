@@ -851,7 +851,7 @@ func InstallGit(onProgress ProgressCallback) error {
 }
 
 // InstallOpenclawNpm 安装包
-func InstallOpenclawNpm(onProgress ProgressCallback) error {
+func InstallOpenclawNpm() error {
 	SetupNodeEnv()
 
 	pkgName := "openclaw-cn"
@@ -862,16 +862,17 @@ func InstallOpenclawNpm(onProgress ProgressCallback) error {
 		return err
 	}
 
-	os.Setenv("NPM_CONFIG_LOGLEVEL", "error")
-	os.Setenv("NPM_CONFIG_UPDATE_NOTIFIER", "false")
-	os.Setenv("NPM_CONFIG_FUND", "false")
-	os.Setenv("NPM_CONFIG_AUDIT", "false")
+	cmd := exec.Command(npmPath, "install", "-g",
+		fmt.Sprintf("%s@%s", pkgName, tag),
+		"--loglevel=error",
+		"--no-update-notifier",
+		"--no-fund",
+		"--no-audit",
+	)
 
-	cmd := exec.Command(npmPath, "install", "-g", fmt.Sprintf("%s@%s", pkgName, tag))
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	if err := cmd.Run(); err != nil {
-		return err
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("安装失败: %v\n输出: %s", err, string(output))
 	}
 
 	return nil
@@ -956,27 +957,14 @@ func removePathFromEnv(pathToRemove string) error {
 	return nil
 }
 
-// RunDoctor 运行诊断
-func RunDoctor() error {
+// RunSetup 初始化配置
+func RunSetup() error {
 	cmdName, err := GetOpenclawPath()
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command("cmd", "/c", cmdName, "doctor", "--non-interactive")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-// RunOnboard 运行引导
-func RunOnboard() error {
-	cmdName, err := GetOpenclawPath()
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command("cmd", "/c", cmdName, "onboard")
-	cmd.Stdin = os.Stdin
+	cmd := exec.Command("cmd", "/c", cmdName, "setup")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -1178,7 +1166,7 @@ func StartGateway() error {
 		return err
 	}
 
-	cmd := exec.Command(cmdName, "gateway", "--verbose")
+	cmd := exec.Command(cmdName, "gateway", "run", "--force")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,
 		CreationFlags: 0x08000000,

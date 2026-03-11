@@ -311,7 +311,7 @@ func (m Model) updateDashboard(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleMenuSelect() (tea.Model, tea.Cmd) {
 	switch m.menuIndex {
-	case 0: // 启动/重启网关
+	case 0: // 启动/停止网关
 		m.state = StateAction
 		m.actionDone = false
 		m.actionErr = nil
@@ -535,7 +535,7 @@ func (m Model) renderDashboard() string {
 
 	// 3. 菜单
 	menuItems := []struct{ title, desc string }{
-		{"启动/重启服务", "管理后台网关进程"},
+		{"启动/停止服务", "管理后台网关进程"},
 		{"配置向导", "设置 API 密钥与机器人参数"},
 		{"安装/更新环境", "一键部署 Node.js 与核心组件"},
 		{"卸载 OpenClaw-CN", "清理所有文件与配置"},
@@ -544,8 +544,8 @@ func (m Model) renderDashboard() string {
 
 	// 动态切换文本
 	if m.gatewayOk {
-		menuItems[0].title = "重启服务"
-		menuItems[0].desc = "停止当前进程并重新启动"
+		menuItems[0].title = "停止服务"
+		menuItems[0].desc = "停止后台网关进程"
 	} else {
 		menuItems[0].title = "启动服务"
 		menuItems[0].desc = "启动后台网关进程"
@@ -866,9 +866,7 @@ func runInstallFlowCmd() tea.Cmd {
 
 		// 5. Install OpenClaw
 		ch <- installProgressMsg{step: "正在安装 OpenClaw-CN...", channel: ch}
-		if err := sys.InstallOpenclawNpm(func(percent float64) {
-			ch <- installProgressMsg{step: "正在安装 OpenClaw-CN...", percent: percent, channel: ch}
-		}); err != nil {
+		if err := sys.InstallOpenclawNpm(); err != nil {
 			ch <- installProgressMsg{err: fmt.Errorf("openclaw-cn 安装失败: %v", err), channel: ch}
 			return
 		}
@@ -876,7 +874,7 @@ func runInstallFlowCmd() tea.Cmd {
 		// 6. Finalize
 		ch <- installProgressMsg{step: "正在配置环境...", channel: ch}
 		sys.EnsureOnPath()
-		sys.RunDoctor()
+		sys.RunSetup()
 
 		ch <- installProgressMsg{done: true, channel: ch}
 	}()
