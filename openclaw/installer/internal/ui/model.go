@@ -48,7 +48,7 @@ type Model struct {
 	state  SessionState
 	width  int
 	height int
-	
+
 	// 启动标志
 	DidStartGateway bool
 
@@ -62,23 +62,23 @@ type Model struct {
 	inputStep  int // 当前输入步骤
 
 	// 动作/进度状态
-	actionType  ActionType
-	spinner     spinner.Model
-	progressMsg string
+	actionType      ActionType
+	spinner         spinner.Model
+	progressMsg     string
 	progressPercent float64
-	actionErr   error
-	actionDone  bool
+	actionErr       error
+	actionDone      bool
 
 	// 系统状态缓存
-	nodeVer    string
-	nodeOk     bool
+	nodeVer     string
+	nodeOk      bool
 	openclawVer string
 	openclawOk  bool
-	gitVer     string
-	gitOk      bool
-	gatewayOk  bool
-	checkDone  bool
-	
+	gitVer      string
+	gitOk       bool
+	gatewayOk   bool
+	checkDone   bool
+
 	configPath   string
 	gatewayToken string
 
@@ -90,15 +90,15 @@ type Model struct {
 
 // 消息定义
 type checkMsg struct {
-	nodeVer          string
-	nodeOk           bool
+	nodeVer           string
+	nodeOk            bool
 	openclawVer       string
 	openclawInstalled bool
-	gitVer           string
-	gitOk            bool
-	gatewayRunning   bool
-	configPath       string
-	gatewayToken     string
+	gitVer            string
+	gitOk             bool
+	gatewayRunning    bool
+	configPath        string
+	gatewayToken      string
 }
 
 type actionResultMsg struct {
@@ -572,7 +572,7 @@ func (m Model) renderDashboard() string {
 		statusWidth = 45
 		menuWidth   = 50
 	)
-	
+
 	// 如果总宽度允许，适当扩展
 	if m.width > 120 {
 		menuWidth = m.width - statusWidth - 10 // 留出 Padding
@@ -749,20 +749,20 @@ func checkEnvCmd() tea.Msg {
 	openclawVer, openclawOk := sys.CheckOpenclaw()
 	gitVer, gitOk := sys.CheckGit()
 	gwRun := sys.IsGatewayRunning()
-	
+
 	cfgPath, _ := sys.GetConfigPath()
 	token, _ := sys.GetGatewayToken()
-	
+
 	return checkMsg{
-		nodeVer:          nodeVer,
-		nodeOk:           nodeOk,
+		nodeVer:           nodeVer,
+		nodeOk:            nodeOk,
 		openclawVer:       openclawVer,
 		openclawInstalled: openclawOk,
-		gitVer:           gitVer,
-		gitOk:            gitOk,
-		gatewayRunning:   gwRun,
-		configPath:       cfgPath,
-		gatewayToken:     token,
+		gitVer:            gitVer,
+		gitOk:             gitOk,
+		gatewayRunning:    gwRun,
+		configPath:        cfgPath,
+		gatewayToken:      token,
 	}
 }
 

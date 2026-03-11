@@ -467,7 +467,7 @@ func RemoveGitProxy() error {
 
 	proxy := gitProxy()
 	key := fmt.Sprintf("url.%shttps://github.com/.insteadOf", proxy)
-	
+
 	// Unset the proxy configuration
 	cmd := exec.Command(gitPath, "config", "--global", "--unset", key)
 	return cmd.Run()
@@ -596,10 +596,10 @@ func downloadConcurrent(url, dest string, size int64, parts int, onProgress Prog
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, parts)
-	
+
 	// Shared progress tracking
 	var written int64
-	
+
 	partSize := size / int64(parts)
 	for i := 0; i < parts; i++ {
 		start := int64(i) * partSize
@@ -628,9 +628,9 @@ func downloadConcurrent(url, dest string, size int64, parts int, onProgress Prog
 				errCh <- fmt.Errorf("分段下载失败，状态码: %d", resp.StatusCode)
 				return
 			}
-			
+
 			writer := &writeAtWriter{
-				file: out,
+				file:   out,
 				offset: s,
 				update: func(n int) {
 					newVal := atomic.AddInt64(&written, int64(n))
@@ -640,7 +640,7 @@ func downloadConcurrent(url, dest string, size int64, parts int, onProgress Prog
 					}
 				},
 			}
-			
+
 			if _, err := io.Copy(writer, resp.Body); err != nil {
 				errCh <- fmt.Errorf("写入文件失败: %v", err)
 				return
@@ -676,9 +676,9 @@ func (w *writeAtWriter) Write(p []byte) (int, error) {
 }
 
 type countingReader struct {
-	r       io.Reader
+	r         io.Reader
 	totalRead int64
-	update  func(int64)
+	update    func(int64)
 }
 
 func (c *countingReader) Read(p []byte) (int, error) {
@@ -784,24 +784,24 @@ func InstallNode(onProgress ProgressCallback) error {
 	if err := downloadFile(msiUrl, msiPath, nodeMsiSHA256, onProgress); err != nil {
 		return err
 	}
-	
+
 	for i := 0; i < 3; i++ {
 		installCmd := exec.Command("msiexec", "/i", msiPath, "/qn")
 		output, err := installCmd.CombinedOutput()
 		if err == nil {
 			break
 		}
-		
+
 		outStr := string(output)
 		if strings.Contains(outStr, "1618") {
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		
+
 		if strings.Contains(outStr, "1619") {
 			return fmt.Errorf("安装包损坏 (Error 1619). 请尝试手动下载: %s", msiUrl)
 		}
-		
+
 		if i == 2 {
 			return fmt.Errorf("安装失败: %v, Output: %s", err, outStr)
 		}
@@ -809,6 +809,11 @@ func InstallNode(onProgress ProgressCallback) error {
 	}
 
 	SetupNodeEnv()
+
+	if err := SetPowerShellExecutionPolicy(); err != nil {
+		fmt.Printf("警告: 设置 PowerShell 执行策略失败: %v\n", err)
+	}
+
 	return nil
 }
 
@@ -835,7 +840,7 @@ func InstallGit(onProgress ProgressCallback) error {
 		"/RESTARTAPPLICATIONS",
 		"/o:PathOption=Cmd",
 	)
-	
+
 	if out, err := installCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git 安装失败: %v, Output: %s", err, string(out))
 	}
@@ -930,13 +935,13 @@ func removePathFromEnv(pathToRemove string) error {
 		if err := k.SetStringValue("Path", newPath); err != nil {
 			return err
 		}
-		
+
 		// 广播环境变量变更消息 (WM_SETTINGCHANGE)
 		var (
-			user32 = syscall.NewLazyDLL("user32.dll")
+			user32             = syscall.NewLazyDLL("user32.dll")
 			sendMessageTimeout = user32.NewProc("SendMessageTimeoutW")
 		)
-		
+
 		envPtr, _ := syscall.UTF16PtrFromString("Environment")
 		sendMessageTimeout.Call(
 			0xFFFF, // HWND_BROADCAST
@@ -1196,7 +1201,7 @@ func IsGatewayRunning() bool {
 // KillGateway 停止网关
 func KillGateway() error {
 	port := GetGatewayPort()
-	
+
 	// 1. Find PID using GetExtendedTcpTable (iphlpapi.dll)
 	pid, err := findPidByPort(port)
 	if err != nil {
@@ -1211,7 +1216,7 @@ func KillGateway() error {
 }
 
 const (
-	AF_INET = 2
+	AF_INET                 = 2
 	TCP_TABLE_OWNER_PID_ALL = 5
 )
 
@@ -1227,7 +1232,7 @@ type mibTcpRowOwnerPid struct {
 
 func findPidByPort(port int) (uint32, error) {
 	var (
-		iphlpapi = syscall.NewLazyDLL("iphlpapi.dll")
+		iphlpapi            = syscall.NewLazyDLL("iphlpapi.dll")
 		getExtendedTcpTable = iphlpapi.NewProc("GetExtendedTcpTable")
 	)
 
@@ -1241,7 +1246,7 @@ func findPidByPort(port int) (uint32, error) {
 		uintptr(TCP_TABLE_OWNER_PID_ALL),
 		0,
 	)
-	
+
 	if size == 0 {
 		return 0, fmt.Errorf("GetExtendedTcpTable failed to get size")
 	}
@@ -1264,22 +1269,22 @@ func findPidByPort(port int) (uint32, error) {
 	// Parse the table
 	// DWORD dwNumEntries
 	numEntries := *(*uint32)(unsafe.Pointer(&buffer[0]))
-	
+
 	// Check entries
 	// sizeof(DWORD) = 4
 	rowSize := uint32(unsafe.Sizeof(mibTcpRowOwnerPid{}))
-	
+
 	for i := uint32(0); i < numEntries; i++ {
 		offset := 4 + i*rowSize
 		if uint32(len(buffer)) < offset+rowSize {
 			break
 		}
-		
+
 		row := (*mibTcpRowOwnerPid)(unsafe.Pointer(&buffer[offset]))
-		
+
 		// Port is in network byte order (Big Endian)
-		localPort := (uint16(row.dwLocalPort)>>8) | (uint16(row.dwLocalPort)<<8)
-		
+		localPort := (uint16(row.dwLocalPort) >> 8) | (uint16(row.dwLocalPort) << 8)
+
 		if int(localPort) == port {
 			// dwState: 2 = MIB_TCP_STATE_LISTEN
 			if row.dwState == 2 {
@@ -1293,20 +1298,20 @@ func findPidByPort(port int) (uint32, error) {
 
 func killProcess(pid uint32) error {
 	var (
-		kernel32 = syscall.NewLazyDLL("kernel32.dll")
-		openProcess = kernel32.NewProc("OpenProcess")
+		kernel32         = syscall.NewLazyDLL("kernel32.dll")
+		openProcess      = kernel32.NewProc("OpenProcess")
 		terminateProcess = kernel32.NewProc("TerminateProcess")
-		closeHandle = kernel32.NewProc("CloseHandle")
+		closeHandle      = kernel32.NewProc("CloseHandle")
 	)
 
 	const PROCESS_TERMINATE = 0x0001
-	
+
 	hProcess, _, _ := openProcess.Call(
 		uintptr(PROCESS_TERMINATE),
 		0,
 		uintptr(pid),
 	)
-	
+
 	if hProcess == 0 {
 		return fmt.Errorf("OpenProcess failed")
 	}
@@ -1316,7 +1321,7 @@ func killProcess(pid uint32) error {
 	if ret == 0 {
 		return fmt.Errorf("TerminateProcess failed")
 	}
-	
+
 	return nil
 }
 
@@ -1340,7 +1345,7 @@ func UninstallOpenclaw() error {
 	// 清理环境变量
 	if npmPrefix, err := getNpmPrefix(); err == nil {
 		npmBin := filepath.Join(npmPrefix, "bin")
-		
+
 		// 尝试移除两种可能的路径
 		removePathFromEnv(npmPrefix)
 		removePathFromEnv(npmBin)
@@ -1350,6 +1355,26 @@ func UninstallOpenclaw() error {
 	if err == nil {
 		configDir := filepath.Join(userHome, ".openclaw")
 		os.RemoveAll(configDir)
+	}
+
+	return nil
+}
+
+// SetPowerShellExecutionPolicy 设置执行策略为 RemoteSigned
+func SetPowerShellExecutionPolicy() error {
+	const regPath = `SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell`
+
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regPath, registry.SET_VALUE)
+	if err != nil {
+		k, _, err = registry.CreateKey(registry.LOCAL_MACHINE, regPath, registry.SET_VALUE)
+		if err != nil {
+			return fmt.Errorf("无法创建注册表键: %v", err)
+		}
+	}
+	defer k.Close()
+
+	if err := k.SetStringValue("ExecutionPolicy", "RemoteSigned"); err != nil {
+		return fmt.Errorf("设置执行策略失败: %v", err)
 	}
 
 	return nil
