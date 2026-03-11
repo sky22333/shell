@@ -879,6 +879,7 @@ func InstallOpenclawNpm() error {
 }
 
 // EnsureOnPath 检查并配置 PATH
+// EnsureOnPath 检查并配置 PATH
 func EnsureOnPath() (bool, error) {
 	if _, err := exec.LookPath("openclaw-cn"); err == nil {
 		return false, nil
@@ -888,24 +889,54 @@ func EnsureOnPath() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	npmBin := filepath.Join(npmPrefix, "bin")
 
 	possiblePath := npmPrefix
-
 	if _, err := os.Stat(filepath.Join(npmPrefix, "openclaw-cn.cmd")); os.IsNotExist(err) {
-		possiblePath = npmBin
+		possiblePath = filepath.Join(npmPrefix, "bin")
 	}
 
-	psCmd := fmt.Sprintf(`
-		$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-		if (-not ($userPath -split ";" | Where-Object { $_ -ieq "%s" })) {
-			[Environment]::SetEnvironmentVariable("Path", "$userPath;%s", "User")
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return false, err
+	}
+	defer k.Close()
+
+	oldPath, _, err := k.GetStringValue("Path")
+	if err != nil {
+		return false, err
+	}
+
+	paths := strings.Split(oldPath, ";")
+	possiblePathLower := strings.ToLower(filepath.Clean(possiblePath))
+	for _, p := range paths {
+		if strings.ToLower(filepath.Clean(p)) == possiblePathLower {
+			return false, nil
 		}
-	`, possiblePath, possiblePath)
+	}
 
-	exec.Command("powershell", "-Command", psCmd).Run()
+	newPath := oldPath + ";" + possiblePath
+	if err := k.SetStringValue("Path", newPath); err != nil {
+		return false, err
+	}
 
+	broadcastEnvironmentChange()
 	return true, nil
+}
+
+// broadcastEnvironmentChange 广播环境变量变更
+func broadcastEnvironmentChange() {
+	user32 := syscall.NewLazyDLL("user32.dll")
+	sendMessageTimeout := user32.NewProc("SendMessageTimeoutW")
+	envPtr, _ := syscall.UTF16PtrFromString("Environment")
+	sendMessageTimeout.Call(
+		0xFFFF, // HWND_BROADCAST
+		0x001A, // WM_SETTINGCHANGE
+		0,
+		uintptr(unsafe.Pointer(envPtr)),
+		0x0002, // SMTO_ABORTIFHUNG
+		5000,
+		0,
+	)
 }
 
 // removePathFromEnv 从用户 PATH 环境变量中移除指定路径
@@ -921,7 +952,7 @@ func removePathFromEnv(pathToRemove string) error {
 		return err
 	}
 
-	paths := strings.Split(oldPath, string(os.PathListSeparator))
+	paths := strings.Split(oldPath, ";")
 	var newPaths []string
 	pathToRemove = strings.ToLower(filepath.Clean(pathToRemove))
 
@@ -931,28 +962,12 @@ func removePathFromEnv(pathToRemove string) error {
 		}
 	}
 
-	newPath := strings.Join(newPaths, string(os.PathListSeparator))
+	newPath := strings.Join(newPaths, ";")
 	if newPath != oldPath {
 		if err := k.SetStringValue("Path", newPath); err != nil {
 			return err
 		}
-
-		// 广播环境变量变更消息 (WM_SETTINGCHANGE)
-		var (
-			user32             = syscall.NewLazyDLL("user32.dll")
-			sendMessageTimeout = user32.NewProc("SendMessageTimeoutW")
-		)
-
-		envPtr, _ := syscall.UTF16PtrFromString("Environment")
-		sendMessageTimeout.Call(
-			0xFFFF, // HWND_BROADCAST
-			0x001A, // WM_SETTINGCHANGE
-			0,
-			uintptr(unsafe.Pointer(envPtr)),
-			0x0002, // SMTO_ABORTIFHUNG
-			5000,
-			0,
-		)
+		broadcastEnvironmentChange()
 	}
 	return nil
 }
