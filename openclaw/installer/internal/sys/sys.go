@@ -879,7 +879,6 @@ func InstallOpenclawNpm() error {
 }
 
 // EnsureOnPath 检查并配置 PATH
-// EnsureOnPath 检查并配置 PATH
 func EnsureOnPath() (bool, error) {
 	if _, err := exec.LookPath("openclaw-cn"); err == nil {
 		return false, nil
@@ -1205,16 +1204,14 @@ func IsGatewayRunning() bool {
 func KillGateway() error {
 	port := GetGatewayPort()
 
-	// 1. Find PID using GetExtendedTcpTable (iphlpapi.dll)
 	pid, err := findPidByPort(port)
 	if err != nil {
-		return err // Or ignore if not found
+		return err
 	}
 	if pid == 0 {
 		return nil
 	}
 
-	// 2. Kill Process using OpenProcess/TerminateProcess (kernel32.dll)
 	return killProcess(pid)
 }
 
@@ -1240,7 +1237,6 @@ func findPidByPort(port int) (uint32, error) {
 	)
 
 	var size uint32 = 0
-	// First call to get size
 	getExtendedTcpTable.Call(
 		0,
 		uintptr(unsafe.Pointer(&size)),
@@ -1255,7 +1251,6 @@ func findPidByPort(port int) (uint32, error) {
 	}
 
 	buffer := make([]byte, size)
-	// Second call to get data
 	ret, _, _ := getExtendedTcpTable.Call(
 		uintptr(unsafe.Pointer(&buffer[0])),
 		uintptr(unsafe.Pointer(&size)),
@@ -1269,12 +1264,8 @@ func findPidByPort(port int) (uint32, error) {
 		return 0, fmt.Errorf("GetExtendedTcpTable failed: %d", ret)
 	}
 
-	// Parse the table
-	// DWORD dwNumEntries
 	numEntries := *(*uint32)(unsafe.Pointer(&buffer[0]))
 
-	// Check entries
-	// sizeof(DWORD) = 4
 	rowSize := uint32(unsafe.Sizeof(mibTcpRowOwnerPid{}))
 
 	for i := uint32(0); i < numEntries; i++ {
@@ -1285,11 +1276,9 @@ func findPidByPort(port int) (uint32, error) {
 
 		row := (*mibTcpRowOwnerPid)(unsafe.Pointer(&buffer[offset]))
 
-		// Port is in network byte order (Big Endian)
 		localPort := (uint16(row.dwLocalPort) >> 8) | (uint16(row.dwLocalPort) << 8)
 
 		if int(localPort) == port {
-			// dwState: 2 = MIB_TCP_STATE_LISTEN
 			if row.dwState == 2 {
 				return row.dwOwningPid, nil
 			}

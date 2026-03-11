@@ -18,6 +18,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("\n按 Enter 键退出...")
+	fmt.Println("\n按回车键退出...")
 	fmt.Scanln()
 }

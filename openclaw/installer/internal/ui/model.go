@@ -275,7 +275,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case StateWizard:
 		return m.updateWizard(msg)
 	case StateAction:
-		// 动作模式下主要等待消息
 		return m, nil
 	}
 
@@ -591,7 +590,7 @@ func (m Model) renderDashboard() string {
 		lipgloss.JoinVertical(lipgloss.Left,
 			style.SubHeaderStyle.Render("主菜单"),
 			menuView,
-			style.SubtleStyle.Render("使用 ↑/↓ 选择，Enter 确认"),
+			style.SubtleStyle.Render("上下键选择，回车确认"),
 		),
 	)
 
@@ -605,7 +604,6 @@ func (m Model) renderDashboard() string {
 	}
 
 	// 垂直堆叠
-	// 在垂直模式下，不需要强制宽度，或者设置为较宽的值
 	statusPanel = style.PanelStyle.Width(80).Render(
 		lipgloss.JoinVertical(lipgloss.Left, statusRows...),
 	)
@@ -742,7 +740,6 @@ func (m Model) renderAction() string {
 }
 
 // 指令处理
-
 func checkEnvCmd() tea.Msg {
 	sys.ResetPathCache()
 	nodeVer, nodeOk := sys.CheckNode()
@@ -832,7 +829,6 @@ func runInstallFlowCmd() tea.Cmd {
 	go func() {
 		defer close(ch)
 
-		// 1. Install Node
 		ch <- installProgressMsg{step: "正在安装 Node.js...", channel: ch}
 		if err := sys.InstallNode(func(percent float64) {
 			ch <- installProgressMsg{step: "正在安装 Node.js...", percent: percent, channel: ch}
@@ -841,7 +837,6 @@ func runInstallFlowCmd() tea.Cmd {
 			return
 		}
 
-		// 2. Install Git
 		ch <- installProgressMsg{step: "正在安装 Git...", channel: ch}
 		if err := sys.InstallGit(func(percent float64) {
 			ch <- installProgressMsg{step: "正在安装 Git...", percent: percent, channel: ch}
@@ -850,28 +845,24 @@ func runInstallFlowCmd() tea.Cmd {
 			return
 		}
 
-		// 3. Configure Git Proxy
 		ch <- installProgressMsg{step: "正在配置 Git 代理...", channel: ch}
 		if err := sys.ConfigureGitProxy(); err != nil {
 			ch <- installProgressMsg{err: fmt.Errorf("git 代理配置失败: %v", err), channel: ch}
 			return
 		}
 
-		// 4. Configure NPM Mirror
 		ch <- installProgressMsg{step: "正在配置 NPM 镜像...", channel: ch}
 		if err := sys.ConfigureNpmMirror(); err != nil {
 			ch <- installProgressMsg{err: fmt.Errorf("npm 配置失败: %v", err), channel: ch}
 			return
 		}
 
-		// 5. Install OpenClaw
 		ch <- installProgressMsg{step: "正在安装 OpenClaw-CN...", channel: ch}
 		if err := sys.InstallOpenclawNpm(); err != nil {
 			ch <- installProgressMsg{err: fmt.Errorf("openclaw-cn 安装失败: %v", err), channel: ch}
 			return
 		}
 
-		// 6. Finalize
 		ch <- installProgressMsg{step: "正在配置环境...", channel: ch}
 		sys.EnsureOnPath()
 		sys.RunSetup()
