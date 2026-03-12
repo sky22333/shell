@@ -13,8 +13,6 @@ bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/openclaw/
 ### windows 脚本
 直接下载使用编译好的二进制文件：https://github.com/sky22333/shell/raw/main/openclaw/installer/installer.exe
 
-下载后使用管理员权限运行
-
 CMD修改加速域名环境变量（可选）
 ```
 set GIT_PROXY=https://hub.cmoko.com/
