@@ -1324,6 +1324,12 @@ func UninstallOpenclaw() error {
 		return err
 	}
 
+	// 先用内置命令卸载
+	builtinCmd := exec.Command("openclaw-cn", "uninstall", "--all", "--yes", "--non-interactive")
+	builtinCmd.Stdout = nil
+	builtinCmd.Stderr = nil
+	builtinCmd.Run()
+
 	packages := []string{"openclaw-cn", "openclaw"}
 	for _, pkg := range packages {
 		cmd := exec.Command(npmPath, "uninstall", "-g", pkg)
@@ -1331,24 +1337,19 @@ func UninstallOpenclaw() error {
 		cmd.Stderr = nil
 		cmd.Run()
 	}
-
 	RemoveGitProxy()
-
 	// 清理环境变量
 	if npmPrefix, err := getNpmPrefix(); err == nil {
 		npmBin := filepath.Join(npmPrefix, "bin")
-
 		// 尝试移除两种可能的路径
 		removePathFromEnv(npmPrefix)
 		removePathFromEnv(npmBin)
 	}
-
 	userHome, err := os.UserHomeDir()
 	if err == nil {
 		configDir := filepath.Join(userHome, ".openclaw")
 		os.RemoveAll(configDir)
 	}
-
 	return nil
 }
 
