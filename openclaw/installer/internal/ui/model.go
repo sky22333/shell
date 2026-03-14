@@ -845,7 +845,7 @@ func runInstallFlowCmd() tea.Cmd {
 			return
 		}
 
-		ch <- installProgressMsg{step: "正在配置 Git 代理...", channel: ch}
+		ch <- installProgressMsg{step: "检查是否需要 Git 代理...", channel: ch}
 		if err := sys.ConfigureGitProxy(); err != nil {
 			ch <- installProgressMsg{err: fmt.Errorf("git 代理配置失败: %v", err), channel: ch}
 			return
