@@ -39,3 +39,9 @@ go build -o installer.exe .
 ---
 
 相关文档：https://clawd.org.cn/reference/cli-cheatsheet
+
+
+
+### win系统Tui预览
+
+![](https://img.erpweb.eu.org/imgs/2026/03/ffacc5e6f456ebf7.png)
