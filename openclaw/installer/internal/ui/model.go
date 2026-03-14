@@ -535,8 +535,8 @@ func (m Model) renderDashboard() string {
 	// 3. 菜单
 	menuItems := []struct{ title, desc string }{
 		{"启动/停止服务", "管理后台网关进程"},
-		{"配置向导", "设置 API 密钥与机器人参数"},
-		{"安装/更新环境", "一键部署 Node.js 与核心组件"},
+		{"配置向导", "配置大模型API密钥和工具"},
+		{"安装/更新环境", "一键安装环境和OpenClaw-CN"},
 		{"卸载 OpenClaw-CN", "清理所有文件与配置"},
 		{"退出", "关闭控制台"},
 	}
