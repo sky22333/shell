@@ -1,4 +1,5 @@
 #!/bin/bash
+# 弹性多IP搭建脚本
 
 set -euo pipefail
 shopt -s failglob
