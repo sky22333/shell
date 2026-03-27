@@ -32,7 +32,7 @@ SERVICE_PATH="/etc/systemd/system/xray.service"
 NETWORK_SETUP_SCRIPT="/usr/local/bin/setup-multi-ip.sh"
 NETWORK_SERVICE="/etc/systemd/system/multi-ip-setup.service"
 XRAY_BIN="/usr/local/bin/xray"
-PK="wooucloud.com"
+PK="hostname123"
 MAX_RETRIES=3
 RETRY_INTERVAL=2
 INTERFACE="eth0"  # 主网络接口
@@ -148,7 +148,7 @@ get_public_ip() {
         "api.ipify.org"
         "icanhazip.com"
         "ident.me"
-        "ipecho.net/plain"
+        "4.ipw.cn"
     )
 
     for api in "${api_servers[@]}"; do
@@ -1118,7 +1118,7 @@ show_installation_summary() {
                 if [ $retry_count -gt 0 ]; then
                     sleep 1
                 fi
-                public_ip=$(curl --interface "$inner_ip" -s --max-time 5 icanhazip.com 2>/dev/null || true)
+                public_ip=$(curl --interface "$inner_ip" -s --max-time 20 4.ipw.cn 2>/dev/null || true)
                 public_ip=$(echo "$public_ip" | tr -d '\n\r ' | xargs)
                 [[ $public_ip =~ ^[0-9.]+$ ]] && break
                 retry_count=$((retry_count + 1))
