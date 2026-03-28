@@ -469,7 +469,6 @@ EOF
 
 # 菜单选择函数
 show_menu() {
-    local timeout=10  # 超时时间10秒
     local valid_choices=("1" "2" "3")
     
     while true; do
@@ -477,14 +476,11 @@ show_menu() {
         echo -e "│${WHITE}         请选择要安装的代理类型：${GREEN}"
         echo -e "│${WHITE} 1. Shadowsocks 代理 ${GREEN}"
         echo -e "│${WHITE} 2. L2TP 代理${GREEN}"
-        echo -e "│${WHITE} 3. 同时安装两种代理（默认）${GREEN}"
+        echo -e "│${WHITE} 3. 同时安装两种代理${GREEN}"
         echo -e "└──────────────────────────────────────────────────────────────┘${NC}"
 
-        # 读取输入，支持超时默认
-        read -t "$timeout" -rp "请选择 (1/2/3，${timeout}秒内无输入将默认选择3)： " choice || {
-            echo -e "\n${WHITE}ℹ 超时未输入，默认选择 3 - 同时安装两种代理${NC}"
-            choice="3"
-        }
+        # 读取输入，不设置超时
+        read -rp "请选择 (1/2/3)： " choice
         
         # 去除输入中的空格和换行符
         choice=$(echo "$choice" | tr -d ' \n\r')
@@ -503,7 +499,7 @@ show_menu() {
                 install_l2tp_proxy
                 break
                 ;;
-            3|"")
+            3)
                 selected_proxy="both"
                 echo -e "${GREEN}✔ 已选择：同时安装两种代理${NC}"
                 install_both_proxies
@@ -1118,8 +1114,19 @@ show_installation_summary() {
             done
 
             if [ -n "$public_ip" ] && [[ $public_ip =~ ^[0-9.]+$ ]]; then
+                # 生成 v2rayN 格式的 SS 分享链接
+                # 格式: ss://BASE64(method:password)@hostname:port#tag
+                local method="aes-256-gcm"
+                local userinfo="${method}:${ss_pass}"
+                local userinfo_base64=$(echo -n "$userinfo" | base64 -w 0 2>/dev/null || echo -n "$userinfo" | base64)
+                local ss_link="ss://${userinfo_base64}@${public_ip}:${ss_port}#${SS_USER}"
+                
                 echo "${public_ip}:${ss_port} (aes-256-gcm) 密码:${ss_pass} 备注:${SS_USER}"
+                echo "节点分享链接: ${ss_link}"
+                echo ""
                 echo "${public_ip}:${ss_port} (aes-256-gcm) 密码:${ss_pass} 备注:${SS_USER}" >> /root/shadowsocks.txt
+                echo "节点分享链接: ${ss_link}" >> /root/shadowsocks.txt
+                echo "" >> /root/shadowsocks.txt
             else
                 echo "获取失败: $inner_ip"
                 echo "获取失败: $inner_ip" >> /root/shadowsocks.txt
