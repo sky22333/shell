@@ -203,6 +203,8 @@ EOF
 ipcp-accept-local
 ipcp-accept-remote
 require-mschap-v2
+ms-dns 8.8.8.8
+ms-dns 114.114.114.114
 noccp
 auth
 hide-password
@@ -231,6 +233,8 @@ refuse-chap
 refuse-mschap
 require-mschap-v2
 require-mppe-128
+ms-dns 8.8.8.8
+ms-dns 114.114.114.114
 proxyarp
 lock
 nobsdcomp
