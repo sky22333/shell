@@ -130,21 +130,21 @@ configure_user_npm() {
 install_openclaw_core() {
     log_info "正在安装 OpenClaw..."
     configure_user_npm
-    if command -v openclaw-cn >/dev/null 2>&1; then
-        CURRENT_VERSION=$(openclaw-cn --version)
-        log_warn "OpenClaw-CN 已安装 (版本: ${CURRENT_VERSION})"
+    if command -v openclaw >/dev/null 2>&1; then
+        CURRENT_VERSION=$(openclaw --version)
+        log_warn "OpenClaw 已安装 (版本: ${CURRENT_VERSION})"
         read -p "是否强制重新安装/更新？[y/n]: " force_install
         if [ "$force_install" != "y" ]; then
             log_info "跳过安装步骤。"
             return
         fi
     fi
-    npm install -g openclaw-cn
-    if command -v openclaw-cn >/dev/null 2>&1; then
-        VERSION=$(openclaw-cn --version)
-        log_info "OpenClaw-CN 安装成功，版本: ${VERSION}"
+    npm install -g openclaw
+    if command -v openclaw >/dev/null 2>&1; then
+        VERSION=$(openclaw --version)
+        log_info "OpenClaw 安装成功，版本: ${VERSION}"
     else
-        log_error "OpenClaw-CN 安装失败，请检查 npm 权限或网络。"
+        log_error "OpenClaw 安装失败，请检查 npm 权限或网络。"
         exit 1
     fi
 }
@@ -398,9 +398,9 @@ setup_launchd() {
     log_info "正在配置 LaunchAgent 服务..."
     mkdir -p "$(dirname "${PLIST_PATH}")"
     mkdir -p "${LOG_DIR}"
-    GATEWAY_BIN=$(command -v openclaw-cn)
+    GATEWAY_BIN=$(command -v openclaw)
     if [ -z "${GATEWAY_BIN}" ]; then
-        log_error "未找到 openclaw-cn 可执行文件。"
+        log_error "未找到 openclaw 可执行文件。"
         exit 1
     fi
     NODE_BIN=$(command -v node)
@@ -484,9 +484,9 @@ install() {
     configure_openclaw
     setup_launchd
     echo -e "${GREEN}=============================================${PLAIN}"
-    echo -e "${GREEN} OpenClaw-CN 安装配置完成！${PLAIN}"
+    echo -e "${GREEN} OpenClaw 安装配置完成！${PLAIN}"
     echo -e "${GREEN}=============================================${PLAIN}"
-    echo -e "请等待OpenClaw-CN初始化完成（约1分钟），然后使用Telegram向您的Bot发送消息开始使用。"
+    echo -e "请等待OpenClaw初始化完成（约1分钟），然后使用Telegram向您的Bot发送消息开始使用。"
     echo -e "${GREEN}=============================================${PLAIN}"
 }
 
@@ -499,7 +499,6 @@ uninstall() {
     fi
     service_stop
     rm -f "${PLIST_PATH}"
-    npm uninstall -g openclaw-cn
     npm uninstall -g openclaw
     rm -rf "${CONFIG_DIR}"
     log_info "OpenClaw 已卸载。"
@@ -514,7 +513,7 @@ modify_config() {
 
 show_menu() {
     clear
-    echo -e "${CYAN}OpenClaw-CN 管理脚本${PLAIN}"
+    echo -e "${CYAN}OpenClaw 管理脚本${PLAIN}"
     echo -e "${CYAN}------------------------${PLAIN}"
     echo -e "1. 安装并配置 OpenClaw"
     echo -e "2. 启动服务"
@@ -537,7 +536,7 @@ show_menu() {
         6) service_logs ;;
         7) modify_config ;;
         8) uninstall ;;
-        9) openclaw-cn doctor ;;
+        9) openclaw doctor ;;
         0) exit 0 ;;
         *) echo -e "${RED}无效选项，请重新输入${PLAIN}" ;;
     esac

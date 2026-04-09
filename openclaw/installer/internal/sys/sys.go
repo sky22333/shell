@@ -151,7 +151,7 @@ type TelegramConfig struct {
 
 // GetOpenclawPath 获取执行路径
 func GetOpenclawPath() (string, error) {
-	if path, err := exec.LookPath("openclaw-cn"); err == nil {
+	if path, err := exec.LookPath("openclaw"); err == nil {
 		return path, nil
 	}
 
@@ -160,12 +160,12 @@ func GetOpenclawPath() (string, error) {
 		return "", err
 	}
 
-	possibleClawd := filepath.Join(npmPrefix, "openclaw-cn.cmd")
+	possibleClawd := filepath.Join(npmPrefix, "openclaw.cmd")
 	if _, err := os.Stat(possibleClawd); err == nil {
 		return possibleClawd, nil
 	}
 
-	return "", fmt.Errorf("未找到 openclaw-cn 可执行文件")
+	return "", fmt.Errorf("未找到 openclaw 可执行文件")
 }
 
 // GetNodePath 获取 Node 路径
@@ -854,7 +854,7 @@ func InstallGit(onProgress ProgressCallback) error {
 func InstallOpenclawNpm() error {
 	SetupNodeEnv()
 
-	pkgName := "openclaw-cn"
+	pkgName := "openclaw"
 	tag := "latest"
 
 	npmPath, err := getNpmPath()
@@ -880,7 +880,7 @@ func InstallOpenclawNpm() error {
 
 // EnsureOnPath 检查并配置 PATH
 func EnsureOnPath() (bool, error) {
-	if _, err := exec.LookPath("openclaw-cn"); err == nil {
+	if _, err := exec.LookPath("openclaw"); err == nil {
 		return false, nil
 	}
 
@@ -890,7 +890,7 @@ func EnsureOnPath() (bool, error) {
 	}
 
 	possiblePath := npmPrefix
-	if _, err := os.Stat(filepath.Join(npmPrefix, "openclaw-cn.cmd")); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(npmPrefix, "openclaw.cmd")); os.IsNotExist(err) {
 		possiblePath = filepath.Join(npmPrefix, "bin")
 	}
 
@@ -1325,12 +1325,12 @@ func UninstallOpenclaw() error {
 	}
 
 	// 先用内置命令卸载
-	builtinCmd := exec.Command("openclaw-cn", "uninstall", "--all", "--yes", "--non-interactive")
+	builtinCmd := exec.Command("openclaw", "uninstall", "--all", "--yes", "--non-interactive")
 	builtinCmd.Stdout = nil
 	builtinCmd.Stderr = nil
 	builtinCmd.Run()
 
-	packages := []string{"openclaw-cn", "openclaw"}
+	packages := []string{"openclaw"}
 	for _, pkg := range packages {
 		cmd := exec.Command(npmPath, "uninstall", "-g", pkg)
 		cmd.Stdout = nil

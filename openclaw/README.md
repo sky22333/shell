@@ -33,7 +33,7 @@ go mod tidy
 ```
 4：编译
 ```
-go build -o installer.exe .
+go build -ldflags="-s -w" -o installer.exe .
 ```
 
 ---

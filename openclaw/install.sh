@@ -104,8 +104,8 @@ install_nodejs() {
 install_openclaw_core() {
     log_info "正在安装 OpenClaw..."
     
-    if command -v openclaw-cn >/dev/null 2>&1; then
-        CURRENT_VERSION=$(openclaw-cn --version)
+    if command -v openclaw >/dev/null 2>&1; then
+        CURRENT_VERSION=$(openclaw --version)
         log_warn "OpenClaw 已安装 (版本: ${CURRENT_VERSION})"
         read -p "是否强制重新安装/更新？[y/n]: " force_install
         if [ "$force_install" != "y" ]; then
@@ -114,10 +114,10 @@ install_openclaw_core() {
         fi
     fi
     
-    npm install -g openclaw-cn
+    npm install -g openclaw
     
-    if command -v openclaw-cn >/dev/null 2>&1; then
-        VERSION=$(openclaw-cn --version)
+    if command -v openclaw >/dev/null 2>&1; then
+        VERSION=$(openclaw --version)
         log_info "OpenClaw 安装成功，版本: ${VERSION}"
     else
         log_error "OpenClaw 安装失败，请检查 npm 权限或网络！"
@@ -287,7 +287,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=$(command -v openclaw-cn) gateway --verbose
+ExecStart=$(command -v openclaw) gateway --verbose
 Restart=always
 RestartSec=5
 Environment=HOME=${HOME}
@@ -333,7 +333,6 @@ uninstall() {
     rm -f "${SERVICE_FILE}"
     systemctl daemon-reload
     
-    npm uninstall -g openclaw-cn
     npm uninstall -g openclaw
     rm -rf "${CONFIG_DIR}"
     
@@ -357,7 +356,7 @@ modify_config() {
 # 菜单
 show_menu() {
     clear
-    echo -e "${CYAN}OpenClaw-CN 管理脚本${PLAIN}"
+    echo -e "${CYAN}OpenClaw 管理脚本${PLAIN}"
     echo -e "${CYAN}------------------------${PLAIN}"
     echo -e "1. 安装并配置 OpenClaw"
     echo -e "2. 启动服务"
@@ -381,7 +380,7 @@ show_menu() {
         6) journalctl -u openclaw -f ;;
         7) modify_config ;;
         8) uninstall ;;
-        9) openclaw-cn doctor ;;
+        9) openclaw doctor ;;
         0) exit 0 ;;
         *) echo -e "${RED}无效选项，请重新输入${PLAIN}" ;;
     esac
