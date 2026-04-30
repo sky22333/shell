@@ -34,15 +34,23 @@ while [ -z "$password" ]; do
     read password
 done
 
-# 更新 root 密码
-echo "root:$password" | chpasswd
+if command -v chpasswd >/dev/null 2>&1; then
+    echo "root:$password" | chpasswd
+elif [ -x /usr/sbin/chpasswd ]; then
+    echo "root:$password" | /usr/sbin/chpasswd
+elif [ -x /usr/bin/chpasswd ]; then
+    echo "root:$password" | /usr/bin/chpasswd
+elif command -v passwd >/dev/null 2>&1; then
+    printf "%s\n%s\n" "$password" "$password" | passwd root 2>/dev/null
+else
+    red "错误：未找到 passwd 或 chpasswd 命令，无法设置密码！"
+    exit 1
+fi
 
-# 更新 SSH 配置
 sed -i "s/^#\?Port .*/Port $sshport/" /etc/ssh/sshd_config 2>/dev/null
 sed -i "s/^#\?PermitRootLogin .*/PermitRootLogin yes/" /etc/ssh/sshd_config 2>/dev/null
 sed -i "s/^#\?PasswordAuthentication .*/PasswordAuthentication yes/" /etc/ssh/sshd_config 2>/dev/null
 
-# 重启 SSH 服务（兼容多种系统）
 if command -v rc-service >/dev/null 2>&1; then
     rc-service sshd restart 2>/dev/null || rc-service ssh restart 2>/dev/null
 elif command -v systemctl >/dev/null 2>&1; then
