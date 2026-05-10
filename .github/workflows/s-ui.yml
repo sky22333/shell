@@ -1,0 +1,43 @@
+name: 同步并发布 s-ui Docker 镜像
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "镜像版本号，例如 v1.4.1"
+        required: true
+        type: string
+        default: "v1.4.1"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  SOURCE_IMAGE: docker.io/alireza7/s-ui:latest
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  sync:
+    name: 拉取并推送 s-ui 镜像
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 安装 skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+
+      - name: 同步版本镜像
+        run: |
+          skopeo copy --all \
+            --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
+            docker://${{ env.SOURCE_IMAGE }} \
+            docker://${{ env.IMAGE_NAME }}:${{ inputs.version }}
+
+      - name: 同步 latest 镜像
+        run: |
+          skopeo copy --all \
+            --dest-creds "${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
+            docker://${{ env.SOURCE_IMAGE }} \
+            docker://${{ env.IMAGE_NAME }}:latest
