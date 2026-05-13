@@ -1,5 +1,5 @@
 #!/bin/bash
-# Go 自动安装配置脚本 (适用于Debian/Ubuntu)
+# Go 自动安装配置脚本 (支持 Debian/Ubuntu 和 RHEL/CentOS/Fedora)
 
 set -e
 
@@ -8,114 +8,116 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-if ! grep -qiE 'debian|ubuntu' /etc/os-release; then
-    echo -e "${RED}错误：本脚本仅适用于Debian/Ubuntu系统${NC}"
+# 检测系统类型
+if grep -qiE 'debian|ubuntu' /etc/os-release; then
+    OS_TYPE="debian"
+    PKG_MANAGER="apt-get"
+elif grep -qiE 'rhel|centos|fedora|rocky|alma' /etc/os-release; then
+    OS_TYPE="rhel"
+    if command -v dnf &>/dev/null; then
+        PKG_MANAGER="dnf"
+    else
+        PKG_MANAGER="yum"
+    fi
+else
+    echo -e "${RED}错误：不支持的系统${NC}"
     exit 1
 fi
 
 if [ "$(id -u)" -ne 0 ]; then
-    echo -e "${RED}请使用 sudo 或以 root 用户运行此脚本${NC}"
+    echo -e "${RED}请使用 root 权限运行${NC}"
     exit 1
 fi
 
-DEFAULT_VERSION="1.25.5"
+# 安装必要工具
+if ! command -v wget &>/dev/null; then
+    ${PKG_MANAGER} install -y wget > /dev/null 2>&1
+fi
 
-read -p "请输入要安装的 Go 版本 [默认: ${DEFAULT_VERSION}]: " GO_VERSION
+DEFAULT_VERSION="1.26.3"
+
+read -p "Go 版本 [默认: ${DEFAULT_VERSION}]: " GO_VERSION
 GO_VERSION=${GO_VERSION:-$DEFAULT_VERSION}
 
 if ! [[ "$GO_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo -e "${RED}错误：版本号格式不正确，版本号可在 https://go.dev/dl 查看${NC}"
+    echo -e "${RED}版本号格式错误${NC}"
     exit 1
 fi
 
-GO_TAR="go${GO_VERSION}.linux-amd64.tar.gz"
+# 架构检测
+ARCH=$(uname -m)
+case "${ARCH}" in
+    x86_64) GO_ARCH="amd64" ;;
+    aarch64|arm64) GO_ARCH="arm64" ;;
+    *) echo -e "${RED}不支持的架构: ${ARCH}${NC}"; exit 1 ;;
+esac
+
+GO_TAR="go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
 GO_URL="https://dl.google.com/go/${GO_TAR}"
 
+# 卸载旧版本
 if command -v go &>/dev/null; then
-    echo -e "${YELLOW}检测到已安装Go，当前版本: $(go version)${NC}"
-    read -p "是否要卸载当前版本? (y/n): " -n 1 -r
+    echo -e "${YELLOW}已安装: $(go version)${NC}"
+    read -p "卸载并重装? (y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}卸载旧版Go...${NC}"
         rm -rf /usr/local/go
         sed -i '/# GoLang/d' /etc/profile
-        sed -i '/export GOROOT/d' /etc/profile
-        sed -i '/export GOPATH/d' /etc/profile
-        sed -i '/export PATH=\$GOROOT/d' /etc/profile
+        sed -i '/export GOROOT\|export GOPATH\|export PATH=\$GOROOT/d' /etc/profile
     else
-        echo -e "${YELLOW}保留现有安装，退出脚本${NC}"
         exit 0
     fi
 fi
 
-echo -e "${YELLOW}检查是否存在旧的安装包...${NC}"
+# 下载安装
 cd /tmp
-if [ -f "${GO_TAR}" ]; then
-    echo -e "${YELLOW}删除旧的安装包：${GO_TAR}${NC}"
-    rm -f "${GO_TAR}"
-fi
-
-echo -e "${GREEN}开始下载 Go ${GO_VERSION} 安装包...${NC}"
-wget --progress=bar:force "${GO_URL}"
-if [ $? -ne 0 ]; then
-    echo -e "${RED}下载失败，请检查网络连接和版本号是否正确${NC}"
-    echo "可用的Go版本可在 https://go.dev/dl 查看"
+rm -f "${GO_TAR}"
+echo -e "${GREEN}下载 Go ${GO_VERSION}...${NC}"
+wget -q --show-progress "${GO_URL}" || {
+    echo -e "${RED}下载失败${NC}"
     exit 1
-fi
+}
 
-echo -e "${GREEN}安装 Go 到 /usr/local...${NC}"
+echo -e "${GREEN}安装中...${NC}"
 rm -rf /usr/local/go
 tar -C /usr/local -xzf "${GO_TAR}"
 
-echo -e "${GREEN}配置环境变量...${NC}"
-cat >> /etc/profile <<EOF
+# 配置环境变量
+cat >> /etc/profile <<'EOF'
 
-# GoLang Environment
+# GoLang
 export GOROOT=/usr/local/go
-export GOPATH=\$HOME/go
-export PATH=\$GOROOT/bin:\$GOPATH/bin:\$PATH
+export GOPATH=$HOME/go
+export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
 EOF
 
 for USER_HOME in /home/* /root; do
-    USER=$(basename "${USER_HOME}")
     if [ -d "${USER_HOME}" ]; then
-        cat >> "${USER_HOME}/.profile" <<EOF
+        USER=$(basename "${USER_HOME}")
+        PROFILE="${USER_HOME}/.profile"
+        [ "${OS_TYPE}" = "rhel" ] && PROFILE="${USER_HOME}/.bash_profile"
+        
+        sed -i '/# GoLang/d' "${PROFILE}" 2>/dev/null
+        sed -i '/export GOROOT\|export GOPATH\|export PATH=\$GOROOT/d' "${PROFILE}" 2>/dev/null
+        
+        cat >> "${PROFILE}" <<'EOF'
 
-# GoLang Environment
+# GoLang
 export GOROOT=/usr/local/go
-export GOPATH=\$HOME/go
-export PATH=\$GOROOT/bin:\$GOPATH/bin:\$PATH
+export GOPATH=$HOME/go
+export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
 EOF
-        chown "${USER}:${USER}" "${USER_HOME}/.profile"
+        
+        mkdir -p "${USER_HOME}/go"/{bin,pkg,src}
+        chown -R "${USER}:${USER}" "${USER_HOME}/go" 2>/dev/null || true
     fi
 done
 
-echo -e "${GREEN}创建 GOPATH 目录...${NC}"
-for USER_HOME in /home/* /root; do
-    if [ -d "${USER_HOME}" ]; then
-        mkdir -p "${USER_HOME}/go"{,/bin,/pkg,/src}
-        chown -R "$(basename "${USER_HOME}"):$(basename "${USER_HOME}")" "${USER_HOME}/go"
-    fi
-done
+rm -f "/tmp/${GO_TAR}"
 
-source /etc/profile
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+export PATH=$GOROOT/bin:$GOPATH/bin:$PATH
 
-echo -e "${GREEN}验证安装...${NC}"
-if ! command -v go &>/dev/null; then
-    echo -e "${RED}Go 安装失败，请检查错误信息${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}Go 安装成功！版本信息:${NC}"
-go version
-
-echo -e "
-${GREEN}安装完成！Go ${GO_VERSION} 已成功安装并配置。${NC}
-
-${YELLOW}提示:
-1. 新终端会话会自动加载 Go 环境变量
-2. 当前会话可执行 ${NC}${GREEN}source ~/.profile${NC}${YELLOW} 立即生效
-3. Go 工作目录 (GOPATH) 已创建在 ${NC}${GREEN}~/go${NC}
-
-如需卸载，请删除 ${YELLOW}/usr/local/go${NC} 目录。
-"
+echo -e "${GREEN}完成! $(go version)${NC}"
+echo -e "GOPATH: ~/go | 立即生效: source ~/.profile"
