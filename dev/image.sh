@@ -111,7 +111,7 @@ remove_cloud_kernels() {
     echo -e "${YELLOW}[4/4] 正在识别并卸载专有云内核...${NC}"
     
     # 正则匹配各类云内核包名：cloud, aws, gcp, azure, kvm, oracle
-    local cloud_pkgs=$(dpkg -l | awk '/linux-(image|headers|modules)-.*(cloud|aws|gcp|azure|kvm|oracle)/ {print $2}')
+    local cloud_pkgs=$(dpkg -l | awk '/linux-(image|headers|modules)-.*(cloud|aws|gcp|azure|kvm|oracle|ibm)/ {print $2}')
     
     if [ -z "$cloud_pkgs" ]; then
         echo -e "${GREEN}未检测到需要清理的专有云内核包。${NC}"
