@@ -1,7 +1,12 @@
 #!/bin/bash
 
 # 安装 Ansible
-sudo apt update && apt install ansible -yq
+case $(command -v apt dnf yum 2>/dev/null | head -1) in
+    *apt)   apt update -q && apt install -yq ansible ;;
+    *dnf)   dnf install -y ansible ;;
+    *yum)   yum install -y ansible ;;
+    *)      echo "不支持的包管理器"; exit 1 ;;
+esac
 
 # 创建 Ansible 配置文件和目录
 mkdir -p /etc/ansible
