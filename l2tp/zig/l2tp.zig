@@ -103,6 +103,13 @@ fn fileExists(ctx: Context, path: []const u8) bool {
     return true;
 }
 
+fn charDeviceExists(ctx: Context, path: []const u8) bool {
+    const script = std.fmt.allocPrint(ctx.allocator, "test -c '{s}'", .{path}) catch return false;
+    defer ctx.allocator.free(script);
+    runShell(ctx, script) catch return false;
+    return true;
+}
+
 fn dirExists(ctx: Context, path: []const u8) bool {
     const script = std.fmt.allocPrint(ctx.allocator, "test -d '{s}'", .{path}) catch return false;
     defer ctx.allocator.free(script);
@@ -765,8 +772,10 @@ pub fn main(init: std.process.Init) !void {
         return;
     }
 
-    if (!fileExists(ctx, "/dev/ppp")) {
-        errMsg("未检测到 /dev/ppp 设备，当前内核可能不支持 PPP，无法继续安装 VPN\n", .{});
+    runCommandIgnore(ctx, &.{ "modprobe", "ppp_generic" });
+    
+    if (!charDeviceExists(ctx, "/dev/ppp")) {
+        errMsg("未检测到 /dev/ppp 字符设备，当前内核可能不支持 PPP，无法继续安装 VPN\n", .{});
         return;
     }
 
