@@ -615,9 +615,6 @@ fn installVPN(ctx: Context) ![]u8 {
     } else |_| {}
 
     runCommandIgnore(ctx, &.{ "systemctl", "daemon-reload" });
-    writeFile(ctx, "/proc/sys/net/ipv4/ip_forward", "1\n", "0644") catch |e| {
-        warn("无法写入 ip_forward: {t}\n", .{e});
-    };
 
     try runCommand(ctx, &.{ "systemctl", "enable", ipsec_service });
     try runCommand(ctx, &.{ "systemctl", "restart", ipsec_service });
