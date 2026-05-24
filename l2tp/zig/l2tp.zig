@@ -302,7 +302,6 @@ fn installDependencies(ctx: Context, os_info: OSInfo) !void {
 fn getPublicIP(ctx: Context) ![]u8 {
     const apis = [_][]const u8{
         "http://api64.ipify.org",
-        "http://4.ipw.cn",
         "http://ip.sb",
         "http://checkip.amazonaws.com",
         "http://icanhazip.com",
