@@ -264,10 +264,10 @@ fn changeMirrors(ctx: Context) void {
     std.debug.print("{s} [0/4] 配置软件源{s}\n", .{ yellow, nc });
     if (detectRegion(ctx)) {
         std.debug.print("使用阿里源...\n", .{});
-        runShellIgnore(ctx, "bash <(curl -sSL https://gitee.com/SuperManito/LinuxMirrors/raw/main/ChangeMirrors.sh) --source mirrors.aliyun.com --protocol http --use-intranet-source false --install-epel true --backup true --upgrade-software false --clean-cache false --ignore-backup-tips --pure-mode");
+        runShellIgnore(ctx, "curl -sSL https://gitee.com/SuperManito/LinuxMirrors/raw/main/ChangeMirrors.sh | bash -s -- --source mirrors.aliyun.com --protocol http --use-intranet-source false --install-epel true --backup true --upgrade-software false --clean-cache false --ignore-backup-tips --pure-mode");
     } else {
         std.debug.print("使用官方源...\n", .{});
-        runShellIgnore(ctx, "bash <(curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh) --use-official-source true --protocol http --use-intranet-source false --install-epel true --backup true --upgrade-software false --clean-cache false --ignore-backup-tips --pure-mode");
+        runShellIgnore(ctx, "curl -sSL https://raw.githubusercontent.com/SuperManito/LinuxMirrors/main/ChangeMirrors.sh | bash -s -- --use-official-source true --protocol http --use-intranet-source false --install-epel true --backup true --upgrade-software false --clean-cache false --ignore-backup-tips --pure-mode");
     }
 }
 
