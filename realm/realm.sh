@@ -69,12 +69,12 @@ download_realm_binary() {
   local package temp_dir
   package="$(arch_package)"
   temp_dir="$(mktemp -d)"
-  trap 'rm -rf "$temp_dir"' RETURN
 
   info "下载 latest: ${package}"
-  curl -fL "${DOWNLOAD_BASE}/${package}" -o "${temp_dir}/${package}"
+  curl -fsSL "${DOWNLOAD_BASE}/${package}" -o "${temp_dir}/${package}"
   tar -xzf "${temp_dir}/${package}" -C "$temp_dir"
   install -m755 "${temp_dir}/realm" "$REALM_BIN"
+  rm -rf "$temp_dir"
 }
 
 # systemd
