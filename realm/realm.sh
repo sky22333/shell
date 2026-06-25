@@ -111,10 +111,22 @@ EOF
 svc_reload()   { systemctl daemon-reload; }
 svc_enable()   { systemctl enable "$SERVICE_NAME"; }
 svc_start()    { systemctl restart "$SERVICE_NAME"; }
+svc_stop()     { systemctl stop "$SERVICE_NAME" 2>/dev/null || true; systemctl reset-failed "$SERVICE_NAME" 2>/dev/null || true; }
 svc_stop_all() {
-  systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+  svc_stop
   systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-  systemctl reset-failed "$SERVICE_NAME" 2>/dev/null || true
+}
+
+has_rules() {
+  [[ -f "$RULES" ]] && [[ -s "$RULES" ]]
+}
+
+svc_apply() {
+  if has_rules; then
+    svc_start
+  else
+    svc_stop
+  fi
 }
 
 # 安装 / 卸载 / 重启
@@ -124,7 +136,7 @@ install_realm() {
   if is_installed; then
     info "检测到已安装:"
     show_install_info
-    echo -e "  ${D}1${N}) 取消  ${D}2${N}) 覆盖重装 (保留规则)  ${D}3${N}) 覆盖重装 (清空配置)"
+    echo -e "  ${D}1${N}: 取消  ${D}2${N}: 覆盖重装 (保留规则)  ${D}3${N}: 覆盖重装 (清空配置)"
     case "$(ask "选择" "1")" in
       1) info "已取消"; return ;;
       3) rm -rf "$REALM_DIR" ;;
@@ -136,10 +148,11 @@ install_realm() {
   touch "$RULES"
   write_systemd_unit
   render_config
-  svc_reload && svc_enable && svc_start
+  svc_reload && svc_enable && svc_apply
 
   info "安装完成"
   show_install_info
+  has_rules || hint "尚未添加规则，服务未启动，请添加规则后自动运行"
 }
 
 uninstall_realm() {
@@ -159,8 +172,13 @@ uninstall_realm() {
 restart_realm() {
   need_root
   render_config
-  svc_start
-  info "已重启"
+  if has_rules; then
+    svc_start
+    info "已重启"
+  else
+    svc_stop
+    hint "无规则，服务已停止"
+  fi
 }
 
 # 规则读写
@@ -188,7 +206,7 @@ save_rule() {
 
 apply_rules() {
   render_config
-  svc_start
+  svc_apply
 }
 
 # 生成 config.toml
@@ -243,18 +261,21 @@ level = "warn"
 output = "stdout"
 EOF
 
-  [[ -f "$RULES" ]] || return 0
+  [[ -f "$RULES" ]] || { echo "endpoints = []" >>"$CONF"; return 0; }
 
-  local id type listen remote udp sni host path note
+  local id type listen remote udp sni host path note count=0
   while IFS='|' read -r id type listen remote udp sni host path note; do
     [[ -n "${id:-}" ]] || continue
     render_endpoint_block "$id" "$type" "$listen" "$remote" "$udp" "$sni" "$host" "$path" "$note"
+    count=$((count + 1))
   done <"$RULES"
+
+  (( count == 0 )) && echo "endpoints = []" >>"$CONF"
 }
 
 # 添加规则
 pick_tunnel_role() {
-  echo -e "  ${D}1${N}) 入口  ${D}2${N}) 出口"
+  echo -e "  ${D}1${N}: 入口  ${D}2${N}: 出口"
   ask "角色"
 }
 
@@ -322,7 +343,7 @@ add_rule() {
   need_root
   rules_init
 
-  echo -e "  ${D}1${N}) 纯转发 (TCP+UDP)  ${D}2${N}) TLS  ${D}3${N}) WSS"
+  echo -e "  ${D}1${N}: 纯转发 (TCP+UDP)  ${D}2${N}: TLS  ${D}3${N}: WSS"
   local mode id note
   mode="$(ask "模式")"
   id="$(next_rule_id)"
@@ -339,7 +360,6 @@ add_rule() {
   info "规则 #${id} 已添加"
 }
 
-# 删除 / 列表 / 查看
 del_rule() {
   need_root
   [[ -f "$RULES" ]] || die "无规则"
@@ -354,6 +374,7 @@ del_rule() {
   mv "${RULES}.tmp" "$RULES"
   apply_rules
   info "规则 #${rid} 已删除"
+  has_rules || hint "已无规则，服务已停止"
 }
 
 list_rules() {
@@ -404,16 +425,16 @@ print_menu() {
   fi
   echo -e " 状态: ${status}"
   echo
-  echo -e " ${D}1${N}) 安装"
-  echo -e " ${D}2${N}) 卸载"
-  echo -e " ${D}3${N}) 添加规则"
-  echo -e " ${D}4${N}) 删除规则"
-  echo -e " ${D}5${N}) 查看规则"
-  echo -e " ${D}6${N}) 查看配置"
-  echo -e " ${D}7${N}) 重启"
-  echo -e " ${D}8${N}) 状态"
-  echo -e " ${D}9${N}) 实时日志"
-  echo -e " ${D}0${N}) 退出"
+  echo -e " ${D}1${N}: 安装"
+  echo -e " ${D}2${N}: 卸载"
+  echo -e " ${D}3${N}: 添加规则"
+  echo -e " ${D}4${N}: 删除规则"
+  echo -e " ${D}5${N}: 查看规则"
+  echo -e " ${D}6${N}: 查看配置"
+  echo -e " ${D}7${N}: 重启"
+  echo -e " ${D}8${N}: 状态"
+  echo -e " ${D}9${N}: 实时日志"
+  echo -e " ${D}0${N}: 退出"
 }
 
 run_menu() {
