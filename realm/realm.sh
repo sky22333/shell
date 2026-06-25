@@ -3,12 +3,38 @@
 # 用法: sudo ./realm-manager.sh [install|uninstall|restart|logs]
 set -euo pipefail
 
-# 颜色定义
-if [[ -t 1 ]]; then
-  R=$'\033[31m' G=$'\033[32m' Y=$'\033[33m' C=$'\033[36m' B=$'\033[1m' D=$'\033[2m' N=$'\033[0m'
-else
-  R= G= Y= C= B= D= N=
+red='' green='' blue='' yellow='' plain=''
+if [[ -t 1 && -z "${NO_COLOR:-}" && ${TERM:-} != dumb ]]; then
+  red=$'\033[0;31m'
+  green=$'\033[0;32m'
+  blue=$'\033[0;34m'
+  yellow=$'\033[0;33m'
+  plain=$'\033[0m'
 fi
+color_off() { [[ -n "$plain" ]] && echo -ne "$plain"; }
+menu_line() { echo -e "  ${green}$*${plain}"; }
+
+# 工具
+die()  { echo -e "${red}[错误] $* ${plain}" >&2; exit 1; }
+info() { echo -e "${green}[信息] $* ${plain}"; }
+hint() { echo -e "${yellow}[提示] $* ${plain}"; }
+need_root() { [[ ${EUID:-} -eq 0 ]] || die "请用 root 运行"; }
+
+ask() {
+  local prompt="$1" default="${2:-}" value
+  if [[ -n "$default" ]]; then
+    read -rp "$(echo -e "${yellow}${prompt}${plain} [${default}]: ")" value
+  else
+    read -rp "$(echo -e "${yellow}${prompt}${plain}: ")" value
+  fi
+  echo "${value:-$default}"
+}
+
+confirm() {
+  local prompt="${1:-确认?}" answer
+  read -rp "$(echo -e "${prompt} [y/N]: ")" answer
+  [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]
+}
 
 # 路径与默认值
 readonly REALM_BIN="/usr/local/bin/realm"
@@ -20,33 +46,9 @@ readonly DOWNLOAD_BASE="https://github.com/zhboner/realm/releases/latest/downloa
 readonly SERVICE_NAME="realm"
 
 readonly DEFAULT_SNI="www.bing.com"
-readonly DEFAULT_WSS_HOST="www.bing.com"
 readonly DEFAULT_WSS_PATH="/ws"
 
 # 规则: id|type|listen|remote|sni|host|path|note
-
-# 工具
-die()  { echo -e "${R}错误:${N} $*" >&2; exit 1; }
-info() { echo -e "${G}>>${N} $*"; }
-hint() { echo -e "${Y}>>${N} $*"; }
-need_root() { [[ ${EUID:-} -eq 0 ]] || die "请用 root 运行"; }
-
-ask() {
-  local prompt="$1" default="${2:-}" value
-  if [[ -n "$default" ]]; then
-    read -rp "$(echo -e "${C}${prompt}${N} ${D}[${default}]${N}: ")" value
-  else
-    read -rp "$(echo -e "${C}${prompt}${N}: ")" value
-  fi
-  echo "${value:-$default}"
-}
-
-confirm() {
-  local prompt="${1:-确认?}"
-  local answer
-  read -rp "$(echo -e "${Y}${prompt}${N} [y/N]: ")" answer
-  [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]
-}
 
 # 状态
 is_installed() {
@@ -62,7 +64,7 @@ version_line() {
 }
 
 show_install_info() {
-  [[ -x "$REALM_BIN" ]] && info "二进制: $(version_line)"
+  [[ -x "$REALM_BIN" ]] && { color_off; info "二进制: $(version_line)"; }
   [[ -f "$UNIT" ]]       && info "服务:   ${SERVICE_NAME}.service"
   [[ -d "$REALM_DIR" ]]  && info "配置:   ${REALM_DIR}"
 }
@@ -153,7 +155,7 @@ install_realm() {
   if is_installed; then
     info "检测到已安装:"
     show_install_info
-    echo -e "  ${D}1${N}: 取消  ${D}2${N}: 覆盖重装 (保留规则)  ${D}3${N}: 覆盖重装 (清空配置)"
+    menu_line "1. 取消  2. 覆盖重装 (保留规则)  3. 覆盖重装 (清空配置)"
     case "$(ask "选择" "1")" in
       1) info "已取消"; return ;;
       3) rm -rf "$REALM_DIR" ;;
@@ -211,9 +213,10 @@ next_rule_id() {
 
 assert_listen_free() {
   local listen="$1" id existing_listen
+  [[ -f "$RULES" ]] || return 0
   while IFS='|' read -r id _ existing_listen _; do
     [[ "$existing_listen" == "$listen" ]] && die "监听 ${listen} 已被规则 #${id} 占用"
-  done <"${RULES:-/dev/null}" 2>/dev/null || true
+  done <"$RULES"
 }
 
 save_rule() {
@@ -273,7 +276,6 @@ EOF
 }
 
 render_config() {
-  need_root
   mkdir -p "$REALM_DIR"
 
   cat >"$CONF" <<'EOF'
@@ -299,7 +301,7 @@ EOF
 
 # 添加规则
 pick_tunnel_role() {
-  echo -e "  ${D}1${N}: 入口  ${D}2${N}: 出口" >&2
+  menu_line "1. 入口  2. 出口" >&2
   ask "角色"
 }
 
@@ -341,7 +343,7 @@ add_rule_wss() {
   local id="$1" note="$2" role listen remote sni host path
 
   sni=$(ask "SNI" "$DEFAULT_SNI")
-  host=$(ask "Host" "$DEFAULT_WSS_HOST")
+  host=$(ask "Host" "$DEFAULT_SNI")
   path=$(ask "Path" "$DEFAULT_WSS_PATH")
   role="$(pick_tunnel_role)"
 
@@ -367,7 +369,7 @@ add_rule() {
   need_root
   rules_init
 
-  echo -e "  ${D}1${N}: 纯转发  ${D}2${N}: TLS  ${D}3${N}: WSS"
+  menu_line "1. 纯转发  2. TLS  3. WSS"
   local mode id note
   mode="$(ask "模式")"
   id="$(next_rule_id)"
@@ -404,66 +406,74 @@ del_rule() {
 
 list_rules() {
   if [[ ! -f "$RULES" ]] || ! has_rules; then
-    echo -e "${D}(无规则)${N}"
+    echo -e "${yellow}(无规则)${plain}"
     return
   fi
   [[ -r "$RULES" ]] || { hint "无法读取规则 (需 root)"; return; }
 
-  printf "${B}${C}%-4s %-8s %-20s %-20s %s${N}\n" "ID" "类型" "监听" "目标" "备注"
-
-  local id type listen remote sni host path note
-  while IFS='|' read -r id type listen remote sni host path note; do
+  printf "${green}%-4s %-8s %-20s %-20s %s${plain}\n" "ID" "类型" "监听" "目标" "备注"
+  local id type listen remote _s _h _p note
+  while IFS='|' read -r id type listen remote _s _h _p note; do
     [[ -n "${id:-}" ]] || continue
-    printf "${G}%-4s${N} ${C}%-8s${N} %-20s %-20s ${D}%s${N}\n" \
+    printf "${green}%-4s${plain} ${blue}%-8s${plain} %-20s %-20s %s\n" \
       "$id" "$type" "$listen" "$remote" "$note"
   done <"$RULES"
 }
 
 show_config() {
   if [[ -f "$CONF" ]]; then
-    echo -e "${C}# ${CONF}${N}"
+    echo -e "${blue}# ${CONF}${plain}"
+    color_off
     cat "$CONF" 2>/dev/null || hint "无法读取配置 (需 root)"
   else
-    echo -e "${D}(无配置)${N}"
+    echo -e "${yellow}(无配置)${plain}"
   fi
+  color_off
 }
 
 show_status() {
+  color_off
   systemctl status "$SERVICE_NAME" --no-pager 2>/dev/null || hint "服务未运行"
+  color_off
 }
 
 view_logs() {
   [[ -f "$UNIT" ]] || { hint "服务未配置"; return 0; }
   hint "实时日志 (Ctrl+C 返回菜单)"
+  color_off
   journalctl -u "$SERVICE_NAME" -n 50 -f --no-pager || {
     local rc=$?
+    color_off
     [[ $rc -eq 130 ]] && return 0
     die "无法读取日志"
   }
+  color_off
 }
 
 # 菜单
 print_menu() {
-  local status
+  local ver
   echo
-  echo -e "${B}${C}realm 管理${N}"
+  echo -e "${green}Realm 端口转发管理${plain}"
   if is_installed; then
-    status="${G}$(version_line)${N}"
+    color_off
+    ver=$(version_line)
+    echo -e "状态: ${green}${ver}${plain}"
   else
-    status="${Y}未安装${N}"
+    echo -e "状态: ${red}未安装${plain}"
   fi
-  echo -e " 状态: ${status}"
   echo
-  echo -e " ${D}1${N}: 安装"
-  echo -e " ${D}2${N}: 卸载"
-  echo -e " ${D}3${N}: 添加规则"
-  echo -e " ${D}4${N}: 删除规则"
-  echo -e " ${D}5${N}: 查看规则"
-  echo -e " ${D}6${N}: 查看配置"
-  echo -e " ${D}7${N}: 重启服务"
-  echo -e " ${D}8${N}: 查看状态"
-  echo -e " ${D}9${N}: 查看日志"
-  echo -e " ${D}0${N}: 退出脚本"
+  menu_line "1. 安装"
+  menu_line "2. 卸载"
+  menu_line "3. 添加规则"
+  menu_line "4. 删除规则"
+  menu_line "5. 查看规则"
+  menu_line "6. 查看配置"
+  menu_line "7. 重启服务"
+  menu_line "8. 查看状态"
+  menu_line "9. 查看日志"
+  menu_line "0. 退出"
+  echo
 }
 
 run_menu() {
