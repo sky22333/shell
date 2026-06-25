@@ -23,7 +23,7 @@ readonly DEFAULT_SNI="bong.com"
 readonly DEFAULT_WSS_HOST="cdn.example.com"
 readonly DEFAULT_WSS_PATH="/ws"
 
-# 规则: id|type|listen|remote|udp|sni|host|path|note
+# 规则: id|type|listen|remote|sni|host|path|note
 
 # 工具
 die()  { echo -e "${R}错误:${N} $*" >&2; exit 1; }
@@ -96,11 +96,14 @@ write_systemd_unit() {
 Description=Realm Port Forward
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=${REALM_BIN} -c ${CONF}
 Restart=on-failure
+RestartSec=3
 LimitNOFILE=1048576
 
 [Install]
@@ -214,9 +217,9 @@ assert_listen_free() {
 }
 
 save_rule() {
-  # 固定 9 字段: id|type|listen|remote|udp|sni|host|path|note
-  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \
-    "$1" "$2" "$3" "$4" "$5" "${6:-}" "${7:-}" "${8:-}" "${9:-}" >>"$RULES"
+  # 固定 8 字段: id|type|listen|remote|sni|host|path|note
+  printf '%s|%s|%s|%s|%s|%s|%s|%s\n' \
+    "$1" "$2" "$3" "$4" "${5:-}" "${6:-}" "${7:-}" "${8:-}" >>"$RULES"
 }
 
 apply_rules() {
@@ -226,8 +229,8 @@ apply_rules() {
 
 # 生成 config.toml
 render_endpoint_block() {
-  local id="$1" type="$2" listen="$3" remote="$4" udp="$5"
-  local sni="$6" host="$7" path="$8" note="$9"
+  local id="$1" type="$2" listen="$3" remote="$4"
+  local sni="$5" host="$6" path="$7" note="$8"
 
   cat >>"$CONF" <<EOF
 
@@ -281,10 +284,11 @@ EOF
 
   [[ -f "$RULES" ]] || { echo "endpoints = []" >>"$CONF"; return 0; }
 
-  local id type listen remote udp sni host path note count=0
-  while IFS='|' read -r id type listen remote udp sni host path note; do
+  local id type listen remote sni host path note count=0
+  while IFS='|' read -r id type listen remote sni host path note; do
     [[ -n "${id:-}" ]] || continue
-    render_endpoint_block "$id" "$type" "$listen" "$remote" "$udp" "$sni" "$host" "$path" "$note"
+    render_endpoint_block "$id" "$type" "$listen" "$remote" \
+      "$sni" "$host" "$path" "$note"
     count=$((count + 1))
   done <"$RULES"
 
@@ -306,7 +310,7 @@ add_rule_forward() {
   assert_listen_free "$listen"
   remote=$(ask "目标 (例 落地IP:9900)")
 
-  save_rule "$id" forward "$listen" "$remote" 1 "" "" "" "$note"
+  save_rule "$id" forward "$listen" "$remote" "" "" "" "$note"
 }
 
 add_rule_tls() {
@@ -320,14 +324,14 @@ add_rule_tls() {
       listen=$(ask "监听")
       assert_listen_free "$listen"
       remote=$(ask "出口 IP:TLS端口")
-      save_rule "$id" tls_in  "$listen" "$remote" 0 "$sni" "" "" "$note"
+      save_rule "$id" tls_in  "$listen" "$remote" "$sni" "" "" "$note"
       hint "出口机添加 TLS 出口，SNI=${sni}，端口与 remote 一致"
       ;;
     2)
       listen=$(ask "TLS 监听 (例 0.0.0.0:8443)")
       assert_listen_free "$listen"
       remote=$(ask "本地目标 (例 127.0.0.1:9900)")
-      save_rule "$id" tls_out "$listen" "$remote" 0 "$sni" "" "" "$note"
+      save_rule "$id" tls_out "$listen" "$remote" "$sni" "" "" "$note"
       ;;
     *) die "无效角色" ;;
   esac
@@ -346,14 +350,14 @@ add_rule_wss() {
       listen=$(ask "监听")
       assert_listen_free "$listen"
       remote=$(ask "出口 IP:端口")
-      save_rule "$id" wss_in  "$listen" "$remote" 0 "$sni" "$host" "$path" "$note"
+      save_rule "$id" wss_in  "$listen" "$remote" "$sni" "$host" "$path" "$note"
       hint "出口机添加 WSS 出口，host/path/sni 保持一致"
       ;;
     2)
       listen=$(ask "WSS 监听")
       assert_listen_free "$listen"
       remote=$(ask "本地目标")
-      save_rule "$id" wss_out "$listen" "$remote" 0 "$sni" "$host" "$path" "$note"
+      save_rule "$id" wss_out "$listen" "$remote" "$sni" "$host" "$path" "$note"
       ;;
     *) die "无效角色" ;;
   esac
@@ -363,7 +367,7 @@ add_rule() {
   need_root
   rules_init
 
-  echo -e "  ${D}1${N}: 纯转发 (TCP+UDP)  ${D}2${N}: TLS  ${D}3${N}: WSS"
+  echo -e "  ${D}1${N}: 纯转发  ${D}2${N}: TLS  ${D}3${N}: WSS"
   local mode id note
   mode="$(ask "模式")"
   id="$(next_rule_id)"
@@ -407,8 +411,8 @@ list_rules() {
 
   printf "${B}${C}%-4s %-8s %-20s %-20s %s${N}\n" "ID" "类型" "监听" "目标" "备注"
 
-  local id type listen remote _u _s _h _p note
-  while IFS='|' read -r id type listen remote _u _s _h _p note; do
+  local id type listen remote sni host path note
+  while IFS='|' read -r id type listen remote sni host path note; do
     [[ -n "${id:-}" ]] || continue
     printf "${G}%-4s${N} ${C}%-8s${N} %-20s %-20s ${D}%s${N}\n" \
       "$id" "$type" "$listen" "$remote" "$note"
