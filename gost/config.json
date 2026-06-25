@@ -1,7 +1,0 @@
-{
-    "Debug": true,
-    "Retries": 0,
-    "ServeNodes": [
-        "udp://127.0.0.1:65532"
-    ]
-}
