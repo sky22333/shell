@@ -460,10 +460,10 @@ print_menu() {
   echo -e " ${D}4${N}: 删除规则"
   echo -e " ${D}5${N}: 查看规则"
   echo -e " ${D}6${N}: 查看配置"
-  echo -e " ${D}7${N}: 重启"
-  echo -e " ${D}8${N}: 状态"
-  echo -e " ${D}9${N}: 实时日志"
-  echo -e " ${D}0${N}: 退出"
+  echo -e " ${D}7${N}: 重启服务"
+  echo -e " ${D}8${N}: 查看状态"
+  echo -e " ${D}9${N}: 查看日志"
+  echo -e " ${D}0${N}: 退出脚本"
 }
 
 run_menu() {
