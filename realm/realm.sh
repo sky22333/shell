@@ -110,7 +110,13 @@ EOF
 
 svc_reload()   { systemctl daemon-reload; }
 svc_enable()   { systemctl enable "$SERVICE_NAME"; }
-svc_start()    { systemctl restart "$SERVICE_NAME"; }
+svc_start() {
+  if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+    systemctl restart "$SERVICE_NAME"
+  else
+    systemctl start "$SERVICE_NAME"
+  fi
+}
 svc_stop()     { systemctl stop "$SERVICE_NAME" 2>/dev/null || true; systemctl reset-failed "$SERVICE_NAME" 2>/dev/null || true; }
 svc_stop_all() {
   svc_stop
@@ -118,15 +124,23 @@ svc_stop_all() {
 }
 
 has_rules() {
-  [[ -f "$RULES" ]] && [[ -s "$RULES" ]]
+  [[ -f "$RULES" ]] || return 1
+  local id
+  while IFS='|' read -r id _; do
+    [[ -n "${id:-}" ]] && return 0
+  done <"$RULES"
+  return 1
 }
 
 svc_apply() {
   if has_rules; then
-    svc_start
-  else
-    svc_stop
+    if svc_start; then
+      return 0
+    fi
+    hint "服务启动失败，请查看: journalctl -u ${SERVICE_NAME} -n 20 --no-pager"
+    return 1
   fi
+  svc_stop
 }
 
 # 安装 / 卸载 / 重启
@@ -159,7 +173,7 @@ uninstall_realm() {
   need_root
   is_installed || { hint "未安装，无需卸载"; return; }
 
-  confirm "确认卸载 (含全部配置)?" || exit 0
+  confirm "确认卸载 (含全部配置)?" || return 0
 
   svc_stop_all
   rm -f "$UNIT" "$REALM_BIN"
@@ -173,8 +187,7 @@ restart_realm() {
   need_root
   render_config
   if has_rules; then
-    svc_start
-    info "已重启"
+    svc_start && info "已重启" || hint "启动失败，请查看日志 (菜单 9)"
   else
     svc_stop
     hint "无规则，服务已停止"
@@ -201,12 +214,14 @@ assert_listen_free() {
 }
 
 save_rule() {
-  echo "$1" >>"$RULES"
+  # 固定 9 字段: id|type|listen|remote|udp|sni|host|path|note
+  printf '%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \
+    "$1" "$2" "$3" "$4" "$5" "${6:-}" "${7:-}" "${8:-}" "${9:-}" >>"$RULES"
 }
 
 apply_rules() {
   render_config
-  svc_apply
+  svc_apply || true
 }
 
 # 生成 config.toml
@@ -248,6 +263,9 @@ EOF
 listen_transport = "ws;host=${host};path=${path};tls;servername=${sni}"
 EOF
       ;;
+    *)
+      die "未知规则类型: ${type} (#${id})"
+      ;;
   esac
 }
 
@@ -270,12 +288,14 @@ EOF
     count=$((count + 1))
   done <"$RULES"
 
-  (( count == 0 )) && echo "endpoints = []" >>"$CONF"
+  if (( count == 0 )); then
+    echo "endpoints = []" >>"$CONF"
+  fi
 }
 
 # 添加规则
 pick_tunnel_role() {
-  echo -e "  ${D}1${N}: 入口  ${D}2${N}: 出口"
+  echo -e "  ${D}1${N}: 入口  ${D}2${N}: 出口" >&2
   ask "角色"
 }
 
@@ -286,7 +306,7 @@ add_rule_forward() {
   assert_listen_free "$listen"
   remote=$(ask "目标 (例 落地IP:9900)")
 
-  save_rule "${id}|forward|${listen}|${remote}|1|||||${note}"
+  save_rule "$id" forward "$listen" "$remote" 1 "" "" "" "$note"
 }
 
 add_rule_tls() {
@@ -300,14 +320,14 @@ add_rule_tls() {
       listen=$(ask "监听")
       assert_listen_free "$listen"
       remote=$(ask "出口 IP:TLS端口")
-      save_rule "${id}|tls_in|${listen}|${remote}|0|${sni}||||${note}"
+      save_rule "$id" tls_in  "$listen" "$remote" 0 "$sni" "" "" "$note"
       hint "出口机添加 TLS 出口，SNI=${sni}，端口与 remote 一致"
       ;;
     2)
       listen=$(ask "TLS 监听 (例 0.0.0.0:8443)")
       assert_listen_free "$listen"
       remote=$(ask "本地目标 (例 127.0.0.1:9900)")
-      save_rule "${id}|tls_out|${listen}|${remote}|0|${sni}||||${note}"
+      save_rule "$id" tls_out "$listen" "$remote" 0 "$sni" "" "" "$note"
       ;;
     *) die "无效角色" ;;
   esac
@@ -326,14 +346,14 @@ add_rule_wss() {
       listen=$(ask "监听")
       assert_listen_free "$listen"
       remote=$(ask "出口 IP:端口")
-      save_rule "${id}|wss_in|${listen}|${remote}|0|${sni}|${host}|${path}|${note}"
+      save_rule "$id" wss_in  "$listen" "$remote" 0 "$sni" "$host" "$path" "$note"
       hint "出口机添加 WSS 出口，host/path/sni 保持一致"
       ;;
     2)
       listen=$(ask "WSS 监听")
       assert_listen_free "$listen"
       remote=$(ask "本地目标")
-      save_rule "${id}|wss_out|${listen}|${remote}|0|${sni}|${host}|${path}|${note}"
+      save_rule "$id" wss_out "$listen" "$remote" 0 "$sni" "$host" "$path" "$note"
       ;;
     *) die "无效角色" ;;
   esac
@@ -362,13 +382,14 @@ add_rule() {
 
 del_rule() {
   need_root
-  [[ -f "$RULES" ]] || die "无规则"
+  has_rules || die "无规则"
 
   list_rules
   echo
   local rid
   rid="$(ask "删除 ID")"
   [[ "$rid" =~ ^[0-9]+$ ]] || die "无效 ID"
+  grep -q "^${rid}|" "$RULES" || die "规则 #${rid} 不存在"
 
   awk -F'|' -v id="$rid" '$1 != id' "$RULES" >"${RULES}.tmp"
   mv "${RULES}.tmp" "$RULES"
@@ -378,10 +399,11 @@ del_rule() {
 }
 
 list_rules() {
-  if [[ ! -f "$RULES" ]] || [[ ! -s "$RULES" ]]; then
+  if [[ ! -f "$RULES" ]] || ! has_rules; then
     echo -e "${D}(无规则)${N}"
     return
   fi
+  [[ -r "$RULES" ]] || { hint "无法读取规则 (需 root)"; return; }
 
   printf "${B}${C}%-4s %-8s %-20s %-20s %s${N}\n" "ID" "类型" "监听" "目标" "备注"
 
@@ -396,7 +418,7 @@ list_rules() {
 show_config() {
   if [[ -f "$CONF" ]]; then
     echo -e "${C}# ${CONF}${N}"
-    cat "$CONF"
+    cat "$CONF" 2>/dev/null || hint "无法读取配置 (需 root)"
   else
     echo -e "${D}(无配置)${N}"
   fi
@@ -407,10 +429,13 @@ show_status() {
 }
 
 view_logs() {
-  [[ -f "$UNIT" ]] || { hint "服务未配置"; return 1; }
+  [[ -f "$UNIT" ]] || { hint "服务未配置"; return 0; }
   hint "实时日志 (Ctrl+C 返回菜单)"
-  journalctl -u "$SERVICE_NAME" -n 50 -f --no-pager \
-    || die "无法读取日志"
+  journalctl -u "$SERVICE_NAME" -n 50 -f --no-pager || {
+    local rc=$?
+    [[ $rc -eq 130 ]] && return 0
+    die "无法读取日志"
+  }
 }
 
 # 菜单
