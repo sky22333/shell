@@ -19,8 +19,8 @@ readonly UNIT="/etc/systemd/system/realm.service"
 readonly DOWNLOAD_BASE="https://github.com/zhboner/realm/releases/latest/download"
 readonly SERVICE_NAME="realm"
 
-readonly DEFAULT_SNI="bong.com"
-readonly DEFAULT_WSS_HOST="cdn.example.com"
+readonly DEFAULT_SNI="www.bing.com"
+readonly DEFAULT_WSS_HOST="www.bing.com"
 readonly DEFAULT_WSS_PATH="/ws"
 
 # 规则: id|type|listen|remote|sni|host|path|note
