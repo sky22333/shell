@@ -3,6 +3,13 @@
 # 用法: sudo ./realm-manager.sh [install|uninstall|restart|logs]
 set -euo pipefail
 
+# 颜色定义
+if [[ -t 1 ]]; then
+  R=$'\033[31m' G=$'\033[32m' Y=$'\033[33m' C=$'\033[36m' B=$'\033[1m' D=$'\033[2m' N=$'\033[0m'
+else
+  R= G= Y= C= B= D= N=
+fi
+
 # 路径与默认值
 readonly REALM_BIN="/usr/local/bin/realm"
 readonly REALM_DIR="/etc/realm"
@@ -19,20 +26,25 @@ readonly DEFAULT_WSS_PATH="/ws"
 # 规则: id|type|listen|remote|udp|sni|host|path|note
 
 # 工具
-die()  { echo "错误: $*" >&2; exit 1; }
-info() { echo ">> $*"; }
+die()  { echo -e "${R}错误:${N} $*" >&2; exit 1; }
+info() { echo -e "${G}>>${N} $*"; }
+hint() { echo -e "${Y}>>${N} $*"; }
 need_root() { [[ ${EUID:-} -eq 0 ]] || die "请用 root 运行"; }
 
 ask() {
   local prompt="$1" default="${2:-}" value
-  read -rp "${prompt}${default:+ [$default]}: " value
+  if [[ -n "$default" ]]; then
+    read -rp "$(echo -e "${C}${prompt}${N} ${D}[${default}]${N}: ")" value
+  else
+    read -rp "$(echo -e "${C}${prompt}${N}: ")" value
+  fi
   echo "${value:-$default}"
 }
 
 confirm() {
-  local prompt="${1:-确认?} [y/N]: "
+  local prompt="${1:-确认?}"
   local answer
-  read -rp "$prompt" answer
+  read -rp "$(echo -e "${Y}${prompt}${N} [y/N]: ")" answer
   [[ "${answer,,}" == "y" || "${answer,,}" == "yes" ]]
 }
 
@@ -112,7 +124,7 @@ install_realm() {
   if is_installed; then
     info "检测到已安装:"
     show_install_info
-    echo "  1) 取消  2) 覆盖重装 (保留规则)  3) 覆盖重装 (清空配置)"
+    echo -e "  ${D}1${N}) 取消  ${D}2${N}) 覆盖重装 (保留规则)  ${D}3${N}) 覆盖重装 (清空配置)"
     case "$(ask "选择" "1")" in
       1) info "已取消"; return ;;
       3) rm -rf "$REALM_DIR" ;;
@@ -132,7 +144,7 @@ install_realm() {
 
 uninstall_realm() {
   need_root
-  is_installed || { info "未安装，无需卸载"; return; }
+  is_installed || { hint "未安装，无需卸载"; return; }
 
   confirm "确认卸载 (含全部配置)?" || exit 0
 
@@ -242,7 +254,7 @@ EOF
 
 # 添加规则
 pick_tunnel_role() {
-  echo "  1) 入口  2) 出口"
+  echo -e "  ${D}1${N}) 入口  ${D}2${N}) 出口"
   ask "角色"
 }
 
@@ -268,7 +280,7 @@ add_rule_tls() {
       assert_listen_free "$listen"
       remote=$(ask "出口 IP:TLS端口")
       save_rule "${id}|tls_in|${listen}|${remote}|0|${sni}||||${note}"
-      info "出口机添加 TLS 出口，SNI=${sni}，端口与 remote 一致"
+      hint "出口机添加 TLS 出口，SNI=${sni}，端口与 remote 一致"
       ;;
     2)
       listen=$(ask "TLS 监听 (例 0.0.0.0:8443)")
@@ -294,7 +306,7 @@ add_rule_wss() {
       assert_listen_free "$listen"
       remote=$(ask "出口 IP:端口")
       save_rule "${id}|wss_in|${listen}|${remote}|0|${sni}|${host}|${path}|${note}"
-      info "出口机添加 WSS 出口，host/path/sni 保持一致"
+      hint "出口机添加 WSS 出口，host/path/sni 保持一致"
       ;;
     2)
       listen=$(ask "WSS 监听")
@@ -310,7 +322,7 @@ add_rule() {
   need_root
   rules_init
 
-  echo "  1) 纯转发 (TCP+UDP)  2) TLS  3) WSS"
+  echo -e "  ${D}1${N}) 纯转发 (TCP+UDP)  ${D}2${N}) TLS  ${D}3${N}) WSS"
   local mode id note
   mode="$(ask "模式")"
   id="$(next_rule_id)"
@@ -346,51 +358,62 @@ del_rule() {
 
 list_rules() {
   if [[ ! -f "$RULES" ]] || [[ ! -s "$RULES" ]]; then
-    echo "(无规则)"
+    echo -e "${D}(无规则)${N}"
     return
   fi
 
-  printf "%-4s %-8s %-20s %-20s %s\n" "ID" "类型" "监听" "目标" "备注"
-  printf "%s\n" "────────────────────────────────────────────────────────"
+  printf "${B}${C}%-4s %-8s %-20s %-20s %s${N}\n" "ID" "类型" "监听" "目标" "备注"
 
   local id type listen remote _u _s _h _p note
   while IFS='|' read -r id type listen remote _u _s _h _p note; do
     [[ -n "${id:-}" ]] || continue
-    printf "%-4s %-8s %-20s %-20s %s\n" "$id" "$type" "$listen" "$remote" "$note"
+    printf "${G}%-4s${N} ${C}%-8s${N} %-20s %-20s ${D}%s${N}\n" \
+      "$id" "$type" "$listen" "$remote" "$note"
   done <"$RULES"
 }
 
 show_config() {
-  [[ -f "$CONF" ]] && cat "$CONF" || echo "(无配置)"
+  if [[ -f "$CONF" ]]; then
+    echo -e "${C}# ${CONF}${N}"
+    cat "$CONF"
+  else
+    echo -e "${D}(无配置)${N}"
+  fi
 }
 
 show_status() {
-  systemctl status "$SERVICE_NAME" --no-pager 2>/dev/null || echo "服务未运行"
+  systemctl status "$SERVICE_NAME" --no-pager 2>/dev/null || hint "服务未运行"
 }
 
 view_logs() {
-  [[ -f "$UNIT" ]] || { info "服务未配置"; return 1; }
-  info "实时日志 (Ctrl+C 返回菜单)"
+  [[ -f "$UNIT" ]] || { hint "服务未配置"; return 1; }
+  hint "实时日志 (Ctrl+C 返回菜单)"
   journalctl -u "$SERVICE_NAME" -n 50 -f --no-pager \
     || die "无法读取日志"
 }
 
 # 菜单
 print_menu() {
+  local status
   echo
-  echo "======== realm 管理 ========"
-  echo " 状态: $(version_line)"
-  echo "────────────────────────────"
-  echo " 1) 安装"
-  echo " 2) 卸载"
-  echo " 3) 添加规则"
-  echo " 4) 删除规则"
-  echo " 5) 查看规则"
-  echo " 6) 查看配置"
-  echo " 7) 重启"
-  echo " 8) 状态"
-  echo " 9) 实时日志"
-  echo " 0) 退出"
+  echo -e "${B}${C}realm 管理${N}"
+  if is_installed; then
+    status="${G}$(version_line)${N}"
+  else
+    status="${Y}未安装${N}"
+  fi
+  echo -e " 状态: ${status}"
+  echo
+  echo -e " ${D}1${N}) 安装"
+  echo -e " ${D}2${N}) 卸载"
+  echo -e " ${D}3${N}) 添加规则"
+  echo -e " ${D}4${N}) 删除规则"
+  echo -e " ${D}5${N}) 查看规则"
+  echo -e " ${D}6${N}) 查看配置"
+  echo -e " ${D}7${N}) 重启"
+  echo -e " ${D}8${N}) 状态"
+  echo -e " ${D}9${N}) 实时日志"
+  echo -e " ${D}0${N}) 退出"
 }
 
 run_menu() {
@@ -409,7 +432,7 @@ run_menu() {
       8) show_status ;;
       9) view_logs ;;
       0) exit 0 ;;
-      *) echo "无效选项" ;;
+      *) hint "无效选项" ;;
     esac
   done
 }
