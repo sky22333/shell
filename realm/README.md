@@ -1,0 +1,60 @@
+
+### realm中转脚本
+```
+bash <(curl -sSL https://raw.githubusercontent.com/sky22333/shell/main/realm/realm.sh)
+```
+---
+
+### 国内加速
+```
+bash <(curl -sSL https://gh-proxy.com/https://raw.githubusercontent.com/sky22333/shell/main/realm/realm.sh)
+```
+
+
+---
+
+## Docker部署Realm流量转发程序
+```
+services:
+  realm:
+    image: ghcr.io/zhboner/realm2:latest
+    container_name: realm
+    restart: always
+    network_mode: host
+    volumes:
+      - ./config.toml:/etc/realm/config.toml:ro
+    command: -c /etc/realm/config.toml
+```
+
+
+### 传输层使用TLS加密
+
+- 入口机配置（8899 → TLS 连落地机），监听双栈填`[::]:8899`，其中8443端口只用于TLS传输
+```
+[[endpoints]]
+listen = "0.0.0.0:8899"
+remote = "落地机IP:8443"
+remote_transport = "tls;sni=bing.com;insecure"
+```
+
+- 落地机配置（TLS服务端，自签证书自动生成）
+```
+[[endpoints]]
+listen = "0.0.0.0:8443"
+remote = "127.0.0.1:9900"
+listen_transport = "tls;servername=bing.com"
+```
+
+### 纯端口转发
+- 只需部署在入口机，同时支持tcp和udp
+```
+[network]
+no_tcp = false
+use_udp = true
+
+[[endpoints]]
+listen = "0.0.0.0:8899"
+remote = "落地机IP:9900"
+```
+
+多个转发就增加`[[endpoints]]`

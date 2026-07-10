@@ -1,0 +1,1374 @@
+package sys
+
+import (
+	"bufio"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+	"unsafe"
+
+	"golang.org/x/sys/windows/registry"
+)
+
+type ProgressCallback func(percent float64)
+
+var (
+	cachedNpmPrefix string
+	cachedNodePath  string
+	cachedGitPath   string
+	prefixOnce      sync.Once
+	nodePathOnce    sync.Once
+	gitPathOnce     sync.Once
+)
+
+const (
+	downloadConcurrentThreshold int64 = 20 * 1024 * 1024
+	downloadConcurrentParts           = 4
+	DefaultGatewayPort                = 18789
+)
+
+const gitProxyEnv = "GIT_PROXY"
+const gitProxyDefault = "https://hub.cmoko.com/"
+
+func gitProxy() string {
+	proxy := strings.TrimSpace(os.Getenv(gitProxyEnv))
+	if proxy == "" {
+		proxy = gitProxyDefault
+	}
+	if !strings.HasSuffix(proxy, "/") {
+		proxy += "/"
+	}
+	return proxy
+}
+
+// SHA256 来源 https://nodejs.org/dist/v24.13.0/SHASUMS256.txt.asc
+const nodeMsiSHA256 = "1a5f0cd914386f3be2fbaf03ad9fff808a588ce50d2e155f338fad5530575f18"
+
+// SHA256 来源 https://github.com/git-for-windows/git/releases/tag/v2.52.0.windows.1
+const gitExeSHA256 = "d8de7a3152266c8bb13577eab850ea1df6dccf8c2aa48be5b4a1c58b7190d62c"
+
+// OpenclawConfig 配置结构
+type OpenclawConfig struct {
+	Gateway  GatewayConfig     `json:"gateway"`
+	Env      map[string]string `json:"env,omitempty"`
+	Agents   AgentsConfig      `json:"agents"`
+	Models   *ModelsConfig     `json:"models,omitempty"`
+	Tools    ToolsConfig       `json:"tools"`
+	Channels ChannelsConfig    `json:"channels"`
+}
+
+type GatewayConfig struct {
+	Mode string      `json:"mode"`
+	Bind string      `json:"bind"`
+	Port int         `json:"port"`
+	Auth *AuthConfig `json:"auth,omitempty"`
+}
+
+type AuthConfig struct {
+	Mode  string `json:"mode,omitempty"`
+	Token string `json:"token"`
+}
+
+type AgentsConfig struct {
+	Defaults AgentDefaults `json:"defaults"`
+}
+
+type AgentDefaults struct {
+	Model           ModelRef          `json:"model"`
+	ElevatedDefault string            `json:"elevatedDefault,omitempty"`
+	Compaction      *CompactionConfig `json:"compaction,omitempty"`
+	MaxConcurrent   int               `json:"maxConcurrent,omitempty"`
+}
+
+type ModelRef struct {
+	Primary string `json:"primary"`
+}
+
+type CompactionConfig struct {
+	Mode string `json:"mode"`
+}
+
+type ModelsConfig struct {
+	Mode      string                    `json:"mode"`
+	Providers map[string]ProviderConfig `json:"providers"`
+}
+
+type ProviderConfig struct {
+	BaseURL string       `json:"baseUrl"`
+	APIKey  string       `json:"apiKey"`
+	API     string       `json:"api"`
+	Models  []ModelEntry `json:"models"`
+}
+
+type ModelEntry struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type ToolsConfig struct {
+	Exec     *ExecConfig    `json:"exec,omitempty"`
+	Elevated ElevatedConfig `json:"elevated"`
+	Allow    []string       `json:"allow"`
+}
+
+type ExecConfig struct {
+	BackgroundMs int  `json:"backgroundMs"`
+	TimeoutSec   int  `json:"timeoutSec"`
+	CleanupMs    int  `json:"cleanupMs"`
+	NotifyOnExit bool `json:"notifyOnExit"`
+}
+
+type ElevatedConfig struct {
+	Enabled   bool                `json:"enabled"`
+	AllowFrom map[string][]string `json:"allowFrom"`
+}
+
+type ChannelsConfig struct {
+	Telegram TelegramConfig `json:"telegram"`
+}
+
+type TelegramConfig struct {
+	Enabled   bool     `json:"enabled"`
+	BotToken  string   `json:"botToken"`
+	DMPolicy  string   `json:"dmPolicy"`
+	AllowFrom []string `json:"allowFrom"`
+}
+
+// GetOpenclawPath 获取执行路径
+func GetOpenclawPath() (string, error) {
+	if path, err := exec.LookPath("openclaw"); err == nil {
+		return path, nil
+	}
+
+	npmPrefix, err := getNpmPrefix()
+	if err != nil {
+		return "", err
+	}
+
+	possibleClawd := filepath.Join(npmPrefix, "openclaw.cmd")
+	if _, err := os.Stat(possibleClawd); err == nil {
+		return possibleClawd, nil
+	}
+
+	return "", fmt.Errorf("未找到 openclaw 可执行文件")
+}
+
+// GetNodePath 获取 Node 路径
+func GetNodePath() (string, error) {
+	var err error
+	nodePathOnce.Do(func() {
+		if path, e := exec.LookPath("node"); e == nil {
+			cachedNodePath = path
+			return
+		}
+		defaultPath := `C:\Program Files\nodejs\node.exe`
+		if _, e := os.Stat(defaultPath); e == nil {
+			cachedNodePath = defaultPath
+			return
+		}
+		err = fmt.Errorf("未找到 Node.js")
+	})
+	if err != nil {
+		return "", err
+	}
+	if cachedNodePath != "" {
+		return cachedNodePath, nil
+	}
+	return "", fmt.Errorf("未找到 Node.js")
+}
+
+// GetGitPath 获取 Git 路径
+func GetGitPath() (string, error) {
+	var err error
+	gitPathOnce.Do(func() {
+		if path, e := exec.LookPath("git"); e == nil {
+			cachedGitPath = path
+			return
+		}
+		defaultPaths := []string{
+			`C:\Program Files\Git\cmd\git.exe`,
+			`C:\Program Files\Git\bin\git.exe`,
+		}
+		for _, p := range defaultPaths {
+			if _, e := os.Stat(p); e == nil {
+				cachedGitPath = p
+				return
+			}
+		}
+		err = fmt.Errorf("未找到 Git")
+	})
+	if err != nil {
+		return "", err
+	}
+	if cachedGitPath != "" {
+		return cachedGitPath, nil
+	}
+	return "", fmt.Errorf("未找到 Git")
+}
+
+// SetupNodeEnv 配置 Node 环境变量
+func SetupNodeEnv() error {
+	nodeExe, err := GetNodePath()
+	if err != nil {
+		return err
+	}
+	nodeDir := filepath.Dir(nodeExe)
+
+	pathEnv := os.Getenv("PATH")
+	if strings.Contains(strings.ToLower(pathEnv), strings.ToLower(nodeDir)) {
+		return nil
+	}
+
+	newPath := nodeDir + string(os.PathListSeparator) + pathEnv
+
+	if npmPrefix, err := getNpmPrefix(); err == nil {
+		if !strings.Contains(strings.ToLower(newPath), strings.ToLower(npmPrefix)) {
+			newPath = npmPrefix + string(os.PathListSeparator) + newPath
+		}
+	}
+
+	return os.Setenv("PATH", newPath)
+}
+
+// SetupGitEnv 配置 Git 环境变量
+func SetupGitEnv() error {
+	gitExe, err := GetGitPath()
+	if err != nil {
+		return err
+	}
+	gitDir := filepath.Dir(gitExe)
+
+	pathEnv := os.Getenv("PATH")
+	if strings.Contains(strings.ToLower(pathEnv), strings.ToLower(gitDir)) {
+		return nil
+	}
+
+	newPath := gitDir + string(os.PathListSeparator) + pathEnv
+	return os.Setenv("PATH", newPath)
+}
+
+// CheckOpenclaw 检查安装状态
+func CheckOpenclaw() (string, bool) {
+	SetupNodeEnv()
+
+	cmdName, err := GetOpenclawPath()
+	if err != nil {
+		return "", false
+	}
+
+	cmd := exec.Command("cmd", "/c", cmdName, "--version")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", false
+	}
+	return strings.TrimSpace(string(out)), true
+}
+
+// CheckNode 检查 Node 版本
+func CheckNode() (string, bool) {
+	nodePath, err := GetNodePath()
+	if err != nil {
+		return "", false
+	}
+
+	cmd := exec.Command(nodePath, "-v")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", false
+	}
+
+	versionStr := strings.TrimSpace(string(out))
+	re := regexp.MustCompile(`v(\d+)\.`)
+	matches := re.FindStringSubmatch(versionStr)
+	if len(matches) < 2 {
+		return versionStr, false
+	}
+
+	majorVer, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return versionStr, false
+	}
+
+	if majorVer >= 22 {
+		return versionStr, true
+	}
+	return versionStr, false
+}
+
+// CheckGit 检查 Git 状态
+func CheckGit() (string, bool) {
+	gitPath, err := GetGitPath()
+	if err != nil {
+		return "", false
+	}
+
+	cmd := exec.Command(gitPath, "--version")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", false
+	}
+
+	return strings.TrimSpace(string(out)), true
+}
+
+// getNpmPath 获取 npm
+func getNpmPath() (string, error) {
+	path, err := exec.LookPath("npm")
+	if err == nil {
+		return path, nil
+	}
+	defaultPath := `C:\Program Files\nodejs\npm.cmd`
+	if _, err := os.Stat(defaultPath); err == nil {
+		return defaultPath, nil
+	}
+	return "", fmt.Errorf("未找到 npm，请确认 Node.js 安装成功")
+}
+
+func getNpmPrefix() (string, error) {
+	var err error
+	prefixOnce.Do(func() {
+		npmPath, e := getNpmPath()
+		if e != nil {
+			err = fmt.Errorf("无法定位 npm: %v", e)
+			return
+		}
+		cmd := exec.Command(npmPath, "config", "get", "prefix")
+		out, e := cmd.Output()
+		if e != nil {
+			err = fmt.Errorf("无法获取 npm prefix: %v", e)
+			return
+		}
+		cachedNpmPrefix = strings.TrimSpace(string(out))
+	})
+	if err != nil {
+		return "", err
+	}
+	return cachedNpmPrefix, nil
+}
+
+// checkIsCNLocation Checks if the current IP location is in China
+func checkIsCNLocation() bool {
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("https://www.cloudflare.com/cdn-cgi/trace")
+	if err != nil {
+		// If the request fails, assume CN to be safe and ensure accessibility
+		return true
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "loc=CN" {
+			return true
+		}
+	}
+	return false
+}
+
+func ResetPathCache() {
+	cachedNpmPrefix = ""
+	cachedNodePath = ""
+	cachedGitPath = ""
+	prefixOnce = sync.Once{}
+	nodePathOnce = sync.Once{}
+	gitPathOnce = sync.Once{}
+}
+
+// ConfigureNpmMirror 配置镜像
+func ConfigureNpmMirror() error {
+	npmPath, err := getNpmPath()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(npmPath, "config", "set", "registry", "https://registry.npmmirror.com/")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("设置 npm 镜像失败: %v", err)
+	}
+	return nil
+}
+
+// OpenBrowser 打开浏览器
+func OpenBrowser(url string) error {
+	var (
+		shell32      = syscall.NewLazyDLL("shell32.dll")
+		shellExecute = shell32.NewProc("ShellExecuteW")
+	)
+
+	urlPtr, err := syscall.UTF16PtrFromString(url)
+	if err != nil {
+		return err
+	}
+	verbPtr, _ := syscall.UTF16PtrFromString("open")
+
+	ret, _, _ := shellExecute.Call(
+		0,
+		uintptr(unsafe.Pointer(verbPtr)),
+		uintptr(unsafe.Pointer(urlPtr)),
+		0,
+		0,
+		1, // SW_SHOWNORMAL
+	)
+
+	// ShellExecute returns a value > 32 on success
+	if ret <= 32 {
+		return fmt.Errorf("打开浏览器失败，错误代码: %d", ret)
+	}
+	return nil
+}
+
+func ConfigureGitProxy() error {
+	if !checkIsCNLocation() {
+		return nil
+	}
+
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		ResetPathCache()
+		gitPath, err := GetGitPath()
+		if err != nil {
+			lastErr = err
+		} else {
+			proxy := gitProxy()
+			key := fmt.Sprintf("url.%shttps://github.com/.insteadOf", proxy)
+			cmd := exec.Command(gitPath, "config", "--global", key, "https://github.com/")
+			if err := cmd.Run(); err == nil {
+				return nil
+			} else {
+				lastErr = fmt.Errorf("设置 git 代理失败: %v", err)
+			}
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	return lastErr
+}
+
+// RemoveGitProxy 取消 Git 代理
+func RemoveGitProxy() error {
+	gitPath, err := GetGitPath()
+	if err != nil {
+		return nil
+	}
+
+	proxy := gitProxy()
+	key := fmt.Sprintf("url.%shttps://github.com/.insteadOf", proxy)
+
+	// Unset the proxy configuration
+	cmd := exec.Command(gitPath, "config", "--global", "--unset", key)
+	return cmd.Run()
+}
+
+// downloadFile 下载文件
+func downloadFile(url, dest, expectedSHA256 string, onProgress ProgressCallback) error {
+	if ok, err := verifyFileSHA256(dest, expectedSHA256); err == nil && ok {
+		return nil
+	}
+
+	partPath := dest + ".part"
+	if ok, err := verifyFileSHA256(partPath, expectedSHA256); err == nil && ok {
+		_ = os.Remove(dest)
+		return os.Rename(partPath, dest)
+	}
+
+	_ = os.Remove(dest)
+
+	size, acceptRanges, err := probeRemoteFile(url)
+	if err != nil {
+		return err
+	}
+
+	if err := downloadWithResume(url, partPath, size, acceptRanges, onProgress); err != nil {
+		return err
+	}
+
+	if ok, err := verifyFileSHA256(partPath, expectedSHA256); err != nil || !ok {
+		_ = os.Remove(partPath)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("下载文件校验失败")
+	}
+
+	_ = os.Remove(dest)
+	return os.Rename(partPath, dest)
+}
+
+func downloadWithResume(url, dest string, size int64, acceptRanges bool, onProgress ProgressCallback) error {
+	if size > 0 && acceptRanges {
+		if info, err := os.Stat(dest); err == nil && info.Size() > 0 && info.Size() < size {
+			return downloadRange(url, dest, info.Size(), size-1, size, onProgress)
+		}
+		if size >= downloadConcurrentThreshold {
+			return downloadConcurrent(url, dest, size, downloadConcurrentParts, onProgress)
+		}
+	}
+	return downloadRange(url, dest, 0, -1, size, onProgress)
+}
+
+func downloadRange(url, dest string, start, end, total int64, onProgress ProgressCallback) error {
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("创建文件失败: %v", err)
+	}
+	defer out.Close()
+
+	if start > 0 {
+		if _, err := out.Seek(start, 0); err != nil {
+			return fmt.Errorf("定位文件失败: %v", err)
+		}
+	}
+
+	client := &http.Client{Timeout: 30 * time.Minute}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("创建请求失败: %v", err)
+	}
+	if start > 0 || end >= 0 {
+		if end >= start && end >= 0 {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end))
+		} else {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", start))
+		}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("下载失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if start > 0 && resp.StatusCode != http.StatusPartialContent {
+		return fmt.Errorf("不支持断点续传，状态码: %d", resp.StatusCode)
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		return fmt.Errorf("下载失败，状态码: %d", resp.StatusCode)
+	}
+
+	if total <= 0 && resp.ContentLength > 0 {
+		total = start + resp.ContentLength
+	}
+
+	reader := &countingReader{
+		r: resp.Body,
+		update: func(n int64) {
+			if total > 0 && onProgress != nil {
+				current := start + n
+				percent := float64(current) * 100 / float64(total)
+				onProgress(percent)
+			}
+		},
+	}
+
+	if _, err = io.Copy(out, reader); err != nil {
+		return fmt.Errorf("写入文件失败: %v", err)
+	}
+	return nil
+}
+
+func downloadConcurrent(url, dest string, size int64, parts int, onProgress ProgressCallback) error {
+	if parts < 2 {
+		return downloadRange(url, dest, 0, -1, size, onProgress)
+	}
+
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return fmt.Errorf("创建文件失败: %v", err)
+	}
+	if err := out.Truncate(size); err != nil {
+		out.Close()
+		return fmt.Errorf("预分配文件失败: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, parts)
+
+	// Shared progress tracking
+	var written int64
+
+	partSize := size / int64(parts)
+	for i := 0; i < parts; i++ {
+		start := int64(i) * partSize
+		end := start + partSize - 1
+		if i == parts-1 {
+			end = size - 1
+		}
+
+		wg.Add(1)
+		go func(s, e int64) {
+			defer wg.Done()
+			client := &http.Client{Timeout: 30 * time.Minute}
+			req, err := http.NewRequest("GET", url, nil)
+			if err != nil {
+				errCh <- fmt.Errorf("创建请求失败: %v", err)
+				return
+			}
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", s, e))
+			resp, err := client.Do(req)
+			if err != nil {
+				errCh <- fmt.Errorf("下载失败: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusPartialContent {
+				errCh <- fmt.Errorf("分段下载失败，状态码: %d", resp.StatusCode)
+				return
+			}
+
+			writer := &writeAtWriter{
+				file:   out,
+				offset: s,
+				update: func(n int) {
+					newVal := atomic.AddInt64(&written, int64(n))
+					if onProgress != nil {
+						percent := float64(newVal) * 100 / float64(size)
+						onProgress(percent)
+					}
+				},
+			}
+
+			if _, err := io.Copy(writer, resp.Body); err != nil {
+				errCh <- fmt.Errorf("写入文件失败: %v", err)
+				return
+			}
+		}(start, end)
+	}
+
+	wg.Wait()
+	close(errCh)
+	out.Close()
+
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type writeAtWriter struct {
+	file   *os.File
+	offset int64
+	update func(int)
+}
+
+func (w *writeAtWriter) Write(p []byte) (int, error) {
+	n, err := w.file.WriteAt(p, w.offset)
+	w.offset += int64(n)
+	if w.update != nil && n > 0 {
+		w.update(n)
+	}
+	return n, err
+}
+
+type countingReader struct {
+	r         io.Reader
+	totalRead int64
+	update    func(int64)
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	if n > 0 {
+		c.totalRead += int64(n)
+		if c.update != nil {
+			c.update(c.totalRead)
+		}
+	}
+	return n, err
+}
+
+func probeRemoteFile(url string) (int64, bool, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err == nil {
+		resp, err := client.Do(req)
+		if err == nil {
+			resp.Body.Close()
+			size := resp.ContentLength
+			acceptRanges := strings.Contains(strings.ToLower(resp.Header.Get("Accept-Ranges")), "bytes")
+			if size > 0 && acceptRanges {
+				return size, acceptRanges, nil
+			}
+		}
+	}
+
+	req, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		return 0, false, fmt.Errorf("创建请求失败: %v", err)
+	}
+	req.Header.Set("Range", "bytes=0-0")
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, false, fmt.Errorf("探测下载失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusPartialContent {
+		return -1, false, nil
+	}
+
+	total := parseContentRangeTotal(resp.Header.Get("Content-Range"))
+	return total, true, nil
+}
+
+func parseContentRangeTotal(value string) int64 {
+	parts := strings.Split(value, "/")
+	if len(parts) != 2 {
+		return -1
+	}
+	totalStr := strings.TrimSpace(parts[1])
+	if totalStr == "*" {
+		return -1
+	}
+	total, err := strconv.ParseInt(totalStr, 10, 64)
+	if err != nil {
+		return -1
+	}
+	return total
+}
+
+func verifyFileSHA256(path, expected string) (bool, error) {
+	if expected == "" {
+		return true, nil
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.Size() == 0 {
+		return false, err
+	}
+	sum, err := fileSHA256(path)
+	if err != nil {
+		return false, err
+	}
+	return strings.EqualFold(sum, expected), nil
+}
+
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("打开文件失败: %v", err)
+	}
+	defer f.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		return "", fmt.Errorf("读取文件失败: %v", err)
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+// InstallNode 安装 Node.js
+func InstallNode(onProgress ProgressCallback) error {
+	if _, ok := CheckNode(); ok {
+		return nil
+	}
+
+	msiUrl := "https://nodejs.org/dist/v24.13.0/node-v24.13.0-x64.msi"
+	tempDir := os.TempDir()
+	msiPath := filepath.Join(tempDir, "node-v24.13.0-x64.msi")
+
+	if err := downloadFile(msiUrl, msiPath, nodeMsiSHA256, onProgress); err != nil {
+		return err
+	}
+
+	for i := 0; i < 3; i++ {
+		installCmd := exec.Command("msiexec", "/i", msiPath, "/qn")
+		output, err := installCmd.CombinedOutput()
+		if err == nil {
+			break
+		}
+
+		outStr := string(output)
+		if strings.Contains(outStr, "1618") {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		if strings.Contains(outStr, "1619") {
+			return fmt.Errorf("安装包损坏 (Error 1619). 请尝试手动下载: %s", msiUrl)
+		}
+
+		if i == 2 {
+			return fmt.Errorf("安装失败: %v, Output: %s", err, outStr)
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	SetupNodeEnv()
+
+	if err := SetPowerShellExecutionPolicy(); err != nil {
+		fmt.Printf("警告: 设置 PowerShell 执行策略失败: %v\n", err)
+	}
+
+	return nil
+}
+
+// InstallGit 安装 Git
+func InstallGit(onProgress ProgressCallback) error {
+	if _, ok := CheckGit(); ok {
+		return nil
+	}
+
+	gitUrl := fmt.Sprintf("%sgithub.com/git-for-windows/git/releases/download/v2.52.0.windows.1/Git-2.52.0-64-bit.exe", gitProxy())
+	tempDir := os.TempDir()
+	exePath := filepath.Join(tempDir, "Git-2.52.0-64-bit.exe")
+
+	if err := downloadFile(gitUrl, exePath, gitExeSHA256, onProgress); err != nil {
+		return fmt.Errorf("git 下载失败: %v", err)
+	}
+
+	installCmd := exec.Command(exePath,
+		"/VERYSILENT",
+		"/NORESTART",
+		"/NOCANCEL",
+		"/SP-",
+		"/CLOSEAPPLICATIONS",
+		"/RESTARTAPPLICATIONS",
+		"/o:PathOption=Cmd",
+	)
+
+	if out, err := installCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git 安装失败: %v, Output: %s", err, string(out))
+	}
+
+	ResetPathCache()
+	SetupGitEnv()
+	return nil
+}
+
+// InstallOpenclawNpm 安装包
+func InstallOpenclawNpm() error {
+	SetupNodeEnv()
+
+	pkgName := "openclaw"
+	tag := "latest"
+
+	npmPath, err := getNpmPath()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(npmPath, "install", "-g",
+		fmt.Sprintf("%s@%s", pkgName, tag),
+		"--loglevel=error",
+		"--no-update-notifier",
+		"--no-fund",
+		"--no-audit",
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("安装失败: %v\n输出: %s", err, string(output))
+	}
+
+	return nil
+}
+
+// EnsureOnPath 检查并配置 PATH
+func EnsureOnPath() (bool, error) {
+	if _, err := exec.LookPath("openclaw"); err == nil {
+		return false, nil
+	}
+
+	npmPrefix, err := getNpmPrefix()
+	if err != nil {
+		return false, err
+	}
+
+	possiblePath := npmPrefix
+	if _, err := os.Stat(filepath.Join(npmPrefix, "openclaw.cmd")); os.IsNotExist(err) {
+		possiblePath = filepath.Join(npmPrefix, "bin")
+	}
+
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return false, err
+	}
+	defer k.Close()
+
+	oldPath, _, err := k.GetStringValue("Path")
+	if err != nil {
+		return false, err
+	}
+
+	paths := strings.Split(oldPath, ";")
+	possiblePathLower := strings.ToLower(filepath.Clean(possiblePath))
+	for _, p := range paths {
+		if strings.ToLower(filepath.Clean(p)) == possiblePathLower {
+			return false, nil
+		}
+	}
+
+	newPath := oldPath + ";" + possiblePath
+	if err := k.SetStringValue("Path", newPath); err != nil {
+		return false, err
+	}
+
+	broadcastEnvironmentChange()
+	return true, nil
+}
+
+// broadcastEnvironmentChange 广播环境变量变更
+func broadcastEnvironmentChange() {
+	user32 := syscall.NewLazyDLL("user32.dll")
+	sendMessageTimeout := user32.NewProc("SendMessageTimeoutW")
+	envPtr, _ := syscall.UTF16PtrFromString("Environment")
+	sendMessageTimeout.Call(
+		0xFFFF, // HWND_BROADCAST
+		0x001A, // WM_SETTINGCHANGE
+		0,
+		uintptr(unsafe.Pointer(envPtr)),
+		0x0002, // SMTO_ABORTIFHUNG
+		5000,
+		0,
+	)
+}
+
+// removePathFromEnv 从用户 PATH 环境变量中移除指定路径
+func removePathFromEnv(pathToRemove string) error {
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Environment`, registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer k.Close()
+
+	oldPath, _, err := k.GetStringValue("Path")
+	if err != nil {
+		return err
+	}
+
+	paths := strings.Split(oldPath, ";")
+	var newPaths []string
+	pathToRemove = strings.ToLower(filepath.Clean(pathToRemove))
+
+	for _, p := range paths {
+		if strings.ToLower(filepath.Clean(p)) != pathToRemove {
+			newPaths = append(newPaths, p)
+		}
+	}
+
+	newPath := strings.Join(newPaths, ";")
+	if newPath != oldPath {
+		if err := k.SetStringValue("Path", newPath); err != nil {
+			return err
+		}
+		broadcastEnvironmentChange()
+	}
+	return nil
+}
+
+// RunSetup 初始化配置
+func RunSetup() error {
+	cmdName, err := GetOpenclawPath()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("cmd", "/c", cmdName, "setup")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// ConfigOptions 配置选项
+type ConfigOptions struct {
+	ApiType       string
+	BotToken      string
+	AdminID       string
+	AnthropicKey  string
+	OpenAIBaseURL string
+	OpenAIKey     string
+	OpenAIModel   string
+}
+
+// GenerateAndWriteConfig 生成配置
+func GenerateAndWriteConfig(opts ConfigOptions) error {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("无法获取用户目录: %v", err)
+	}
+	configDir := filepath.Join(userHome, ".openclaw")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return fmt.Errorf("创建配置目录失败: %v", err)
+	}
+	configFile := filepath.Join(configDir, "openclaw.json")
+
+	// 生成随机 Token
+	tokenBytes := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, tokenBytes); err != nil {
+		// 降级方案
+		copy(tokenBytes, []byte(fmt.Sprintf("%d", time.Now().UnixNano())))
+	}
+	token := hex.EncodeToString(tokenBytes)
+
+	config := OpenclawConfig{
+		Gateway: GatewayConfig{
+			Mode: "local",
+			Bind: "loopback",
+			Port: DefaultGatewayPort,
+			Auth: &AuthConfig{
+				Mode:  "token",
+				Token: token,
+			},
+		},
+		Tools: ToolsConfig{
+			Elevated: ElevatedConfig{
+				Enabled:   true,
+				AllowFrom: map[string][]string{},
+			},
+			Allow: []string{"exec", "process", "read", "write", "edit", "web_search", "web_fetch", "cron"},
+		},
+		Channels: ChannelsConfig{
+			Telegram: TelegramConfig{
+				Enabled:   false,
+				DMPolicy:  "pairing",
+				AllowFrom: []string{},
+			},
+		},
+	}
+
+	if opts.BotToken != "" {
+		config.Channels.Telegram.Enabled = true
+		config.Channels.Telegram.BotToken = opts.BotToken
+		if opts.AdminID != "" {
+			config.Channels.Telegram.AllowFrom = []string{opts.AdminID}
+			config.Tools.Elevated.AllowFrom["telegram"] = []string{opts.AdminID}
+		}
+	}
+
+	if opts.ApiType == "anthropic" {
+		config.Env = map[string]string{
+			"ANTHROPIC_API_KEY": opts.AnthropicKey,
+		}
+		config.Agents = AgentsConfig{
+			Defaults: AgentDefaults{
+				Model: ModelRef{
+					Primary: "anthropic/claude-opus-4-5",
+				},
+			},
+		}
+	} else if opts.ApiType == "skip" {
+		config.Channels.Telegram.Enabled = false
+		config.Agents = AgentsConfig{
+			Defaults: AgentDefaults{
+				Model: ModelRef{
+					Primary: "anthropic/claude-opus-4-5",
+				},
+			},
+		}
+	} else {
+		config.Agents = AgentsConfig{
+			Defaults: AgentDefaults{
+				Model: ModelRef{
+					Primary: fmt.Sprintf("openai-compat/%s", opts.OpenAIModel),
+				},
+				ElevatedDefault: "full",
+				Compaction: &CompactionConfig{
+					Mode: "safeguard",
+				},
+				MaxConcurrent: 4,
+			},
+		}
+		config.Models = &ModelsConfig{
+			Mode: "merge",
+			Providers: map[string]ProviderConfig{
+				"openai-compat": {
+					BaseURL: opts.OpenAIBaseURL,
+					APIKey:  opts.OpenAIKey,
+					API:     "openai-completions",
+					Models: []ModelEntry{
+						{ID: opts.OpenAIModel, Name: opts.OpenAIModel},
+					},
+				},
+			},
+		}
+		config.Tools.Exec = &ExecConfig{
+			BackgroundMs: 10000,
+			TimeoutSec:   1800,
+			CleanupMs:    1800000,
+			NotifyOnExit: true,
+		}
+	}
+
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("序列化配置失败: %v", err)
+	}
+
+	if err := os.WriteFile(configFile, data, 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetConfigPath 获取配置文件路径
+func GetConfigPath() (string, error) {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(userHome, ".openclaw", "openclaw.json"), nil
+}
+
+func loadConfig() (*OpenclawConfig, error) {
+	configPath, err := GetConfigPath()
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	var config OpenclawConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+// GetGatewayPort 获取网关端口
+func GetGatewayPort() int {
+	config, err := loadConfig()
+	if err != nil {
+		return DefaultGatewayPort
+	}
+	if config.Gateway.Port > 0 {
+		return config.Gateway.Port
+	}
+	return DefaultGatewayPort
+}
+
+// GetGatewayToken 获取 Gateway Token
+func GetGatewayToken() (string, error) {
+	configPath, err := GetConfigPath()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", err
+	}
+	var config OpenclawConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return "", err
+	}
+	if config.Gateway.Auth != nil {
+		return config.Gateway.Auth.Token, nil
+	}
+	return "", nil
+}
+
+// StartGateway 启动网关
+func StartGateway() error {
+	cmdName, err := GetOpenclawPath()
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command(cmdName, "gateway", "run", "--force")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000,
+	}
+
+	return cmd.Start()
+}
+
+// IsGatewayRunning 检查端口
+func IsGatewayRunning() bool {
+	port := GetGatewayPort()
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 500*time.Millisecond)
+	if err == nil {
+		conn.Close()
+		return true
+	}
+	return false
+}
+
+// KillGateway 停止网关
+func KillGateway() error {
+	port := GetGatewayPort()
+
+	pid, err := findPidByPort(port)
+	if err != nil {
+		return err
+	}
+	if pid == 0 {
+		return nil
+	}
+
+	return killProcess(pid)
+}
+
+const (
+	AF_INET                 = 2
+	TCP_TABLE_OWNER_PID_ALL = 5
+)
+
+// MIB_TCPROW_OWNER_PID structure
+type mibTcpRowOwnerPid struct {
+	dwState      uint32
+	dwLocalAddr  uint32
+	dwLocalPort  uint32
+	dwRemoteAddr uint32
+	dwRemotePort uint32
+	dwOwningPid  uint32
+}
+
+func findPidByPort(port int) (uint32, error) {
+	var (
+		iphlpapi            = syscall.NewLazyDLL("iphlpapi.dll")
+		getExtendedTcpTable = iphlpapi.NewProc("GetExtendedTcpTable")
+	)
+
+	var size uint32 = 0
+	getExtendedTcpTable.Call(
+		0,
+		uintptr(unsafe.Pointer(&size)),
+		0,
+		uintptr(AF_INET),
+		uintptr(TCP_TABLE_OWNER_PID_ALL),
+		0,
+	)
+
+	if size == 0 {
+		return 0, fmt.Errorf("GetExtendedTcpTable failed to get size")
+	}
+
+	buffer := make([]byte, size)
+	ret, _, _ := getExtendedTcpTable.Call(
+		uintptr(unsafe.Pointer(&buffer[0])),
+		uintptr(unsafe.Pointer(&size)),
+		0,
+		uintptr(AF_INET),
+		uintptr(TCP_TABLE_OWNER_PID_ALL),
+		0,
+	)
+
+	if ret != 0 {
+		return 0, fmt.Errorf("GetExtendedTcpTable failed: %d", ret)
+	}
+
+	numEntries := *(*uint32)(unsafe.Pointer(&buffer[0]))
+
+	rowSize := uint32(unsafe.Sizeof(mibTcpRowOwnerPid{}))
+
+	for i := uint32(0); i < numEntries; i++ {
+		offset := 4 + i*rowSize
+		if uint32(len(buffer)) < offset+rowSize {
+			break
+		}
+
+		row := (*mibTcpRowOwnerPid)(unsafe.Pointer(&buffer[offset]))
+
+		localPort := (uint16(row.dwLocalPort) >> 8) | (uint16(row.dwLocalPort) << 8)
+
+		if int(localPort) == port {
+			if row.dwState == 2 {
+				return row.dwOwningPid, nil
+			}
+		}
+	}
+
+	return 0, nil
+}
+
+func killProcess(pid uint32) error {
+	var (
+		kernel32         = syscall.NewLazyDLL("kernel32.dll")
+		openProcess      = kernel32.NewProc("OpenProcess")
+		terminateProcess = kernel32.NewProc("TerminateProcess")
+		closeHandle      = kernel32.NewProc("CloseHandle")
+	)
+
+	const PROCESS_TERMINATE = 0x0001
+
+	hProcess, _, _ := openProcess.Call(
+		uintptr(PROCESS_TERMINATE),
+		0,
+		uintptr(pid),
+	)
+
+	if hProcess == 0 {
+		return fmt.Errorf("OpenProcess failed")
+	}
+	defer closeHandle.Call(hProcess)
+
+	ret, _, _ := terminateProcess.Call(hProcess, 1)
+	if ret == 0 {
+		return fmt.Errorf("TerminateProcess failed")
+	}
+
+	return nil
+}
+
+// UninstallOpenclaw 卸载清理
+func UninstallOpenclaw() error {
+	npmPath, err := getNpmPath()
+	if err != nil {
+		return err
+	}
+
+	// 先用内置命令卸载
+	builtinCmd := exec.Command("openclaw", "uninstall", "--all", "--yes", "--non-interactive")
+	builtinCmd.Stdout = nil
+	builtinCmd.Stderr = nil
+	builtinCmd.Run()
+
+	packages := []string{"openclaw"}
+	for _, pkg := range packages {
+		cmd := exec.Command(npmPath, "uninstall", "-g", pkg)
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		cmd.Run()
+	}
+	RemoveGitProxy()
+	// 清理环境变量
+	if npmPrefix, err := getNpmPrefix(); err == nil {
+		npmBin := filepath.Join(npmPrefix, "bin")
+		// 尝试移除两种可能的路径
+		removePathFromEnv(npmPrefix)
+		removePathFromEnv(npmBin)
+	}
+	userHome, err := os.UserHomeDir()
+	if err == nil {
+		configDir := filepath.Join(userHome, ".openclaw")
+		os.RemoveAll(configDir)
+	}
+	return nil
+}
+
+// SetPowerShellExecutionPolicy 设置执行策略为 RemoteSigned
+func SetPowerShellExecutionPolicy() error {
+	const regPath = `SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell`
+
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, regPath, registry.SET_VALUE)
+	if err != nil {
+		k, _, err = registry.CreateKey(registry.LOCAL_MACHINE, regPath, registry.SET_VALUE)
+		if err != nil {
+			return fmt.Errorf("无法创建注册表键: %v", err)
+		}
+	}
+	defer k.Close()
+
+	if err := k.SetStringValue("ExecutionPolicy", "RemoteSigned"); err != nil {
+		return fmt.Errorf("设置执行策略失败: %v", err)
+	}
+
+	return nil
+}
