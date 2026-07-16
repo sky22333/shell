@@ -36,8 +36,107 @@ ps aux | egrep 'xl2tpd|strongswan|pptpd' | grep -v grep
 
 ### L2TP多用户分流
 
-使用s-ui的`TProxy`入站 透明代理来自L2TP的流量，入站选择`TProxy`，端口`12345`为例，路由规则选择`源IP`，`source_ip_cidr`的IP配置为L2TP的内网来源IP，例如`10.10.10.11`，然后选择对应的出站。
+路由规则选择`源IP`，`source_ip_cidr`的IP配置为L2TP的内网来源IP，例如`10.10.10.11`，然后选择对应的出站。
 
-3x-ui则使用`tunnel`入站，打开`Follow Redirect`，打开`Sockopt`中的`TProxy`，然后同样的使用源IP路由到指定出站。
-
-然后使用`iptables`在系统层面拦截`10.10.10.0/24`网段访问公网的流量，交给 Sing-box 处理。
+### singbox 1.40+
+```
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "udp",
+        "tag": "dns-direct",
+        "server": "223.5.5.5"
+      },
+      {
+        "type": "https",
+        "tag": "dns-remote",
+        "server": "1.1.1.1",
+        "server_port": 443,
+        "path": "/dns-query",
+        "detour": "proxy",
+        "domain_resolver": "dns-direct"
+      }
+    ],
+    "rules": [
+      {
+        "source_ip_cidr": ["10.10.10.0/24"],
+        "action": "route",
+        "server": "dns-remote"
+      }
+    ],
+    "final": "dns-direct",
+    "strategy": "ipv4_only"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "tun0",
+      "address": ["172.19.0.1/30"],
+      "mtu": 1500,
+      "stack": "mixed",
+      "dns_mode": "hijack",
+      "dns_address": ["172.19.0.2"],
+      "auto_route": true,
+      "auto_redirect": true,
+      "strict_route": true,
+      "route_exclude_address": ["10.10.10.0/24"]
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "anytls",
+      "tag": "proxy",
+      "server": "8.8.8.8",
+      "server_port": 8443,
+      "password": "iAq43123123",
+      "idle_session_check_interval": "30s",
+      "idle_session_timeout": "30s",
+      "min_idle_session": 5,
+      "tls": {
+        "enabled": true,
+        "server_name": "bing.com",
+        "insecure": true
+      },
+      "domain_resolver": "dns-direct"
+    }
+  ],
+  "route": {
+    "rules": [
+      {
+        "port": [53],
+        "action": "hijack-dns"
+      },
+      {
+        "source_ip_cidr": ["10.10.10.0/24"],
+        "invert": true,
+        "action": "bypass"
+      },
+      {
+        "ip_is_private": true,
+        "action": "route",
+        "outbound": "direct"
+      },
+      {
+        "source_ip_cidr": ["10.10.10.0/24"],
+        "action": "route",
+        "outbound": "proxy"
+      }
+    ],
+    "final": "direct",
+    "auto_detect_interface": true,
+    "default_domain_resolver": {
+      "server": "dns-direct"
+    }
+  }
+}
+```
