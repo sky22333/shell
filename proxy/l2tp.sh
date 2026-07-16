@@ -155,8 +155,8 @@ config setup
 conn %default
     keyexchange=ikev1
     authby=secret
-    ike=aes256-sha1-modp1024,aes128-sha1-modp1024,3des-sha1-modp1024!
-    esp=aes256-sha1,aes128-sha1,3des-sha1!
+    ike=aes128-sha1-modp2048,aes256-sha1-modp2048,aes256-sha1-modp1024,aes128-sha1-modp1024,3des-sha1-modp1024!
+    esp=aes128-sha1,aes256-sha1,3des-sha1!
     keyingtries=3
     ikelifetime=8h
     lifetime=1h
