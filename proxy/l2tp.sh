@@ -155,8 +155,8 @@ config setup
 conn %default
     keyexchange=ikev1
     authby=secret
-    ike=aes128-sha1-modp2048,aes256-sha1-modp2048,aes256-sha1-modp1024,aes128-sha1-modp1024,3des-sha1-modp1024!
-    esp=aes128-sha1,aes256-sha1,3des-sha1!
+    ike=aes256-sha256-modp2048,aes128-sha256-modp2048,aes256-sha1-modp2048,aes128-sha1-modp2048,aes256-sha1-modp1024,aes128-sha1-modp1024,3des-sha1-modp1024!
+    esp=aes256-sha256,aes128-sha256,aes256-sha1,aes128-sha1,3des-sha1!
     keyingtries=3
     ikelifetime=8h
     lifetime=1h
@@ -281,13 +281,22 @@ set_icmp(){
 }
 
 set_nftables(){
-    [ -f /etc/nftables.conf ] && cp -pf /etc/nftables.conf /etc/nftables.conf.old.`date +%Y%m%d`
-    cat > /etc/nftables.conf <<EOF
+    local nft_bin rules_tmp
+    nft_bin=$(command -v nft) || {
+        echo -e "${Error} 未找到 nft，无法配置防火墙。"
+        return 1
+    }
+    rules_tmp=$(mktemp) || return 1
+    if ! cat > "$rules_tmp" <<EOF
 #!/usr/sbin/nft -f
 
-flush ruleset
+# 只替换本脚本的表，整批提交；重复执行不会追加重复规则。
+add table inet l2tp_direct
+flush table inet l2tp_direct
+add table ip l2tp_direct
+flush table ip l2tp_direct
 
-table inet filter {
+table inet l2tp_direct {
     chain input {
         type filter hook input priority 0;
         ct state established,related accept
@@ -309,7 +318,7 @@ table inet filter {
     }
 }
 
-table ip nat {
+table ip l2tp_direct {
     chain prerouting {
         type nat hook prerouting priority 0;
         accept
@@ -324,11 +333,51 @@ table ip nat {
     }
 }
 EOF
-    systemctl daemon-reload
-    systemctl enable nftables
-    systemctl restart nftables
-}
+    then
+        rm -f -- "$rules_tmp"
+        return 1
+    fi
 
+    # 不覆盖 /etc/nftables.conf，也不重启全局 nftables 服务。
+    if ! "$nft_bin" -c -f "$rules_tmp"; then
+        echo -e "${Error} VPN 防火墙规则检查失败，现有规则未修改。"
+        rm -f -- "$rules_tmp"
+        return 1
+    fi
+    if ! install -d -m 0755 /etc/l2tp-direct ||
+       ! install -m 0600 "$rules_tmp" /etc/l2tp-direct/firewall.nft; then
+        rm -f -- "$rules_tmp"
+        return 1
+    fi
+    rm -f -- "$rules_tmp"
+
+    # 独立恢复本脚本的规则；全局 nftables 重启时随后重新加载。
+    if ! cat > /etc/systemd/system/l2tp-direct-firewall.service <<EOF
+[Unit]
+Description=L2TP direct VPN firewall
+After=nftables.service
+PartOf=nftables.service
+Before=ipsec.service strongswan-starter.service xl2tpd.service pptpd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=${nft_bin} -f /etc/l2tp-direct/firewall.nft
+ExecReload=${nft_bin} -f /etc/l2tp-direct/firewall.nft
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    then
+        return 1
+    fi
+    if ! systemctl daemon-reload ||
+       ! systemctl enable l2tp-direct-firewall.service ||
+       ! systemctl restart l2tp-direct-firewall.service; then
+        echo -e "${Error} VPN 防火墙加载失败，请检查服务日志。"
+        return 1
+    fi
+}
 vpn_start(){
     systemctl daemon-reload 
     systemctl enable ipsec
@@ -452,7 +501,7 @@ vpn(){
     echo
     check_root
     install_base
-    install_vpn
+    install_vpn || return 1
     finally
 }
 
