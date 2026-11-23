@@ -1,0 +1,17 @@
+---
+# 定义要执行任务的主机组
+- hosts: myservers
+  become: yes
+  gather_facts: no  # 禁用事实收集以避免依赖 Python
+  tasks:
+    - name: 将脚本复制到远程主机
+      copy:
+        # 本地脚本路径
+        src: ./shell.sh
+        # 远程主机上的目标路径
+        dest: /tmp/shell.sh
+        # 设置脚本权限为可执行
+        mode: '0755'
+
+    - name: 在远程主机上执行脚本
+      raw: /tmp/shell.sh  # 在远程主机上执行脚本
