@@ -1,25 +1,42 @@
 #!/bin/bash
-# https://github.com/sky22333/shell
 set -e
-# === 颜色定义 ===
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;34m'
-NC='\033[0m' # 清除颜色
+NC='\033[0m'
 
 LOC=$(curl -s https://www.cloudflare.com/cdn-cgi/trace | grep 'loc=' | cut -d= -f2)
 
+pick_asset() {
+    case "$1" in
+    x86_64 | amd64) echo "amd64" ;;
+    aarch64 | arm64) echo "arm64" ;;
+    armv7l | armv7) echo "armhf" ;;
+    armv6l | armv6) echo "arm" ;;
+    i386 | i686) echo "386" ;;
+    *) return 1 ;;
+    esac
+}
+
+MACH=$(uname -m)
+if ! ARCH=$(pick_asset "$MACH"); then
+    echo -e "${RED}不支持的架构：$MACH${NC}"
+    exit 1
+fi
+echo -e "${BLUE}检测到架构：$MACH -> cloudflared-linux-$ARCH${NC}"
+
+CLOUDFLARED_ASSET="cloudflared-linux-$ARCH"
+
 if [[ "$LOC" == "CN" ]]; then
-    CLOUDFLARED_URL="https://gh-proxy.com/https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-linux-amd64"
+    CLOUDFLARED_URL="https://gh-proxy.com/https://github.com/cloudflare/cloudflared/releases/latest/download/$CLOUDFLARED_ASSET"
 else
-    CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/download/2025.11.1/cloudflared-linux-amd64"
+    CLOUDFLARED_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/$CLOUDFLARED_ASSET"
 fi
 
 CLOUDFLARED_BIN="/usr/local/bin/cloudflared"
 SERVICE_PATH="/etc/systemd/system/cloudflared-tunnel.service"
 LOG_PATH="/var/log/cloudflared.log"
-# 检查 cloudflared 是否已存在
 if [[ -f "$CLOUDFLARED_BIN" ]]; then
     echo -e "${GREEN}已存在文件，跳过下载。${NC}"
 else
@@ -30,7 +47,6 @@ else
     fi
     chmod +x "$CLOUDFLARED_BIN"
 fi
-# 检查服务是否存在
 SERVICE_EXISTS=false
 if sudo systemctl list-units --full --all | grep -q 'cloudflared-tunnel.service'; then
     SERVICE_EXISTS=true
@@ -49,13 +65,11 @@ if sudo systemctl list-units --full --all | grep -q 'cloudflared-tunnel.service'
         echo -e "${YELLOW}将保留旧服务配置，仅修改穿透地址${NC}"
     fi
 fi
-# 用户选择运行模式
 echo ""
 echo -e "${YELLOW}请选择运行模式：${NC}"
 echo "1) 临时运行（前台运行并显示临时访问域名）"
-echo "2) 后台运行（自动配置后台服务并显示访问域名）"
+echo "2) 后台运行（后台服务运行并显示访问域名）"
 read -p "请输入 1 或 2: " MODE
-# 输入内网地址
 read -p "请输入要穿透的本地地址（例如 127.0.0.1:8080）: " LOCAL_ADDR
 if [[ "$MODE" == "1" ]]; then
     echo -e "${BLUE}正在前台运行 cloudflared...${NC}"
