@@ -24,7 +24,7 @@ bash <(curl -sSL https://cdn.jsdelivr.net/gh/sky22333/shell@main/dev/mirrors.sh)
 ```
 
 
-#### 一键安装Docker和配置镜像地址
+#### 一键安装Docker
 ```
 bash <(curl -sSL https://github.com/sky22333/shell/raw/main/dev/docker.sh)
 ```
