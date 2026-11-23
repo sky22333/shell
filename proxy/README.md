@@ -1,7 +1,3 @@
-#### 卸载xray
-```
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ remove --purge
-```
 
 - 一键安装L2TP
 国外安装
